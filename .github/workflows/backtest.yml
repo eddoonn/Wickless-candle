@@ -1,0 +1,57 @@
+name: Trailing 30-day Wickless backtest
+
+on:
+  schedule:
+    - cron: "17 7 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci --ignore-scripts
+
+      - name: Download and backtest every configured market
+        shell: bash
+        run: |
+          start="$(date -u -d '30 days ago 00:00' +%FT%TZ)"
+          end="$(date -u -d 'today 00:00' +%FT%TZ)"
+          from_date="$(date -u -d '31 days ago' +%F)"
+          to_date="$(date -u +%F)"
+          mkdir -p .runtime-data reports/latest
+          instruments=(xauusd eurusd gbpusd usdjpy usdchf usdcad audusd nzdusd)
+          for instrument in "${instruments[@]}"; do
+            ./node_modules/.bin/dukascopy-node \
+              -i "$instrument" -from "$from_date" -to "$to_date" \
+              -t m5 -f csv -dir .runtime-data
+            csv_file="$(
+              find .runtime-data -maxdepth 1 -type f -size +0c \
+                -name "${instrument}-m5-bid-*.csv" -print -quit
+            )"
+            test -n "$csv_file"
+            python wickless_bot.py backtest \
+              --instrument "$instrument" \
+              --csv "$csv_file" \
+              --start "$start" \
+              --end "$end" \
+              --output "reports/latest/$instrument"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wickless-30-day-backtest
+          path: reports/latest
+          if-no-files-found: error
+          retention-days: 30

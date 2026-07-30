@@ -1,0 +1,51 @@
+name: Live Wickless 5m Discord signals
+
+on:
+  schedule:
+    # GitHub cron is UTC. The scanner itself accepts only finalized 5m candles.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wickless-live-signals
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore cross-run signal state
+        uses: actions/cache/restore@v4
+        with:
+          path: .signal-state
+          key: wickless-signal-state-${{ github.run_id }}
+          restore-keys: |
+            wickless-signal-state-
+
+      - name: Download and aggregate current 5m candles
+        run: python live_data.py --data-dir .runtime-data
+
+      - name: Post every unseen fresh signal
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: >-
+          python wickless_bot.py scan
+          --data-dir .runtime-data
+          --state .signal-state/seen.json
+          --max-signal-age-minutes 20
+
+      - name: Save cross-run signal state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .signal-state
+          key: wickless-signal-state-${{ github.run_id }}

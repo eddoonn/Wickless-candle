@@ -1,0 +1,10 @@
+{
+  "name": "wickless-candle",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pinned Dukascopy downloader used by the reproducible 30-day backtest workflow.",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "dukascopy-node": "1.50.0"
+  }
+}

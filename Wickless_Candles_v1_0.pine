@@ -1,0 +1,137 @@
+//@version=6
+indicator(
+     title = "Wickless Candles 5m — Independent Replica",
+     shorttitle = "Wickless 5m",
+     overlay = true
+)
+
+// Independent behavior-equivalent implementation from the publisher's public
+// description. The protected xGhozt source was not accessed or copied.
+
+groupDetection = "Detection"
+enforceFiveMinutes = input.bool(true, "Require 5-minute chart", group = groupDetection)
+toleranceTicks = input.float(
+     0.5,
+     "Opening-wick tolerance (ticks)",
+     minval = 0.0,
+     maxval = 2.0,
+     step = 0.1,
+     tooltip = "Half a minimum tick avoids floating-point misses without accepting a full visible wick.",
+     group = groupDetection
+)
+confirmedOnly = input.bool(
+     true,
+     "Confirmed candles only",
+     tooltip = "Recommended. Prevents a live candle from disappearing as wickless before it closes.",
+     group = groupDetection
+)
+
+groupDisplay = "Display"
+showMarkers = input.bool(true, "Show markers", group = groupDisplay)
+colorWicklessBars = input.bool(true, "Color wickless bars", group = groupDisplay)
+showStatistics = input.bool(true, "Show statistics table", group = groupDisplay)
+bullColor = input.color(color.rgb(0, 200, 160), "Bullish wickless", group = groupDisplay)
+bearColor = input.color(color.rgb(255, 122, 69), "Bearish wickless", group = groupDisplay)
+
+isFiveMinute = timeframe.isminutes and timeframe.multiplier == 5
+if barstate.isfirst and enforceFiveMinutes and not isFiveMinute
+    runtime.error("Wickless Candles is configured for a 5-minute chart.")
+
+tolerance = syminfo.mintick * toleranceTicks
+confirmedGate = not confirmedOnly or barstate.isconfirmed
+
+// Since the July 2022 public update, the original shows only wickless candles
+// from the OPEN: bullish open≈low and bearish open≈high.
+bullishCandle = close > open
+bearishCandle = close < open
+bullishWickless = confirmedGate and bullishCandle and open - low <= tolerance
+bearishWickless = confirmedGate and bearishCandle and high - open <= tolerance
+
+barcolor(
+     colorWicklessBars
+         ? bullishWickless
+             ? bullColor
+             : bearishWickless
+                 ? bearColor
+                 : na
+         : na
+)
+
+plotshape(
+     showMarkers and bullishWickless,
+     title = "Bullish candle missing lower wick",
+     style = shape.triangleup,
+     location = location.belowbar,
+     color = bullColor,
+     size = size.tiny,
+     text = "LW"
+)
+plotshape(
+     showMarkers and bearishWickless,
+     title = "Bearish candle missing upper wick",
+     style = shape.triangledown,
+     location = location.abovebar,
+     color = bearColor,
+     size = size.tiny,
+     text = "UW"
+)
+
+var int bullishCount = 0
+var int bearishCount = 0
+var int bullishWicklessCount = 0
+var int bearishWicklessCount = 0
+
+if barstate.isconfirmed
+    bullishCount += bullishCandle ? 1 : 0
+    bearishCount += bearishCandle ? 1 : 0
+    bullishWicklessCount += bullishWickless ? 1 : 0
+    bearishWicklessCount += bearishWickless ? 1 : 0
+
+bullishPercent = bullishCount > 0 ? 100.0 * bullishWicklessCount / bullishCount : na
+bearishPercent = bearishCount > 0 ? 100.0 * bearishWicklessCount / bearishCount : na
+
+var table stats = table.new(
+     position.top_right,
+     3,
+     4,
+     frame_color = color.new(color.white, 70),
+     border_color = color.new(color.white, 85),
+     border_width = 1
+)
+
+if barstate.islast and showStatistics
+    table.cell(stats, 0, 0, "Wickless 5m", text_color = color.white, bgcolor = color.rgb(25, 28, 38))
+    table.cell(stats, 1, 0, "Bullish", text_color = bullColor, bgcolor = color.rgb(25, 28, 38))
+    table.cell(stats, 2, 0, "Bearish", text_color = bearColor, bgcolor = color.rgb(25, 28, 38))
+    table.cell(stats, 0, 1, "Directional candles", text_color = color.white)
+    table.cell(stats, 1, 1, str.tostring(bullishCount), text_color = color.white)
+    table.cell(stats, 2, 1, str.tostring(bearishCount), text_color = color.white)
+    table.cell(stats, 0, 2, "Wickless candles", text_color = color.white)
+    table.cell(stats, 1, 2, str.tostring(bullishWicklessCount), text_color = bullColor)
+    table.cell(stats, 2, 2, str.tostring(bearishWicklessCount), text_color = bearColor)
+    table.cell(stats, 0, 3, "Wickless %", text_color = color.white)
+    table.cell(
+         stats,
+         1,
+         3,
+         na(bullishPercent) ? "n/a" : str.tostring(bullishPercent, "#.##") + "%",
+         text_color = bullColor
+    )
+    table.cell(
+         stats,
+         2,
+         3,
+         na(bearishPercent) ? "n/a" : str.tostring(bearishPercent, "#.##") + "%",
+         text_color = bearColor
+    )
+
+alertcondition(
+     bullishWickless,
+     title = "Bullish wickless candle (missing lower wick)",
+     message = "Bullish wickless candle on {{ticker}} {{interval}}: open equals low."
+)
+alertcondition(
+     bearishWickless,
+     title = "Bearish wickless candle (missing upper wick)",
+     message = "Bearish wickless candle on {{ticker}} {{interval}}: open equals high."
+)

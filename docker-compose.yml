@@ -1,0 +1,17 @@
+services:
+  wickless-signals:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - wickless-data:/app/.runtime-data
+      - wickless-state:/app/.signal-state
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  wickless-data:
+  wickless-state:
