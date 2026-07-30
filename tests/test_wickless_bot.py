@@ -185,21 +185,40 @@ class SignalTests(unittest.TestCase):
         self.assertEqual(first.stop, 150.02)
         self.assertEqual(first.target, 149.51)
 
-    def test_half_percent_margin_is_relative_to_the_wickless_open(self) -> None:
+    def test_retrace_margin_versions_the_signal_id(self) -> None:
+        candle = bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008)
+        retrace = bar("2026-07-30T08:15:00", 1.1008, 1.101, 1.1, 1.1004)
+        half_percent = build_signal(
+            candle,
+            StrategyConfig(instrument="eurusd", retrace_margin_percent=0.5),
+            retrace_bar=retrace,
+            retrace_bar_number=1,
+        )
+        quarter_percent = build_signal(
+            candle,
+            StrategyConfig(instrument="eurusd", retrace_margin_percent=0.25),
+            retrace_bar=retrace,
+            retrace_bar_number=1,
+        )
+        assert half_percent is not None
+        assert quarter_percent is not None
+        self.assertNotEqual(half_percent.key, quarter_percent.key)
+
+    def test_quarter_percent_margin_is_relative_to_the_wickless_open(self) -> None:
         wickless = bar("2026-07-30T08:00:00", 100, 102, 100, 101)
-        within = bar("2026-07-30T08:15:00", 102, 102, 100.49, 101.5)
-        outside = bar("2026-07-30T08:15:00", 102, 103, 100.51, 102)
+        within = bar("2026-07-30T08:15:00", 102, 102, 100.24, 101.5)
+        outside = bar("2026-07-30T08:15:00", 102, 103, 100.26, 102)
         self.assertTrue(
-            retrace_touches_origin(wickless, within, margin_percent=0.5)
+            retrace_touches_origin(wickless, within, margin_percent=0.25)
         )
         self.assertFalse(
-            retrace_touches_origin(wickless, outside, margin_percent=0.5)
+            retrace_touches_origin(wickless, outside, margin_percent=0.25)
         )
 
-    def test_default_retrace_margin_is_half_percent(self) -> None:
+    def test_default_retrace_margin_is_quarter_percent(self) -> None:
         self.assertEqual(
             StrategyConfig(instrument="eurusd").retrace_margin_percent,
-            0.5,
+            0.25,
         )
 
     def test_retrace_must_occur_on_one_of_the_next_three_contiguous_bars(self) -> None:

@@ -18,8 +18,8 @@ candles with no wick **from the opening price**, which makes the core rule:
 `≈` defaults to half of one minimum tick. A doji is not classified. Signals use
 only finalized fifteen-minute candles, so the live detector does not repaint.
 The pattern is now a pending setup, not an immediate trade signal: one of the
-next three contiguous 15m candles must trade within ±0.5% of the no-wick candle's
-opening price before Discord receives a signal.
+next three contiguous 15m candles must trade within ±0.25% of the no-wick
+candle's opening price before Discord receives a signal.
 
 ## What is included
 
@@ -55,7 +55,7 @@ or a post-close fill model. Those are deliberately explicit here:
 2. Store the no-wick candle's open as its origin price.
 3. Inspect only the next three contiguous finalized 15m bars.
 4. Confirm the setup when a bar's high/low range intersects the origin-price
-   band, which defaults to `origin ± 0.5%`. The earliest qualifying bar wins.
+   band, which defaults to `origin ± 0.25%`. The earliest qualifying bar wins.
 5. Enter at the confirming bar's close in the candle's direction:
    bullish open-low candle → `BUY`; bearish open-high candle → `SELL`.
 6. If none of bars 1–3 qualifies, expire the setup without an alert. A missing
@@ -178,7 +178,7 @@ python wickless_bot.py backtest \
   --start 2026-06-30T00:00:00Z \
   --end 2026-07-30T00:00:00Z \
   --retrace-bars 3 \
-  --retrace-margin-percent 0.5 \
+  --retrace-margin-percent 0.25 \
   --output reports/latest/eurusd
 ```
 
@@ -225,7 +225,7 @@ to replace the live strategy.
   touches are treated conservatively as stops.
 - A pattern match is not evidence of an edge. Backtest multiple regimes,
   account for costs, and validate out of sample.
-- A 0.5% price band is still wide for major FX pairs (roughly 50–75 pips
+- A 0.25% price band is still wide for major FX pairs (roughly 20–40 pips
   around typical prices). Treat it as a configurable condition, not as proof
   of a meaningful pullback filter.
 - The half-tick tolerance handles representation noise. Raising it toward two
