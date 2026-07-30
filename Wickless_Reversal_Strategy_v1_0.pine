@@ -1,7 +1,7 @@
 //@version=6
 strategy(
-     title = "Wickless Reversal Strategy 5m",
-     shorttitle = "Wickless Reversal 5m",
+     title = "Wickless Directional Strategy 5m",
+     shorttitle = "Wickless Directional 5m",
      overlay = true,
      initial_capital = 50000,
      default_qty_type = strategy.percent_of_equity,
@@ -16,8 +16,8 @@ strategy(
 )
 
 // Execution layer for the public wickless-candle premise:
-// - bullish open≈low candle -> missing lower wick -> SELL retracement;
-// - bearish open≈high candle -> missing upper wick -> BUY retracement.
+// - bullish open≈low candle -> BUY;
+// - bearish open≈high candle -> SELL.
 // The source indicator publishes no bracket rules. This strategy uses a
 // transparent candle-extreme stop and configurable R-multiple target.
 
@@ -54,8 +54,8 @@ var float activeStop = na
 var float activeTarget = na
 
 flat = strategy.position_size == 0
-sellSignal = flat and enableShorts and bullishWickless
-buySignal = flat and enableLongs and bearishWickless
+sellSignal = flat and enableShorts and bearishWickless
+buySignal = flat and enableLongs and bullishWickless
 
 if sellSignal
     entryPrice = close
@@ -77,7 +77,7 @@ if sellSignal
              'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
              'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' +
              str.tostring(targetPrice, format.mintick) + '`\\n' +
-             'Pattern: bullish candle missing lower wick\\n' +
+             'Pattern: bearish candle missing upper wick\\n' +
              'Time: ' + str.format_time(time_close, "yyyy-MM-dd HH:mm z", "Europe/London") + '"}'
         alert(payload, alert.freq_once_per_bar_close)
 
@@ -101,7 +101,7 @@ if buySignal
              'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
              'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' +
              str.tostring(targetPrice, format.mintick) + '`\\n' +
-             'Pattern: bearish candle missing upper wick\\n' +
+             'Pattern: bullish candle missing lower wick\\n' +
              'Time: ' + str.format_time(time_close, "yyyy-MM-dd HH:mm z", "Europe/London") + '"}'
         alert(payload, alert.freq_once_per_bar_close)
 

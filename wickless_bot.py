@@ -199,9 +199,9 @@ def classify_wickless(
 ) -> WicklessPattern | None:
     """Classify a directional candle with no wick from its opening price.
 
-    Bullish ``open == low`` candles are missing a lower wick and therefore
-    produce a SELL/retracement signal.  Bearish ``open == high`` candles are
-    missing an upper wick and produce a BUY/retracement signal.
+    Signal direction follows the candle: bullish ``open == low`` candles
+    produce BUY signals, while bearish ``open == high`` candles produce SELL
+    signals.
     """
 
     validate_bar(bar)
@@ -215,13 +215,13 @@ def classify_wickless(
         return WicklessPattern(
             kind="BULLISH_WICKLESS",
             missing_wick="LOWER",
-            signal_side="SELL",
+            signal_side="BUY",
         )
     if bar.close < bar.open and bar.high - bar.open <= tolerance:
         return WicklessPattern(
             kind="BEARISH_WICKLESS",
             missing_wick="UPPER",
-            signal_side="BUY",
+            signal_side="SELL",
         )
     return None
 
@@ -253,7 +253,7 @@ def build_signal(bar: Bar, config: StrategyConfig) -> Signal | None:
 
     signal_time = bar.close_time.astimezone(UTC)
     identity = (
-        f"wickless-v1|{config.instrument}|{bar.timestamp.isoformat()}|"
+        f"wickless-v2|{config.instrument}|{bar.timestamp.isoformat()}|"
         f"{pattern.kind}|5m"
     )
     key = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:16]
@@ -471,7 +471,7 @@ def summarize_backtest(
         },
         "configuration": {
             "entry": "signal candle close",
-            "direction": "toward the missing opening-side wick",
+            "direction": "with the wickless candle (bullish BUY, bearish SELL)",
             "reward_risk": config.reward_risk,
             "tolerance_ticks": config.tolerance_ticks,
             "stop_buffer_ticks": config.effective_stop_buffer_ticks,
@@ -556,8 +556,8 @@ def discord_payload(signal: Signal) -> dict[str, object]:
             {
                 "title": f"{signal.side} {signal.symbol} — Wickless 5m",
                 "description": (
-                    f"{pattern_label}; the setup targets the missing "
-                    f"{signal.missing_wick.lower()} wick."
+                    f"{pattern_label}; continuation setup in the candle's "
+                    "direction."
                 ),
                 "color": 0x2ECC71 if signal.side == "BUY" else 0xE74C3C,
                 "fields": [
@@ -577,7 +577,7 @@ def discord_payload(signal: Signal) -> dict[str, object]:
                         "inline": True,
                     },
                     {
-                        "name": "Missing-wick trigger",
+                        "name": "Wickless candle open",
                         "value": f"`{signal.trigger_level:.{digits}f}`",
                         "inline": True,
                     },

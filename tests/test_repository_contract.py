@@ -23,6 +23,14 @@ class RepositoryContractTests(unittest.TestCase):
             self.assertIn("high - open <= tolerance", source)
         self.assertIn("alertcondition(", indicator)
         self.assertIn("alert(payload, alert.freq_once_per_bar_close)", strategy)
+        self.assertIn(
+            "buySignal = flat and enableLongs and bullishWickless",
+            strategy,
+        )
+        self.assertIn(
+            "sellSignal = flat and enableShorts and bearishWickless",
+            strategy,
+        )
 
     def test_workflow_scans_on_five_minute_schedule_and_uses_secret(self) -> None:
         workflow = (ROOT / ".github/workflows/live-signals.yml").read_text(

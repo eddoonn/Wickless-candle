@@ -12,8 +12,8 @@ candles with no wick **from the opening price**, which makes the core rule:
 
 | Closed 5m candle | Missing wick | Automated setup |
 |---|---|---|
-| Bullish and `open ≈ low` | Lower wick | `SELL` retracement |
-| Bearish and `open ≈ high` | Upper wick | `BUY` retracement |
+| Bullish and `open ≈ low` | Lower wick | `BUY` |
+| Bearish and `open ≈ high` | Upper wick | `SELL` |
 
 `≈` defaults to half of one minimum tick. A doji is not classified. Signals use
 only finalized five-minute candles, so the live detector does not repaint.
@@ -46,8 +46,8 @@ The public indicator does not define position sizing, stop loss, take profit,
 or a post-close fill model. Those are deliberately explicit here:
 
 1. Detect the pattern at the close of a finalized 5m bar.
-2. Enter in the direction of the missing wick:
-   bullish open-low candle → `SELL`; bearish open-high candle → `BUY`.
+2. Enter in the candle's direction:
+   bullish open-low candle → `BUY`; bearish open-high candle → `SELL`.
 3. Use the signal-bar opposite extreme plus a 20-tick buffer as the stop.
 4. Target `3R` by default.
 5. Permit one open position per instrument in the backtester.

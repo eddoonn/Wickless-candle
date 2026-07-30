@@ -64,7 +64,7 @@ class WicklessDetectionTests(unittest.TestCase):
         assert pattern is not None
         self.assertEqual(pattern.kind, "BULLISH_WICKLESS")
         self.assertEqual(pattern.missing_wick, "LOWER")
-        self.assertEqual(pattern.signal_side, "SELL")
+        self.assertEqual(pattern.signal_side, "BUY")
 
     def test_bearish_open_equals_high_is_missing_upper_wick(self) -> None:
         pattern = classify_wickless(
@@ -74,7 +74,29 @@ class WicklessDetectionTests(unittest.TestCase):
         self.assertIsNotNone(pattern)
         assert pattern is not None
         self.assertEqual(pattern.kind, "BEARISH_WICKLESS")
-        self.assertEqual(pattern.signal_side, "BUY")
+        self.assertEqual(pattern.signal_side, "SELL")
+
+    def test_usdcad_2026_07_30_1240_bullish_wickless_is_buy(self) -> None:
+        """Regression: TradingView's green USDCAD marker maps to BUY."""
+
+        signal = build_signal(
+            bar(
+                "2026-07-30T12:40:00",
+                1.40415,
+                1.40474,
+                1.40415,
+                1.40447,
+            ),
+            StrategyConfig(instrument="usdcad"),
+        )
+        self.assertIsNotNone(signal)
+        assert signal is not None
+        self.assertEqual(signal.pattern, "BULLISH_WICKLESS")
+        self.assertEqual(signal.side, "BUY")
+        self.assertEqual(signal.entry_reference, 1.40447)
+        self.assertEqual(signal.stop, 1.40395)
+        self.assertEqual(signal.target, 1.40603)
+        self.assertNotEqual(signal.key, "43336fd0095537a4")
 
     def test_half_tick_tolerance_accepts_only_rounding_noise(self) -> None:
         accepted = bar(
@@ -111,18 +133,18 @@ class WicklessDetectionTests(unittest.TestCase):
 
 
 class SignalTests(unittest.TestCase):
-    def test_sell_signal_has_extreme_stop_and_three_r_target(self) -> None:
+    def test_buy_signal_has_extreme_stop_and_three_r_target(self) -> None:
         candle = bar("2026-07-30T08:00:00", 1.1000, 1.1010, 1.1000, 1.1008)
         signal = build_signal(candle, StrategyConfig(instrument="eurusd"))
         self.assertIsNotNone(signal)
         assert signal is not None
-        self.assertEqual(signal.side, "SELL")
-        self.assertAlmostEqual(signal.stop, 1.1012)
-        self.assertAlmostEqual(signal.risk_points, 0.0004)
-        self.assertAlmostEqual(signal.target, 1.0996)
+        self.assertEqual(signal.side, "BUY")
+        self.assertAlmostEqual(signal.stop, 1.0998)
+        self.assertAlmostEqual(signal.risk_points, 0.001)
+        self.assertAlmostEqual(signal.target, 1.1038)
         self.assertEqual(signal.trigger_level, 1.1)
 
-    def test_buy_signal_has_unique_deterministic_id(self) -> None:
+    def test_sell_signal_has_unique_deterministic_id(self) -> None:
         candle = bar("2026-07-30T08:00:00", 150.0, 150.0, 149.8, 149.9)
         config = StrategyConfig(instrument="usdjpy")
         first = build_signal(candle, config)
@@ -130,9 +152,9 @@ class SignalTests(unittest.TestCase):
         self.assertEqual(first, second)
         assert first is not None
         self.assertEqual(len(first.key), 16)
-        self.assertEqual(first.side, "BUY")
-        self.assertEqual(first.stop, 149.78)
-        self.assertEqual(first.target, 150.26)
+        self.assertEqual(first.side, "SELL")
+        self.assertEqual(first.stop, 150.02)
+        self.assertEqual(first.target, 149.54)
 
     def test_only_finalized_fresh_bars_are_returned(self) -> None:
         bars = [
@@ -162,7 +184,11 @@ class SignalTests(unittest.TestCase):
         assert signal is not None
         payload = discord_payload(signal)
         self.assertEqual(payload["allowed_mentions"], {"parse": []})
-        self.assertIn("SELL EURUSD", payload["embeds"][0]["title"])
+        self.assertIn("BUY EURUSD", payload["embeds"][0]["title"])
+        self.assertNotIn(
+            "targets the missing",
+            payload["embeds"][0]["description"],
+        )
         self.assertLess(len(json.dumps(payload)), 6000)
 
 
@@ -170,7 +196,7 @@ class BacktestTests(unittest.TestCase):
     def test_target_hit_closes_at_three_r(self) -> None:
         bars = [
             bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
-            bar("2026-07-30T08:05:00", 1.1008, 1.1009, 1.0995, 1.0996),
+            bar("2026-07-30T08:05:00", 1.1008, 1.1040, 1.1005, 1.1039),
         ]
         result = run_backtest(
             bars,
@@ -188,7 +214,7 @@ class BacktestTests(unittest.TestCase):
     def test_same_bar_stop_and_target_is_counted_as_stop(self) -> None:
         bars = [
             bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
-            bar("2026-07-30T08:05:00", 1.1008, 1.1013, 1.0995, 1.1000),
+            bar("2026-07-30T08:05:00", 1.1008, 1.1040, 1.0995, 1.1000),
         ]
         result = run_backtest(
             bars,
