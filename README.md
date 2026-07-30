@@ -1,4 +1,4 @@
-# Wickless Candle — 5-minute indicator, strategy, and Discord bot
+# Wickless Candle — 15-minute indicator, strategy, and Discord bot
 
 A behavior-equivalent, independently written implementation of the public
 description for
@@ -10,28 +10,28 @@ The TradingView source is protected. This project does not access, extract, or
 copy it. The publisher's public July 2022 update says the indicator shows only
 candles with no wick **from the opening price**, which makes the core rule:
 
-| Closed 5m candle | Missing wick | Automated setup |
+| Closed 15m candle | Missing wick | Automated setup |
 |---|---|---|
 | Bullish and `open ≈ low` | Lower wick | `BUY` |
 | Bearish and `open ≈ high` | Upper wick | `SELL` |
 
 `≈` defaults to half of one minimum tick. A doji is not classified. Signals use
-only finalized five-minute candles, so the live detector does not repaint.
+only finalized fifteen-minute candles, so the live detector does not repaint.
 
 ## What is included
 
 - `Wickless_Candles_v1_0.pine` — Pine Script v6 overlay with opening-side
   detection, bar markers/colors, bullish/bearish counts and percentages, alert
-  conditions, and a strict 5m guard.
+  conditions, and a strict 15m guard.
 - `Wickless_Reversal_Strategy_v1_0.pine` — backtestable Pine strategy and
   dynamic Discord JSON alerts.
 - `wickless_bot.py` — standard-library Python detector, scanner, Discord
   renderer, dedupe state, statistics, and conservative backtester.
 - `live_data.py` — account-free live Dukascopy bid candles, aggregated from 1m
-  to true 5m OHLC.
+  to true 15m OHLC.
 - `run_daemon.py`, `Dockerfile`, and `docker-compose.yml` — an always-on,
   candle-aligned deployment.
-- GitHub Actions for CI, five-minute live scanning, and monthly trailing
+- GitHub Actions for CI, fifteen-minute live scanning, and monthly trailing
   30-day backtests across XAUUSD and all seven USD majors.
 - Unit, integration, timing, Pine-contract, workflow, and secret-leak tests.
 
@@ -45,22 +45,22 @@ The default markets are:
 The public indicator does not define position sizing, stop loss, take profit,
 or a post-close fill model. Those are deliberately explicit here:
 
-1. Detect the pattern at the close of a finalized 5m bar.
+1. Detect the pattern at the close of a finalized 15m bar.
 2. Enter in the candle's direction:
    bullish open-low candle → `BUY`; bearish open-high candle → `SELL`.
 3. Use the signal-bar opposite extreme plus a 20-tick buffer as the stop.
-4. Target `3R` by default.
+4. Target `2R` by default.
 5. Permit one open position per instrument in the backtester.
 6. If a historical bar touches stop and target, count the stop first.
 7. Use a deterministic signal ID and durable state so retries do not repost.
 
-The Discord message contains side, symbol, 5m timeframe, entry reference, stop,
-3R target, opening-price trigger, London time, and signal ID. It does not place
+The Discord message contains side, symbol, 15m timeframe, entry reference, stop,
+2R target, opening-price trigger, London time, and signal ID. It does not place
 or manage broker orders.
 
 ## Automatic Discord signals with GitHub Actions
 
-The workflow runs every five minutes and reads the webhook only from the
+The workflow runs every fifteen minutes and reads the webhook only from the
 repository secret `DISCORD_WEBHOOK_URL`. The URL is never stored in source,
 Pine, workflow YAML, logs, Docker layers, or test fixtures.
 
@@ -69,12 +69,12 @@ Pine, workflow YAML, logs, Docker layers, or test fixtures.
 2. Open the repository's **Settings → Secrets and variables → Actions**.
 3. Choose **New repository secret**.
 4. Name it exactly `DISCORD_WEBHOOK_URL` and paste the rotated URL.
-5. Open **Actions → Live Wickless 5m Discord signals → Run workflow** once.
+5. Open **Actions → Live Wickless 15m Discord signals → Run workflow** once.
 6. Confirm the run is green. Scheduled runs then continue automatically.
 
 GitHub scheduled workflows can start late during platform load, and a private
-repository running every five minutes can exceed the included Actions minutes
-on some plans. The scanner looks back 20 minutes and deduplicates, so normal
+repository running every fifteen minutes can exceed the included Actions minutes
+on some plans. The scanner looks back 45 minutes and deduplicates, so normal
 delays do not miss or duplicate a signal. For timing closest to each bar close,
 use the Docker deployment below.
 
@@ -89,7 +89,7 @@ docker compose up -d --build
 docker compose logs -f wickless-signals
 ```
 
-The daemon wakes 20 seconds after each five-minute boundary, refreshes every
+The daemon wakes 20 seconds after each fifteen-minute boundary, refreshes every
 market concurrently, scans finalized candles, and persists signal IDs in a
 named volume. It shuts down cleanly on `SIGTERM`, runs as a non-root user,
 drops Linux capabilities, and has no broker credentials.
@@ -110,7 +110,7 @@ Indicator:
 
 Strategy and direct TradingView-to-Discord alerts:
 
-1. Open `Wickless_Reversal_Strategy_v1_0.pine`, save, and add it to a 5m chart.
+1. Open `Wickless_Reversal_Strategy_v1_0.pine`, save, and add it to a 15m chart.
 2. Review the Strategy Tester and set costs/size to match the intended market.
 3. Create an alert with **Any alert() function call**.
 4. Paste the rotated Discord webhook into TradingView's **Webhook URL** field.
@@ -145,7 +145,7 @@ npm ci --ignore-scripts
 mkdir -p .runtime-data
 ./node_modules/.bin/dukascopy-node \
   -i eurusd -from 2026-06-29 -to 2026-07-30 \
-  -t m5 -f csv -dir .runtime-data
+  -t m15 -f csv -dir .runtime-data
 ```
 
 Reproduce indicator-style counts:
@@ -153,7 +153,7 @@ Reproduce indicator-style counts:
 ```bash
 python wickless_bot.py stats \
   --instrument eurusd \
-  --csv .runtime-data/eurusd-m5-bid-2026-06-29-2026-07-30.csv
+  --csv .runtime-data/eurusd-m15-bid-2026-06-29-2026-07-30.csv
 ```
 
 Run the strategy:
@@ -161,7 +161,7 @@ Run the strategy:
 ```bash
 python wickless_bot.py backtest \
   --instrument eurusd \
-  --csv .runtime-data/eurusd-m5-bid-2026-06-29-2026-07-30.csv \
+  --csv .runtime-data/eurusd-m15-bid-2026-06-29-2026-07-30.csv \
   --start 2026-06-30T00:00:00Z \
   --end 2026-07-30T00:00:00Z \
   --output reports/latest/eurusd
@@ -175,7 +175,7 @@ downloadable Actions artifact.
 
 - Dukascopy automation uses bid OHLC. Live BUY fills occur on ask, so the raw
   backtest does not model the full spread.
-- Historical 5m OHLC cannot reveal intrabar ordering. Same-bar stop/target
+- Historical 15m OHLC cannot reveal intrabar ordering. Same-bar stop/target
   touches are treated conservatively as stops.
 - A pattern match is not evidence of an edge. Backtest multiple regimes,
   account for costs, and validate out of sample.

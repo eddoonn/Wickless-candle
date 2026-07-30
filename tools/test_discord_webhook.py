@@ -20,10 +20,10 @@ def main() -> int:
         print("Set DISCORD_WEBHOOK_URL before running this test.", file=sys.stderr)
         return 2
     payload = {
-        "username": "Wickless 5m Signals",
+        "username": "Wickless 15m Signals",
         "allowed_mentions": {"parse": []},
         "content": (
-            "**Wickless 5m connectivity test**\n"
+            "**Wickless 15m connectivity test**\n"
             "The webhook is reachable. No trade signal was generated or placed."
         ),
     }

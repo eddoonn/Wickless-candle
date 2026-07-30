@@ -14,6 +14,6 @@ RUN mkdir -p /app/.runtime-data /app/.signal-state \
 USER wickless
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD python -c "import live_data, wickless_bot; assert wickless_bot.TIMEFRAME_MINUTES == 5"
+  CMD python -c "import live_data, wickless_bot; assert wickless_bot.TIMEFRAME_MINUTES == 15"
 
 CMD ["python", "run_daemon.py"]

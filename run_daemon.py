@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the wickless scanner continuously, aligned to finalized 5m candles."""
+"""Run the wickless scanner continuously, aligned to finalized 15m candles."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Sequence
 
 from live_data import refresh
-from wickless_bot import LIVE_INSTRUMENTS, scan_markets
+from wickless_bot import LIVE_INSTRUMENTS, TIMEFRAME_MINUTES, scan_markets
 
 
 UTC = timezone.utc
@@ -26,11 +26,13 @@ def _request_stop(_signum: int, _frame: object) -> None:
 
 
 def seconds_until_next_scan(now: datetime, grace_seconds: int = 20) -> float:
-    """Return seconds until the next five-minute close plus a feed grace period."""
+    """Return seconds until the next candle close plus a feed grace period."""
 
     now = now.astimezone(UTC)
     floored = now.replace(second=0, microsecond=0)
-    next_minute = ((floored.minute // 5) + 1) * 5
+    next_minute = (
+        (floored.minute // TIMEFRAME_MINUTES) + 1
+    ) * TIMEFRAME_MINUTES
     if next_minute >= 60:
         boundary = floored.replace(minute=0) + timedelta(hours=1)
     else:
@@ -54,7 +56,7 @@ def run_once(
         instruments=instruments,
         state_path=state_path,
         as_of=now,
-        max_signal_age_minutes=20,
+        max_signal_age_minutes=45,
         state_retention_days=14,
         webhook_url=os.getenv("DISCORD_WEBHOOK_URL"),
         dry_run=dry_run,

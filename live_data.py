@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download Dukascopy live-chart minute candles and aggregate them to 5m OHLC."""
+"""Download Dukascopy minute candles and aggregate them to 15m OHLC."""
 
 from __future__ import annotations
 
@@ -17,7 +17,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from wickless_bot import INSTRUMENTS, LIVE_INSTRUMENTS, InstrumentProfile
+from wickless_bot import (
+    DATA_TIMEFRAME,
+    INSTRUMENTS,
+    LIVE_INSTRUMENTS,
+    TIMEFRAME_LABEL,
+    TIMEFRAME_MINUTES,
+    InstrumentProfile,
+)
 
 
 UTC = timezone.utc
@@ -72,13 +79,14 @@ def decode_minute_candles(payload: dict) -> list[dict[str, float | int]]:
     return candles
 
 
-def aggregate_five_minutes(
+def aggregate_fifteen_minutes(
     minute_candles: Sequence[dict[str, float | int]],
 ) -> list[dict[str, float | int]]:
+    bucket_ms = TIMEFRAME_MINUTES * 60_000
     buckets: dict[int, dict[str, float | int]] = {}
     for candle in sorted(minute_candles, key=lambda item: int(item["timestamp"])):
         timestamp = int(candle["timestamp"])
-        bucket_timestamp = timestamp - timestamp % 300_000
+        bucket_timestamp = timestamp - timestamp % bucket_ms
         if bucket_timestamp not in buckets:
             buckets[bucket_timestamp] = {
                 "timestamp": bucket_timestamp,
@@ -170,10 +178,12 @@ def refresh(
         for future in as_completed(futures):
             key = futures[future]
             try:
-                rows = aggregate_five_minutes(future.result())
+                rows = aggregate_fifteen_minutes(future.result())
                 if not rows:
-                    raise RuntimeError("aggregation returned no 5-minute candles")
-                output = data_dir / f"{key}-m5-bid-live.csv"
+                    raise RuntimeError(
+                        f"aggregation returned no {TIMEFRAME_MINUTES}-minute candles"
+                    )
+                output = data_dir / f"{key}-{DATA_TIMEFRAME}-bid-live.csv"
                 _write_csv(output, rows)
                 outputs[key] = output
                 newest = datetime.fromtimestamp(int(rows[-1]["timestamp"]) / 1000, UTC)

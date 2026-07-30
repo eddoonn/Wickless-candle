@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Five-minute wickless-candle backtester and Discord signal bot.
+"""Fifteen-minute wickless-candle backtester and Discord signal bot.
 
 The detector is an independent implementation of the public behavior described
 for xGhozt Wickless Candles.  It intentionally uses only Python's standard
@@ -30,7 +30,9 @@ from zoneinfo import ZoneInfo
 
 UTC = timezone.utc
 LONDON = ZoneInfo("Europe/London")
-TIMEFRAME_MINUTES = 5
+TIMEFRAME_MINUTES = 15
+TIMEFRAME_LABEL = f"{TIMEFRAME_MINUTES}m"
+DATA_TIMEFRAME = f"m{TIMEFRAME_MINUTES}"
 
 
 @dataclass(frozen=True)
@@ -83,7 +85,7 @@ class Bar:
 @dataclass(frozen=True)
 class StrategyConfig:
     instrument: str = "eurusd"
-    reward_risk: float = 3.0
+    reward_risk: float = 2.0
     tolerance_ticks: float = 0.5
     stop_buffer_ticks: int | None = None
     slippage_ticks: float = 1.0
@@ -253,8 +255,8 @@ def build_signal(bar: Bar, config: StrategyConfig) -> Signal | None:
 
     signal_time = bar.close_time.astimezone(UTC)
     identity = (
-        f"wickless-v2|{config.instrument}|{bar.timestamp.isoformat()}|"
-        f"{pattern.kind}|5m"
+        f"wickless-v3|{config.instrument}|{bar.timestamp.isoformat()}|"
+        f"{pattern.kind}|{TIMEFRAME_LABEL}"
     )
     key = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:16]
     profile = config.profile
@@ -262,7 +264,7 @@ def build_signal(bar: Bar, config: StrategyConfig) -> Signal | None:
         key=key,
         instrument=config.instrument,
         symbol=profile.symbol,
-        timeframe="5m",
+        timeframe=TIMEFRAME_LABEL,
         pattern=pattern.kind,
         missing_wick=pattern.missing_wick,
         side=pattern.signal_side,
@@ -316,7 +318,8 @@ def load_bars(path: Path) -> list[Bar]:
                 raise ValueError(f"{path}:{line_number}: {error}") from error
             if bar.timestamp.minute % TIMEFRAME_MINUTES != 0 or bar.timestamp.second:
                 raise ValueError(
-                    f"{path}:{line_number}: timestamp is not aligned to 5 minutes"
+                    f"{path}:{line_number}: timestamp is not aligned to "
+                    f"{TIMEFRAME_MINUTES} minutes"
                 )
             if bar.high == bar.low:
                 continue
@@ -329,11 +332,13 @@ def find_fresh_signals(
     *,
     config: StrategyConfig,
     as_of: datetime,
-    max_signal_age_minutes: int = 20,
+    max_signal_age_minutes: int = 45,
 ) -> list[Signal]:
     as_of = as_of.astimezone(UTC)
     if max_signal_age_minutes < TIMEFRAME_MINUTES:
-        raise ValueError("max_signal_age_minutes must be at least 5")
+        raise ValueError(
+            f"max_signal_age_minutes must be at least {TIMEFRAME_MINUTES}"
+        )
     cutoff = as_of - timedelta(minutes=max_signal_age_minutes)
     signals: list[Signal] = []
     for bar in bars:
@@ -463,7 +468,7 @@ def summarize_backtest(
             "implementation": "independent public-behavior reimplementation",
             "data_file": data_file.name,
             "instrument": config.profile.symbol,
-            "timeframe": "5m",
+            "timeframe": TIMEFRAME_LABEL,
         },
         "window": {
             "start_utc": start.astimezone(UTC).isoformat(),
@@ -503,10 +508,11 @@ def summarize_backtest(
         },
         "limitations": [
             "Bid-only OHLC does not model the live ask spread.",
-            "A five-minute bar cannot reveal the order of intrabar stop/target touches.",
+            "A fifteen-minute bar cannot reveal the order of intrabar "
+            "stop/target touches.",
             "The protected TradingView source was not accessed or copied.",
             "The original indicator publishes no position-sizing or bracket rules; "
-            "the documented 3R execution layer is this project's strategy layer.",
+            "the documented 2R execution layer is this project's strategy layer.",
         ],
     }
 
@@ -550,11 +556,14 @@ def discord_payload(signal: Signal) -> dict[str, object]:
     digits = profile.price_decimals
     pattern_label = signal.pattern.replace("_", " ").title()
     return {
-        "username": "Wickless 5m Signals",
+        "username": f"Wickless {TIMEFRAME_LABEL} Signals",
         "allowed_mentions": {"parse": []},
         "embeds": [
             {
-                "title": f"{signal.side} {signal.symbol} — Wickless 5m",
+                "title": (
+                    f"{signal.side} {signal.symbol} — Wickless "
+                    f"{signal.timeframe}"
+                ),
                 "description": (
                     f"{pattern_label}; continuation setup in the candle's "
                     "direction."
@@ -594,7 +603,8 @@ def discord_payload(signal: Signal) -> dict[str, object]:
                 ],
                 "footer": {
                     "text": (
-                        "Dukascopy bid • finalized 5m candle • research signal, "
+                        f"Dukascopy bid • finalized {signal.timeframe} candle • "
+                        "research signal, "
                         "not financial advice"
                     )
                 },
@@ -658,14 +668,18 @@ def _latest_csv(data_dir: Path, instrument: str) -> Path:
     candidates = sorted(
         (
             path
-            for path in data_dir.glob(f"{instrument}-m5-bid-*.csv")
+            for path in data_dir.glob(
+                f"{instrument}-{DATA_TIMEFRAME}-bid-*.csv"
+            )
             if path.stat().st_size > 0
         ),
         key=lambda path: (path.stat().st_mtime_ns, path.name),
         reverse=True,
     )
     if not candidates:
-        raise ValueError(f"No 5-minute bid CSV found for {instrument}")
+        raise ValueError(
+            f"No {TIMEFRAME_MINUTES}-minute bid CSV found for {instrument}"
+        )
     return candidates[0]
 
 
@@ -743,7 +757,7 @@ def _config_from_args(args: argparse.Namespace) -> StrategyConfig:
 
 def _strategy_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--instrument", choices=tuple(INSTRUMENTS), default="eurusd")
-    parser.add_argument("--reward-risk", type=float, default=3.0)
+    parser.add_argument("--reward-risk", type=float, default=2.0)
     parser.add_argument("--tolerance-ticks", type=float, default=0.5)
     parser.add_argument("--stop-buffer-ticks", type=int)
     parser.add_argument("--slippage-ticks", type=float, default=1.0)
@@ -808,7 +822,7 @@ def command_stats(args: argparse.Namespace) -> int:
         )
     payload = {
         "instrument": config.profile.symbol,
-        "timeframe": "5m",
+        "timeframe": TIMEFRAME_LABEL,
         "bars": len(bars),
         "bullish_candles": bullish,
         "bearish_candles": bearish,
@@ -829,11 +843,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    scan = subparsers.add_parser("scan", help="Post unseen fresh 5m signals")
+    scan = subparsers.add_parser(
+        "scan",
+        help=f"Post unseen fresh {TIMEFRAME_LABEL} signals",
+    )
     scan.add_argument("--data-dir", required=True, type=Path)
     scan.add_argument("--state", type=Path, default=Path(".signal-state/seen.json"))
     scan.add_argument("--as-of")
-    scan.add_argument("--max-signal-age-minutes", type=int, default=20)
+    scan.add_argument("--max-signal-age-minutes", type=int, default=45)
     scan.add_argument("--state-retention-days", type=int, default=14)
     scan.add_argument(
         "--instruments",
@@ -844,7 +861,10 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--dry-run", action="store_true")
     scan.set_defaults(func=command_scan)
 
-    backtest = subparsers.add_parser("backtest", help="Backtest a 5m OHLC CSV")
+    backtest = subparsers.add_parser(
+        "backtest",
+        help=f"Backtest a {TIMEFRAME_LABEL} OHLC CSV",
+    )
     backtest.add_argument("--csv", required=True, type=Path)
     backtest.add_argument("--start", required=True)
     backtest.add_argument("--end", required=True)

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from live_data import aggregate_five_minutes, decode_minute_candles, refresh
+from live_data import aggregate_fifteen_minutes, decode_minute_candles, refresh
 
 
 UTC = timezone.utc
@@ -47,43 +47,43 @@ class LiveDataTests(unittest.TestCase):
                 }
             )
 
-    def test_aggregates_true_five_minute_ohlc(self) -> None:
+    def test_aggregates_true_fifteen_minute_ohlc(self) -> None:
         candles = [
             {
-                "timestamp": 300_000,
+                "timestamp": 900_000,
                 "open": 10.0,
                 "high": 11.0,
                 "low": 9.5,
                 "close": 10.5,
             },
             {
-                "timestamp": 360_000,
+                "timestamp": 960_000,
                 "open": 10.5,
                 "high": 12.0,
                 "low": 10.0,
                 "close": 11.5,
             },
             {
-                "timestamp": 600_000,
+                "timestamp": 1_800_000,
                 "open": 11.5,
                 "high": 11.7,
                 "low": 11.0,
                 "close": 11.2,
             },
         ]
-        aggregated = aggregate_five_minutes(candles)
+        aggregated = aggregate_fifteen_minutes(candles)
         self.assertEqual(
             aggregated,
             [
                 {
-                    "timestamp": 300_000,
+                    "timestamp": 900_000,
                     "open": 10.0,
                     "high": 12.0,
                     "low": 9.5,
                     "close": 11.5,
                 },
                 {
-                    "timestamp": 600_000,
+                    "timestamp": 1_800_000,
                     "open": 11.5,
                     "high": 11.7,
                     "low": 11.0,

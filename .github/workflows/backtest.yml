@@ -1,4 +1,4 @@
-name: Trailing 30-day Wickless backtest
+name: Trailing 30-day Wickless 15m 2R backtest
 
 on:
   schedule:
@@ -35,10 +35,10 @@ jobs:
           for instrument in "${instruments[@]}"; do
             ./node_modules/.bin/dukascopy-node \
               -i "$instrument" -from "$from_date" -to "$to_date" \
-              -t m5 -f csv -dir .runtime-data
+              -t m15 -f csv -dir .runtime-data
             csv_file="$(
               find .runtime-data -maxdepth 1 -type f -size +0c \
-                -name "${instrument}-m5-bid-*.csv" -print -quit
+                -name "${instrument}-m15-bid-*.csv" -print -quit
             )"
             test -n "$csv_file"
             python wickless_bot.py backtest \
@@ -46,12 +46,13 @@ jobs:
               --csv "$csv_file" \
               --start "$start" \
               --end "$end" \
+              --reward-risk 2 \
               --output "reports/latest/$instrument"
           done
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wickless-30-day-backtest
+          name: wickless-15m-2R-30-day-backtest
           path: reports/latest
           if-no-files-found: error
           retention-days: 30

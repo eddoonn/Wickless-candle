@@ -1,7 +1,7 @@
 //@version=6
 strategy(
-     title = "Wickless Directional Strategy 5m",
-     shorttitle = "Wickless Directional 5m",
+     title = "Wickless Directional Strategy 15m",
+     shorttitle = "Wickless Directional 15m",
      overlay = true,
      initial_capital = 50000,
      default_qty_type = strategy.percent_of_equity,
@@ -22,7 +22,7 @@ strategy(
 // transparent candle-extreme stop and configurable R-multiple target.
 
 groupRules = "Strategy"
-rewardRisk = input.float(3.0, "Reward / risk", minval = 0.1, step = 0.1, group = groupRules)
+rewardRisk = input.float(2.0, "Reward / risk", minval = 0.1, step = 0.1, group = groupRules)
 stopBufferTicks = input.int(20, "Stop buffer (ticks)", minval = 0, group = groupRules)
 toleranceTicks = input.float(
      0.5,
@@ -32,7 +32,7 @@ toleranceTicks = input.float(
      step = 0.1,
      group = groupRules
 )
-enforceFiveMinutes = input.bool(true, "Require 5-minute chart", group = groupRules)
+enforceFifteenMinutes = input.bool(true, "Require 15-minute chart", group = groupRules)
 enableLongs = input.bool(true, "Enable BUY signals", group = groupRules)
 enableShorts = input.bool(true, "Enable SELL signals", group = groupRules)
 
@@ -41,9 +41,9 @@ showLevels = input.bool(true, "Plot active stop and target", group = groupDispla
 buyColor = input.color(color.rgb(46, 204, 113), "BUY color", group = groupDisplay)
 sellColor = input.color(color.rgb(231, 76, 60), "SELL color", group = groupDisplay)
 
-isFiveMinute = timeframe.isminutes and timeframe.multiplier == 5
-if barstate.isfirst and enforceFiveMinutes and not isFiveMinute
-    runtime.error("Wickless Reversal Strategy requires a 5-minute chart.")
+isFifteenMinute = timeframe.isminutes and timeframe.multiplier == 15
+if barstate.isfirst and enforceFifteenMinutes and not isFifteenMinute
+    runtime.error("Wickless Reversal Strategy requires a 15-minute chart.")
 
 tolerance = syminfo.mintick * toleranceTicks
 stopBuffer = syminfo.mintick * stopBufferTicks
@@ -72,7 +72,7 @@ if sellSignal
              stop = stopPrice,
              limit = targetPrice
         )
-        payload = '{"content":"**WICKLESS 5m: SELL ' + syminfo.ticker + '**\\n' +
+        payload = '{"content":"**WICKLESS 15m: SELL ' + syminfo.ticker + '**\\n' +
              'Entry reference: `' + str.tostring(entryPrice, format.mintick) + '`\\n' +
              'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
              'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' +
@@ -96,7 +96,7 @@ if buySignal
              stop = stopPrice,
              limit = targetPrice
         )
-        payload = '{"content":"**WICKLESS 5m: BUY ' + syminfo.ticker + '**\\n' +
+        payload = '{"content":"**WICKLESS 15m: BUY ' + syminfo.ticker + '**\\n' +
              'Entry reference: `' + str.tostring(entryPrice, format.mintick) + '`\\n' +
              'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
              'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' +

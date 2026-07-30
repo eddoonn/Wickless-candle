@@ -1,7 +1,7 @@
 //@version=6
 indicator(
-     title = "Wickless Candles 5m — Independent Replica",
-     shorttitle = "Wickless 5m",
+     title = "Wickless Candles 15m — Independent Replica",
+     shorttitle = "Wickless 15m",
      overlay = true
 )
 
@@ -9,7 +9,7 @@ indicator(
 // description. The protected xGhozt source was not accessed or copied.
 
 groupDetection = "Detection"
-enforceFiveMinutes = input.bool(true, "Require 5-minute chart", group = groupDetection)
+enforceFifteenMinutes = input.bool(true, "Require 15-minute chart", group = groupDetection)
 toleranceTicks = input.float(
      0.5,
      "Opening-wick tolerance (ticks)",
@@ -33,9 +33,9 @@ showStatistics = input.bool(true, "Show statistics table", group = groupDisplay)
 bullColor = input.color(color.rgb(0, 200, 160), "Bullish wickless", group = groupDisplay)
 bearColor = input.color(color.rgb(255, 122, 69), "Bearish wickless", group = groupDisplay)
 
-isFiveMinute = timeframe.isminutes and timeframe.multiplier == 5
-if barstate.isfirst and enforceFiveMinutes and not isFiveMinute
-    runtime.error("Wickless Candles is configured for a 5-minute chart.")
+isFifteenMinute = timeframe.isminutes and timeframe.multiplier == 15
+if barstate.isfirst and enforceFifteenMinutes and not isFifteenMinute
+    runtime.error("Wickless Candles is configured for a 15-minute chart.")
 
 tolerance = syminfo.mintick * toleranceTicks
 confirmedGate = not confirmedOnly or barstate.isconfirmed
@@ -100,7 +100,7 @@ var table stats = table.new(
 )
 
 if barstate.islast and showStatistics
-    table.cell(stats, 0, 0, "Wickless 5m", text_color = color.white, bgcolor = color.rgb(25, 28, 38))
+    table.cell(stats, 0, 0, "Wickless 15m", text_color = color.white, bgcolor = color.rgb(25, 28, 38))
     table.cell(stats, 1, 0, "Bullish", text_color = bullColor, bgcolor = color.rgb(25, 28, 38))
     table.cell(stats, 2, 0, "Bearish", text_color = bearColor, bgcolor = color.rgb(25, 28, 38))
     table.cell(stats, 0, 1, "Directional candles", text_color = color.white)

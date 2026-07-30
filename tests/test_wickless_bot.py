@@ -76,12 +76,11 @@ class WicklessDetectionTests(unittest.TestCase):
         self.assertEqual(pattern.kind, "BEARISH_WICKLESS")
         self.assertEqual(pattern.signal_side, "SELL")
 
-    def test_usdcad_2026_07_30_1240_bullish_wickless_is_buy(self) -> None:
-        """Regression: TradingView's green USDCAD marker maps to BUY."""
-
+    def test_usdcad_bullish_wickless_is_buy_at_two_r(self) -> None:
+        """Regression: a green USDCAD wickless marker maps to a 2R BUY."""
         signal = build_signal(
             bar(
-                "2026-07-30T12:40:00",
+                "2026-07-30T12:45:00",
                 1.40415,
                 1.40474,
                 1.40415,
@@ -95,7 +94,7 @@ class WicklessDetectionTests(unittest.TestCase):
         self.assertEqual(signal.side, "BUY")
         self.assertEqual(signal.entry_reference, 1.40447)
         self.assertEqual(signal.stop, 1.40395)
-        self.assertEqual(signal.target, 1.40603)
+        self.assertEqual(signal.target, 1.40551)
         self.assertNotEqual(signal.key, "43336fd0095537a4")
 
     def test_half_tick_tolerance_accepts_only_rounding_noise(self) -> None:
@@ -107,7 +106,7 @@ class WicklessDetectionTests(unittest.TestCase):
             1.1008,
         )
         rejected = bar(
-            "2026-07-30T08:05:00",
+            "2026-07-30T08:15:00",
             1.100006,
             1.1010,
             1.1000,
@@ -133,7 +132,7 @@ class WicklessDetectionTests(unittest.TestCase):
 
 
 class SignalTests(unittest.TestCase):
-    def test_buy_signal_has_extreme_stop_and_three_r_target(self) -> None:
+    def test_buy_signal_has_extreme_stop_and_two_r_target(self) -> None:
         candle = bar("2026-07-30T08:00:00", 1.1000, 1.1010, 1.1000, 1.1008)
         signal = build_signal(candle, StrategyConfig(instrument="eurusd"))
         self.assertIsNotNone(signal)
@@ -141,7 +140,7 @@ class SignalTests(unittest.TestCase):
         self.assertEqual(signal.side, "BUY")
         self.assertAlmostEqual(signal.stop, 1.0998)
         self.assertAlmostEqual(signal.risk_points, 0.001)
-        self.assertAlmostEqual(signal.target, 1.1038)
+        self.assertAlmostEqual(signal.target, 1.1028)
         self.assertEqual(signal.trigger_level, 1.1)
 
     def test_sell_signal_has_unique_deterministic_id(self) -> None:
@@ -154,25 +153,25 @@ class SignalTests(unittest.TestCase):
         self.assertEqual(len(first.key), 16)
         self.assertEqual(first.side, "SELL")
         self.assertEqual(first.stop, 150.02)
-        self.assertEqual(first.target, 149.54)
+        self.assertEqual(first.target, 149.66)
 
     def test_only_finalized_fresh_bars_are_returned(self) -> None:
         bars = [
             bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
-            bar("2026-07-30T08:05:00", 1.1, 1.101, 1.1, 1.1008),
-            bar("2026-07-30T08:10:00", 1.1, 1.101, 1.1, 1.1008),
+            bar("2026-07-30T08:15:00", 1.1, 1.101, 1.1, 1.1008),
+            bar("2026-07-30T08:30:00", 1.1, 1.101, 1.1, 1.1008),
         ]
         signals = find_fresh_signals(
             bars,
             config=StrategyConfig(instrument="eurusd"),
-            as_of=datetime(2026, 7, 30, 8, 12, tzinfo=UTC),
-            max_signal_age_minutes=10,
+            as_of=datetime(2026, 7, 30, 8, 32, tzinfo=UTC),
+            max_signal_age_minutes=30,
         )
         self.assertEqual(
             [item.bar_open_time_utc for item in signals],
             [
                 "2026-07-30T08:00:00+00:00",
-                "2026-07-30T08:05:00+00:00",
+                "2026-07-30T08:15:00+00:00",
             ],
         )
 
@@ -193,10 +192,10 @@ class SignalTests(unittest.TestCase):
 
 
 class BacktestTests(unittest.TestCase):
-    def test_target_hit_closes_at_three_r(self) -> None:
+    def test_target_hit_closes_at_two_r(self) -> None:
         bars = [
             bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
-            bar("2026-07-30T08:05:00", 1.1008, 1.1040, 1.1005, 1.1039),
+            bar("2026-07-30T08:15:00", 1.1008, 1.1030, 1.1005, 1.1029),
         ]
         result = run_backtest(
             bars,
@@ -209,12 +208,12 @@ class BacktestTests(unittest.TestCase):
         self.assertEqual(len(result.signals), 1)
         self.assertEqual(len(result.trades), 1)
         self.assertEqual(result.trades[0].exit_reason, "TARGET")
-        self.assertAlmostEqual(result.trades[0].realized_r, 3)
+        self.assertAlmostEqual(result.trades[0].realized_r, 2)
 
     def test_same_bar_stop_and_target_is_counted_as_stop(self) -> None:
         bars = [
             bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
-            bar("2026-07-30T08:05:00", 1.1008, 1.1040, 1.0995, 1.1000),
+            bar("2026-07-30T08:15:00", 1.1008, 1.1030, 1.0995, 1.1000),
         ]
         result = run_backtest(
             bars,
@@ -233,8 +232,8 @@ class BacktestTests(unittest.TestCase):
             path.write_text(
                 "timestamp,open,high,low,close\n"
                 "2026-07-30T08:00:00Z,1,1,1,1\n"
-                "2026-07-30T08:05:00Z,1,1.1,0.9,1.05\n"
-                "2026-07-30T08:05:00Z,1,1.2,0.9,1.1\n",
+                "2026-07-30T08:15:00Z,1,1.1,0.9,1.05\n"
+                "2026-07-30T08:15:00Z,1,1.2,0.9,1.1\n",
                 encoding="utf-8",
             )
             loaded = load_bars(path)
@@ -244,11 +243,11 @@ class BacktestTests(unittest.TestCase):
 
 class ScannerTests(unittest.TestCase):
     def test_scanner_posts_each_signal_once_across_runs(self) -> None:
-        now = datetime(2026, 7, 30, 8, 6, tzinfo=UTC)
+        now = datetime(2026, 7, 30, 8, 16, tzinfo=UTC)
         candle = bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            csv_path = root / "eurusd-m5-bid-live.csv"
+            csv_path = root / "eurusd-m15-bid-live.csv"
             state = root / "state" / "seen.json"
             write_csv(csv_path, [candle])
             with patch("wickless_bot.post_discord") as post:
@@ -277,11 +276,11 @@ class ScannerTests(unittest.TestCase):
             self.assertEqual(len(saved), 1)
 
     def test_dry_run_does_not_require_webhook(self) -> None:
-        now = datetime(2026, 7, 30, 8, 6, tzinfo=UTC)
+        now = datetime(2026, 7, 30, 8, 16, tzinfo=UTC)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write_csv(
-                root / "eurusd-m5-bid-live.csv",
+                root / "eurusd-m15-bid-live.csv",
                 [bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008)],
             )
             result = scan_markets(

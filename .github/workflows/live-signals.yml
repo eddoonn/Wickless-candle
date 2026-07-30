@@ -1,9 +1,9 @@
-name: Live Wickless 5m Discord signals
+name: Live Wickless 15m Discord signals
 
 on:
   schedule:
-    # GitHub cron is UTC. The scanner itself accepts only finalized 5m candles.
-    - cron: "*/5 * * * *"
+    # GitHub cron is UTC. The scanner itself accepts only finalized 15m candles.
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -31,7 +31,7 @@ jobs:
           restore-keys: |
             wickless-signal-state-
 
-      - name: Download and aggregate current 5m candles
+      - name: Download and aggregate current 15m candles
         run: python live_data.py --data-dir .runtime-data
 
       - name: Post every unseen fresh signal
@@ -41,7 +41,7 @@ jobs:
           python wickless_bot.py scan
           --data-dir .runtime-data
           --state .signal-state/seen.json
-          --max-signal-age-minutes 20
+          --max-signal-age-minutes 45
 
       - name: Save cross-run signal state
         if: always()
