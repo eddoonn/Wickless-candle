@@ -185,15 +185,21 @@ class SignalTests(unittest.TestCase):
         self.assertEqual(first.stop, 150.02)
         self.assertEqual(first.target, 149.51)
 
-    def test_one_percent_margin_is_relative_to_the_wickless_open(self) -> None:
+    def test_half_percent_margin_is_relative_to_the_wickless_open(self) -> None:
         wickless = bar("2026-07-30T08:00:00", 100, 102, 100, 101)
-        within = bar("2026-07-30T08:15:00", 102, 102, 100.9, 101.5)
-        outside = bar("2026-07-30T08:15:00", 102, 103, 101.01, 102)
+        within = bar("2026-07-30T08:15:00", 102, 102, 100.49, 101.5)
+        outside = bar("2026-07-30T08:15:00", 102, 103, 100.51, 102)
         self.assertTrue(
-            retrace_touches_origin(wickless, within, margin_percent=1.0)
+            retrace_touches_origin(wickless, within, margin_percent=0.5)
         )
         self.assertFalse(
-            retrace_touches_origin(wickless, outside, margin_percent=1.0)
+            retrace_touches_origin(wickless, outside, margin_percent=0.5)
+        )
+
+    def test_default_retrace_margin_is_half_percent(self) -> None:
+        self.assertEqual(
+            StrategyConfig(instrument="eurusd").retrace_margin_percent,
+            0.5,
         )
 
     def test_retrace_must_occur_on_one_of_the_next_three_contiguous_bars(self) -> None:

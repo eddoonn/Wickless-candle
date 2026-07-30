@@ -41,7 +41,7 @@ retraceBars = input.int(
      group = groupRules
 )
 retraceMarginPercent = input.float(
-     1.0,
+     0.5,
      "Origin-price margin (%)",
      minval = 0.0,
      maxval = 100.0,

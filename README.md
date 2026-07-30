@@ -18,7 +18,7 @@ candles with no wick **from the opening price**, which makes the core rule:
 `≈` defaults to half of one minimum tick. A doji is not classified. Signals use
 only finalized fifteen-minute candles, so the live detector does not repaint.
 The pattern is now a pending setup, not an immediate trade signal: one of the
-next three contiguous 15m candles must trade within ±1% of the no-wick candle's
+next three contiguous 15m candles must trade within ±0.5% of the no-wick candle's
 opening price before Discord receives a signal.
 
 ## What is included
@@ -30,6 +30,9 @@ opening price before Discord receives a signal.
   dynamic Discord JSON alerts.
 - `wickless_bot.py` — standard-library Python detector, scanner, Discord
   renderer, dedupe state, statistics, and conservative backtester.
+- `no_wick_research.py` — separate, no-lookahead comparison engine for
+  trend-filtered origin-limit entries, confirmed-pivot stops, New York session
+  filtering, and pending-order expiry. It does not alter live Discord signals.
 - `live_data.py` — account-free live Dukascopy bid candles, aggregated from 1m
   to true 15m OHLC.
 - `run_daemon.py`, `Dockerfile`, and `docker-compose.yml` — an always-on,
@@ -52,7 +55,7 @@ or a post-close fill model. Those are deliberately explicit here:
 2. Store the no-wick candle's open as its origin price.
 3. Inspect only the next three contiguous finalized 15m bars.
 4. Confirm the setup when a bar's high/low range intersects the origin-price
-   band, which defaults to `origin ± 1%`. The earliest qualifying bar wins.
+   band, which defaults to `origin ± 0.5%`. The earliest qualifying bar wins.
 5. Enter at the confirming bar's close in the candle's direction:
    bullish open-low candle → `BUY`; bearish open-high candle → `SELL`.
 6. If none of bars 1–3 qualifies, expire the setup without an alert. A missing
@@ -175,13 +178,44 @@ python wickless_bot.py backtest \
   --start 2026-06-30T00:00:00Z \
   --end 2026-07-30T00:00:00Z \
   --retrace-bars 3 \
-  --retrace-margin-percent 1 \
+  --retrace-margin-percent 0.5 \
   --output reports/latest/eurusd
 ```
 
 The result includes `summary.json` and a trade-by-trade `trades.csv`. The
 monthly workflow produces the same files for all eight default markets as a
 downloadable Actions artifact.
+
+## Trend-filtered retracement research
+
+The separately described "No Wick Strategy" changes the execution model: it
+filters wickless candles with price versus EMA(50) plus a five-bar EMA slope,
+places a limit order at the signal candle's open, uses the most recently
+confirmed 3-left/3-right pivot plus one tick for the stop, and accepts new
+signals only from 09:30 through 13:30 America/New_York. Pending orders are
+cancelled on a trend change and targets remain 2R for a like-for-like
+comparison.
+
+Run the complete comparison across the seven FX majors:
+
+```bash
+python no_wick_research.py \
+  --data-dir .runtime-data/no-wick-warmup-20260626-0730 \
+  --start 2026-06-30T00:00:00Z \
+  --end 2026-07-30T00:00:00Z \
+  --output reports/no-wick-comparison-30d
+```
+
+The output contains aggregate and per-pair CSVs, the full JSON configuration
+and limitations, and an auditable trade log for the recommended variant.
+Comparisons include the current close-entry baseline, an unfiltered origin
+limit, EMA/range-stop variants with and without the New York window, and
+EMA/pivot-stop variants with and without the window. Multiple pending orders
+are allowed, and one tick of slippage per side is deducted.
+
+The research strategy is deliberately not wired into live alerts. A profitable
+historical window is evidence to continue out-of-sample testing, not permission
+to replace the live strategy.
 
 ## Accuracy and risk notes
 
@@ -191,9 +225,9 @@ downloadable Actions artifact.
   touches are treated conservatively as stops.
 - A pattern match is not evidence of an edge. Backtest multiple regimes,
   account for costs, and validate out of sample.
-- A 1% price band is intentionally the requested default, but it is very wide
-  for major FX pairs (roughly 100–150 pips around typical prices). Treat it as
-  a configurable condition, not as proof of a meaningful pullback filter.
+- A 0.5% price band is still wide for major FX pairs (roughly 50–75 pips
+  around typical prices). Treat it as a configurable condition, not as proof
+  of a meaningful pullback filter.
 - The half-tick tolerance handles representation noise. Raising it toward two
   ticks changes the pattern and should be treated as optimization.
 - This is research software and signal delivery, not financial advice or an

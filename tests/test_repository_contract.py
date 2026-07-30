@@ -26,7 +26,7 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("alertcondition(", indicator)
         self.assertIn("alert(payload, alert.freq_once_per_bar_close)", strategy)
         self.assertIn('3,\n     "Retrace window (15m bars)"', strategy)
-        self.assertIn('1.0,\n     "Origin-price margin (%)"', strategy)
+        self.assertIn('0.5,\n     "Origin-price margin (%)"', strategy)
         self.assertIn("age >= 1 and age <= retraceBars", strategy)
         self.assertIn("low <= upperBand and high >= lowerBand", strategy)
         self.assertIn("if bullishWickless", strategy)
@@ -50,6 +50,7 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("secrets.DISCORD_WEBHOOK_URL", workflow)
         self.assertIn("actions/cache/restore@", workflow)
         self.assertIn("actions/cache/save@", workflow)
+        self.assertIn("--retrace-margin-percent 0.5", workflow)
         self.assertNotIn("discord.com/api/webhooks/", workflow)
 
     def test_no_discord_webhook_token_is_committed(self) -> None:

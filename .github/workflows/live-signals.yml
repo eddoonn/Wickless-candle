@@ -43,7 +43,7 @@ jobs:
           --state .signal-state/seen.json
           --max-signal-age-minutes 45
           --retrace-bars 3
-          --retrace-margin-percent 1
+          --retrace-margin-percent 0.5
 
       - name: Save cross-run signal state
         if: always()

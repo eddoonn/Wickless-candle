@@ -88,7 +88,7 @@ class StrategyConfig:
     reward_risk: float = 2.0
     tolerance_ticks: float = 0.5
     retrace_bars: int = 3
-    retrace_margin_percent: float = 1.0
+    retrace_margin_percent: float = 0.5
     stop_buffer_ticks: int | None = None
     slippage_ticks: float = 1.0
     commission_per_side: float = 0.0
@@ -801,7 +801,7 @@ def scan_markets(
     webhook_url: str | None,
     dry_run: bool = False,
     retrace_bars: int = 3,
-    retrace_margin_percent: float = 1.0,
+    retrace_margin_percent: float = 0.5,
 ) -> tuple[int, int]:
     """Post every unseen fresh signal and atomically persist its ID."""
 
@@ -875,7 +875,7 @@ def _strategy_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--reward-risk", type=float, default=2.0)
     parser.add_argument("--tolerance-ticks", type=float, default=0.5)
     parser.add_argument("--retrace-bars", type=int, default=3)
-    parser.add_argument("--retrace-margin-percent", type=float, default=1.0)
+    parser.add_argument("--retrace-margin-percent", type=float, default=0.5)
     parser.add_argument("--stop-buffer-ticks", type=int)
     parser.add_argument("--slippage-ticks", type=float, default=1.0)
     parser.add_argument("--commission-per-side", type=float, default=0.0)
@@ -972,7 +972,7 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--max-signal-age-minutes", type=int, default=45)
     scan.add_argument("--state-retention-days", type=int, default=14)
     scan.add_argument("--retrace-bars", type=int, default=3)
-    scan.add_argument("--retrace-margin-percent", type=float, default=1.0)
+    scan.add_argument("--retrace-margin-percent", type=float, default=0.5)
     scan.add_argument(
         "--instruments",
         nargs="+",

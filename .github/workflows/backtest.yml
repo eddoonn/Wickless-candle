@@ -48,7 +48,7 @@ jobs:
               --end "$end" \
               --reward-risk 2 \
               --retrace-bars 3 \
-              --retrace-margin-percent 1 \
+              --retrace-margin-percent 0.5 \
               --output "reports/latest/$instrument"
           done
 
