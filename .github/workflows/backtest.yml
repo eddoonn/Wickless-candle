@@ -1,4 +1,4 @@
-name: Trailing 30-day Wickless 15m 2R backtest
+name: Trailing 30-day Wickless 15m retrace 2R backtest
 
 on:
   schedule:
@@ -47,12 +47,14 @@ jobs:
               --start "$start" \
               --end "$end" \
               --reward-risk 2 \
+              --retrace-bars 3 \
+              --retrace-margin-percent 1 \
               --output "reports/latest/$instrument"
           done
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wickless-15m-2R-30-day-backtest
+          name: wickless-15m-retrace-2R-30-day-backtest
           path: reports/latest
           if-no-files-found: error
           retention-days: 30

@@ -87,6 +87,8 @@ class StrategyConfig:
     instrument: str = "eurusd"
     reward_risk: float = 2.0
     tolerance_ticks: float = 0.5
+    retrace_bars: int = 3
+    retrace_margin_percent: float = 1.0
     stop_buffer_ticks: int | None = None
     slippage_ticks: float = 1.0
     commission_per_side: float = 0.0
@@ -98,6 +100,10 @@ class StrategyConfig:
             raise ValueError("reward_risk must be positive")
         if not 0 <= self.tolerance_ticks <= 2:
             raise ValueError("tolerance_ticks must be between 0 and 2")
+        if not 1 <= self.retrace_bars <= 20:
+            raise ValueError("retrace_bars must be between 1 and 20")
+        if not 0 <= self.retrace_margin_percent <= 100:
+            raise ValueError("retrace_margin_percent must be between 0 and 100")
         if self.effective_stop_buffer_ticks < 0:
             raise ValueError("stop_buffer_ticks cannot be negative")
         if self.slippage_ticks < 0 or self.commission_per_side < 0:
@@ -138,6 +144,10 @@ class Signal:
     missing_wick: str
     side: str
     bar_open_time_utc: str
+    retrace_bar_open_time_utc: str
+    retrace_bar_number: int
+    retrace_window_bars: int
+    retrace_margin_percent: float
     signal_time_utc: str
     signal_time_london: str
     entry_reference: float
@@ -232,31 +242,65 @@ def _price(value: float, profile: InstrumentProfile) -> float:
     return round(value, profile.price_decimals)
 
 
-def build_signal(bar: Bar, config: StrategyConfig) -> Signal | None:
+def retrace_touches_origin(
+    wickless_bar: Bar,
+    retrace_bar: Bar,
+    *,
+    margin_percent: float,
+) -> bool:
+    """Return whether a later bar trades inside the origin-price margin band."""
+
+    validate_bar(wickless_bar)
+    validate_bar(retrace_bar)
+    if not 0 <= margin_percent <= 100:
+        raise ValueError("margin_percent must be between 0 and 100")
+    margin = wickless_bar.open * margin_percent / 100
+    lower = wickless_bar.open - margin
+    upper = wickless_bar.open + margin
+    return retrace_bar.low <= upper + 1e-12 and retrace_bar.high >= lower - 1e-12
+
+
+def build_signal(
+    wickless_bar: Bar,
+    config: StrategyConfig,
+    *,
+    retrace_bar: Bar,
+    retrace_bar_number: int,
+) -> Signal | None:
     pattern = classify_wickless(
-        bar,
+        wickless_bar,
         tick_size=config.profile.tick_size,
         tolerance_ticks=config.tolerance_ticks,
     )
-    if pattern is None:
+    if (
+        pattern is None
+        or not 1 <= retrace_bar_number <= config.retrace_bars
+        or not retrace_touches_origin(
+            wickless_bar,
+            retrace_bar,
+            margin_percent=config.retrace_margin_percent,
+        )
+    ):
         return None
 
-    entry = bar.close
+    entry = retrace_bar.close
     if pattern.signal_side == "SELL":
-        stop = bar.high + config.stop_buffer
+        stop = wickless_bar.high + config.stop_buffer
         risk = stop - entry
         target = entry - config.reward_risk * risk
     else:
-        stop = bar.low - config.stop_buffer
+        stop = wickless_bar.low - config.stop_buffer
         risk = entry - stop
         target = entry + config.reward_risk * risk
     if risk <= config.profile.tick_size / 2:
         return None
 
-    signal_time = bar.close_time.astimezone(UTC)
+    signal_time = retrace_bar.close_time.astimezone(UTC)
     identity = (
-        f"wickless-v3|{config.instrument}|{bar.timestamp.isoformat()}|"
-        f"{pattern.kind}|{TIMEFRAME_LABEL}"
+        f"wickless-v4-retrace|{config.instrument}|"
+        f"{wickless_bar.timestamp.isoformat()}|{retrace_bar.timestamp.isoformat()}|"
+        f"{pattern.kind}|{TIMEFRAME_LABEL}|{config.retrace_bars}|"
+        f"{config.retrace_margin_percent:g}"
     )
     key = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:16]
     profile = config.profile
@@ -268,17 +312,21 @@ def build_signal(bar: Bar, config: StrategyConfig) -> Signal | None:
         pattern=pattern.kind,
         missing_wick=pattern.missing_wick,
         side=pattern.signal_side,
-        bar_open_time_utc=bar.timestamp.astimezone(UTC).isoformat(),
+        bar_open_time_utc=wickless_bar.timestamp.astimezone(UTC).isoformat(),
+        retrace_bar_open_time_utc=retrace_bar.timestamp.astimezone(UTC).isoformat(),
+        retrace_bar_number=retrace_bar_number,
+        retrace_window_bars=config.retrace_bars,
+        retrace_margin_percent=config.retrace_margin_percent,
         signal_time_utc=signal_time.isoformat(),
         signal_time_london=signal_time.astimezone(LONDON).isoformat(),
         entry_reference=_price(entry, profile),
         stop=_price(stop, profile),
         target=_price(target, profile),
-        trigger_level=_price(bar.open, profile),
-        candle_open=_price(bar.open, profile),
-        candle_high=_price(bar.high, profile),
-        candle_low=_price(bar.low, profile),
-        candle_close=_price(bar.close, profile),
+        trigger_level=_price(wickless_bar.open, profile),
+        candle_open=_price(wickless_bar.open, profile),
+        candle_high=_price(wickless_bar.high, profile),
+        candle_low=_price(wickless_bar.low, profile),
+        candle_close=_price(wickless_bar.close, profile),
         risk_points=_price(risk, profile),
         reward_risk=config.reward_risk,
     )
@@ -340,13 +388,52 @@ def find_fresh_signals(
             f"max_signal_age_minutes must be at least {TIMEFRAME_MINUTES}"
         )
     cutoff = as_of - timedelta(minutes=max_signal_age_minutes)
+    return [
+        signal
+        for signal in find_retrace_signals(bars, config=config)
+        if parse_iso_datetime(signal.signal_time_utc) <= as_of
+        and parse_iso_datetime(signal.signal_time_utc) >= cutoff
+    ]
+
+
+def find_retrace_signals(
+    bars: Sequence[Bar],
+    *,
+    config: StrategyConfig,
+) -> list[Signal]:
+    """Confirm each wickless setup on its first qualifying later 15m bar.
+
+    A gap in the 15-minute sequence cancels the setup rather than allowing a
+    stale Friday signal, for example, to remain pending into the next session.
+    """
+
+    ordered = sorted(bars, key=lambda item: item.timestamp)
     signals: list[Signal] = []
-    for bar in bars:
-        if bar.close_time > as_of or bar.close_time < cutoff:
+    step = timedelta(minutes=TIMEFRAME_MINUTES)
+    for index, wickless_bar in enumerate(ordered):
+        pattern = classify_wickless(
+            wickless_bar,
+            tick_size=config.profile.tick_size,
+            tolerance_ticks=config.tolerance_ticks,
+        )
+        if pattern is None:
             continue
-        signal = build_signal(bar, config)
-        if signal is not None:
-            signals.append(signal)
+        for offset in range(1, config.retrace_bars + 1):
+            candidate_index = index + offset
+            if candidate_index >= len(ordered):
+                break
+            retrace_bar = ordered[candidate_index]
+            if retrace_bar.timestamp != wickless_bar.timestamp + offset * step:
+                break
+            signal = build_signal(
+                wickless_bar,
+                config,
+                retrace_bar=retrace_bar,
+                retrace_bar_number=offset,
+            )
+            if signal is not None:
+                signals.append(signal)
+                break
     return signals
 
 
@@ -398,6 +485,14 @@ def run_backtest(
     if start >= end:
         raise ValueError("start must be before end")
 
+    confirmed_by_bar: dict[datetime, list[Signal]] = {}
+    for signal in find_retrace_signals(bars, config=config):
+        wickless_time = parse_iso_datetime(signal.bar_open_time_utc)
+        retrace_time = parse_iso_datetime(signal.retrace_bar_open_time_utc)
+        if wickless_time < start or retrace_time >= end:
+            continue
+        confirmed_by_bar.setdefault(retrace_time, []).append(signal)
+
     result = BacktestResult(signals=[], trades=[], open_signal=None)
     position: Signal | None = None
     for bar in bars:
@@ -434,11 +529,10 @@ def run_backtest(
                 )
                 position = None
 
-        if position is None:
-            signal = build_signal(bar, config)
-            if signal is not None:
-                result.signals.append(signal)
-                position = signal
+        if position is None and confirmed_by_bar.get(bar.timestamp):
+            signal = confirmed_by_bar[bar.timestamp][0]
+            result.signals.append(signal)
+            position = signal
 
     result.open_signal = position
     return result
@@ -475,10 +569,12 @@ def summarize_backtest(
             "end_utc_exclusive": end.astimezone(UTC).isoformat(),
         },
         "configuration": {
-            "entry": "signal candle close",
+            "entry": "confirmation candle close after origin-price retrace",
             "direction": "with the wickless candle (bullish BUY, bearish SELL)",
             "reward_risk": config.reward_risk,
             "tolerance_ticks": config.tolerance_ticks,
+            "retrace_bars": config.retrace_bars,
+            "retrace_margin_percent": config.retrace_margin_percent,
             "stop_buffer_ticks": config.effective_stop_buffer_ticks,
             "slippage_ticks_per_side": config.slippage_ticks,
             "commission_points_per_side": config.commission_per_side,
@@ -565,8 +661,10 @@ def discord_payload(signal: Signal) -> dict[str, object]:
                     f"{signal.timeframe}"
                 ),
                 "description": (
-                    f"{pattern_label}; continuation setup in the candle's "
-                    "direction."
+                    f"{pattern_label}; origin retrace confirmed on candle "
+                    f"{signal.retrace_bar_number} of "
+                    f"{signal.retrace_window_bars} within "
+                    f"±{signal.retrace_margin_percent:g}%."
                 ),
                 "color": 0x2ECC71 if signal.side == "BUY" else 0xE74C3C,
                 "fields": [
@@ -588,6 +686,15 @@ def discord_payload(signal: Signal) -> dict[str, object]:
                     {
                         "name": "Wickless candle open",
                         "value": f"`{signal.trigger_level:.{digits}f}`",
+                        "inline": True,
+                    },
+                    {
+                        "name": "Retrace confirmation",
+                        "value": (
+                            f"`bar {signal.retrace_bar_number}/"
+                            f"{signal.retrace_window_bars} • "
+                            f"±{signal.retrace_margin_percent:g}%`"
+                        ),
                         "inline": True,
                     },
                     {
@@ -693,6 +800,8 @@ def scan_markets(
     state_retention_days: int,
     webhook_url: str | None,
     dry_run: bool = False,
+    retrace_bars: int = 3,
+    retrace_margin_percent: float = 1.0,
 ) -> tuple[int, int]:
     """Post every unseen fresh signal and atomically persist its ID."""
 
@@ -714,7 +823,11 @@ def scan_markets(
 
     found = posted = 0
     for instrument in instruments:
-        config = StrategyConfig(instrument=instrument)
+        config = StrategyConfig(
+            instrument=instrument,
+            retrace_bars=retrace_bars,
+            retrace_margin_percent=retrace_margin_percent,
+        )
         bars = load_bars(_latest_csv(data_dir, instrument))
         signals = find_fresh_signals(
             bars,
@@ -723,7 +836,7 @@ def scan_markets(
             max_signal_age_minutes=max_signal_age_minutes,
         )
         if not signals:
-            print(f"{config.profile.symbol}: no fresh wickless signal")
+            print(f"{config.profile.symbol}: no fresh confirmed retrace")
             continue
         for signal in signals:
             found += 1
@@ -749,6 +862,8 @@ def _config_from_args(args: argparse.Namespace) -> StrategyConfig:
         instrument=args.instrument,
         reward_risk=args.reward_risk,
         tolerance_ticks=args.tolerance_ticks,
+        retrace_bars=args.retrace_bars,
+        retrace_margin_percent=args.retrace_margin_percent,
         stop_buffer_ticks=args.stop_buffer_ticks,
         slippage_ticks=args.slippage_ticks,
         commission_per_side=args.commission_per_side,
@@ -759,6 +874,8 @@ def _strategy_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--instrument", choices=tuple(INSTRUMENTS), default="eurusd")
     parser.add_argument("--reward-risk", type=float, default=2.0)
     parser.add_argument("--tolerance-ticks", type=float, default=0.5)
+    parser.add_argument("--retrace-bars", type=int, default=3)
+    parser.add_argument("--retrace-margin-percent", type=float, default=1.0)
     parser.add_argument("--stop-buffer-ticks", type=int)
     parser.add_argument("--slippage-ticks", type=float, default=1.0)
     parser.add_argument("--commission-per-side", type=float, default=0.0)
@@ -797,6 +914,8 @@ def command_scan(args: argparse.Namespace) -> int:
         state_retention_days=args.state_retention_days,
         webhook_url=os.getenv("DISCORD_WEBHOOK_URL"),
         dry_run=args.dry_run,
+        retrace_bars=args.retrace_bars,
+        retrace_margin_percent=args.retrace_margin_percent,
     )
     print(f"Scan complete: {found} fresh, {posted} newly handled")
     return 0
@@ -852,6 +971,8 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--as-of")
     scan.add_argument("--max-signal-age-minutes", type=int, default=45)
     scan.add_argument("--state-retention-days", type=int, default=14)
+    scan.add_argument("--retrace-bars", type=int, default=3)
+    scan.add_argument("--retrace-margin-percent", type=float, default=1.0)
     scan.add_argument(
         "--instruments",
         nargs="+",

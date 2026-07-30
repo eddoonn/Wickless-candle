@@ -10,13 +10,16 @@ The TradingView source is protected. This project does not access, extract, or
 copy it. The publisher's public July 2022 update says the indicator shows only
 candles with no wick **from the opening price**, which makes the core rule:
 
-| Closed 15m candle | Missing wick | Automated setup |
+| Closed 15m candle | Missing wick | Pending direction |
 |---|---|---|
 | Bullish and `open ≈ low` | Lower wick | `BUY` |
 | Bearish and `open ≈ high` | Upper wick | `SELL` |
 
 `≈` defaults to half of one minimum tick. A doji is not classified. Signals use
 only finalized fifteen-minute candles, so the live detector does not repaint.
+The pattern is now a pending setup, not an immediate trade signal: one of the
+next three contiguous 15m candles must trade within ±1% of the no-wick candle's
+opening price before Discord receives a signal.
 
 ## What is included
 
@@ -46,17 +49,23 @@ The public indicator does not define position sizing, stop loss, take profit,
 or a post-close fill model. Those are deliberately explicit here:
 
 1. Detect the pattern at the close of a finalized 15m bar.
-2. Enter in the candle's direction:
+2. Store the no-wick candle's open as its origin price.
+3. Inspect only the next three contiguous finalized 15m bars.
+4. Confirm the setup when a bar's high/low range intersects the origin-price
+   band, which defaults to `origin ± 1%`. The earliest qualifying bar wins.
+5. Enter at the confirming bar's close in the candle's direction:
    bullish open-low candle → `BUY`; bearish open-high candle → `SELL`.
-3. Use the signal-bar opposite extreme plus a 20-tick buffer as the stop.
-4. Target `2R` by default.
-5. Permit one open position per instrument in the backtester.
-6. If a historical bar touches stop and target, count the stop first.
-7. Use a deterministic signal ID and durable state so retries do not repost.
+6. If none of bars 1–3 qualifies, expire the setup without an alert. A missing
+   15m bar/session gap also expires it.
+7. Use the no-wick bar's opposite extreme plus a 20-tick buffer as the stop.
+8. Target `2R` by default.
+9. Permit one open position per instrument in the backtester.
+10. If a historical bar touches stop and target, count the stop first.
+11. Use a deterministic signal ID and durable state so retries do not repost.
 
 The Discord message contains side, symbol, 15m timeframe, entry reference, stop,
-2R target, opening-price trigger, London time, and signal ID. It does not place
-or manage broker orders.
+2R target, opening-price trigger, retrace candle number/margin, London time, and
+signal ID. It does not place or manage broker orders.
 
 ## Automatic Discord signals with GitHub Actions
 
@@ -89,10 +98,11 @@ docker compose up -d --build
 docker compose logs -f wickless-signals
 ```
 
-The daemon wakes 20 seconds after each fifteen-minute boundary, refreshes every
-market concurrently, scans finalized candles, and persists signal IDs in a
-named volume. It shuts down cleanly on `SIGTERM`, runs as a non-root user,
-drops Linux capabilities, and has no broker credentials.
+The daemon wakes 20 seconds after each fifteen-minute boundary, refreshes a
+two-hour lookback for every market concurrently, reconstructs pending setups
+from finalized candles, and persists signal IDs in a named volume. It shuts
+down cleanly on `SIGTERM`, runs as a non-root user, drops Linux capabilities,
+and has no broker credentials.
 
 One immediate dry run, without Discord:
 
@@ -105,7 +115,7 @@ python run_daemon.py --once --dry-run --instruments eurusd gbpusd
 Indicator:
 
 1. Open `Wickless_Candles_v1_0.pine` in Pine Editor.
-2. Save, add to chart, and use a 5-minute chart.
+2. Save, add to chart, and use a 15-minute chart.
 3. To alert on patterns, create an alert from either exposed alert condition.
 
 Strategy and direct TradingView-to-Discord alerts:
@@ -164,6 +174,8 @@ python wickless_bot.py backtest \
   --csv .runtime-data/eurusd-m15-bid-2026-06-29-2026-07-30.csv \
   --start 2026-06-30T00:00:00Z \
   --end 2026-07-30T00:00:00Z \
+  --retrace-bars 3 \
+  --retrace-margin-percent 1 \
   --output reports/latest/eurusd
 ```
 
@@ -179,6 +191,9 @@ downloadable Actions artifact.
   touches are treated conservatively as stops.
 - A pattern match is not evidence of an edge. Backtest multiple regimes,
   account for costs, and validate out of sample.
+- A 1% price band is intentionally the requested default, but it is very wide
+  for major FX pairs (roughly 100–150 pips around typical prices). Treat it as
+  a configurable condition, not as proof of a meaningful pullback filter.
 - The half-tick tolerance handles representation noise. Raising it toward two
   ticks changes the pattern and should be treated as optimization.
 - This is research software and signal delivery, not financial advice or an

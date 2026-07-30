@@ -31,7 +31,7 @@ jobs:
           restore-keys: |
             wickless-signal-state-
 
-      - name: Download and aggregate current 15m candles
+      - name: Download two-hour lookback and aggregate 15m candles
         run: python live_data.py --data-dir .runtime-data
 
       - name: Post every unseen fresh signal
@@ -42,6 +42,8 @@ jobs:
           --data-dir .runtime-data
           --state .signal-state/seen.json
           --max-signal-age-minutes 45
+          --retrace-bars 3
+          --retrace-margin-percent 1
 
       - name: Save cross-run signal state
         if: always()

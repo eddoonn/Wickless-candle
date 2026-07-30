@@ -3,11 +3,19 @@ from __future__ import annotations
 import csv
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
 
-from live_data import aggregate_fifteen_minutes, decode_minute_candles, refresh
+from live_data import (
+    LIVE_LOOKBACK_MINUTES,
+    aggregate_fifteen_minutes,
+    decode_minute_candles,
+    fetch_current_day,
+    refresh,
+)
+from wickless_bot import INSTRUMENTS
 
 
 UTC = timezone.utc
@@ -46,6 +54,29 @@ class LiveDataTests(unittest.TestCase):
                     "closes": [],
                 }
             )
+
+    def test_live_fetch_looks_back_across_midnight_for_pending_setups(self) -> None:
+        now = datetime(2026, 7, 30, 0, 30, tzinfo=UTC)
+        start = now - timedelta(minutes=LIVE_LOOKBACK_MINUTES)
+        payload = {
+            "timestamp": int(start.timestamp() * 1000),
+            "shift": 1,
+            "multiplier": 0.00001,
+            "open": 1.1,
+            "high": 1.1,
+            "low": 1.1,
+            "close": 1.1,
+            "times": [60_000],
+            "opens": [0],
+            "highs": [1],
+            "lows": [-1],
+            "closes": [0],
+        }
+        with patch("live_data._request_json", return_value=payload) as request:
+            candles = fetch_current_day(INSTRUMENTS["eurusd"], now=now)
+        query = parse_qs(urlparse(request.call_args.args[0]).query)
+        self.assertEqual(query["from"], [str(int(start.timestamp() * 1000))])
+        self.assertEqual(len(candles), 1)
 
     def test_aggregates_true_fifteen_minute_ohlc(self) -> None:
         candles = [

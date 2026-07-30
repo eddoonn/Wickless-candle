@@ -18,7 +18,9 @@ from wickless_bot import (
     classify_wickless,
     discord_payload,
     find_fresh_signals,
+    find_retrace_signals,
     load_bars,
+    retrace_touches_origin,
     run_backtest,
     scan_markets,
     validate_webhook_url,
@@ -87,14 +89,23 @@ class WicklessDetectionTests(unittest.TestCase):
                 1.40447,
             ),
             StrategyConfig(instrument="usdcad"),
+            retrace_bar=bar(
+                "2026-07-30T13:00:00",
+                1.40447,
+                1.40460,
+                1.40415,
+                1.40430,
+            ),
+            retrace_bar_number=1,
         )
         self.assertIsNotNone(signal)
         assert signal is not None
         self.assertEqual(signal.pattern, "BULLISH_WICKLESS")
         self.assertEqual(signal.side, "BUY")
-        self.assertEqual(signal.entry_reference, 1.40447)
+        self.assertEqual(signal.entry_reference, 1.40430)
         self.assertEqual(signal.stop, 1.40395)
-        self.assertEqual(signal.target, 1.40551)
+        self.assertEqual(signal.target, 1.40500)
+        self.assertEqual(signal.retrace_bar_number, 1)
         self.assertNotEqual(signal.key, "43336fd0095537a4")
 
     def test_half_tick_tolerance_accepts_only_rounding_noise(self) -> None:
@@ -134,51 +145,164 @@ class WicklessDetectionTests(unittest.TestCase):
 class SignalTests(unittest.TestCase):
     def test_buy_signal_has_extreme_stop_and_two_r_target(self) -> None:
         candle = bar("2026-07-30T08:00:00", 1.1000, 1.1010, 1.1000, 1.1008)
-        signal = build_signal(candle, StrategyConfig(instrument="eurusd"))
+        retrace = bar("2026-07-30T08:15:00", 1.1008, 1.1009, 1.1000, 1.1004)
+        signal = build_signal(
+            candle,
+            StrategyConfig(instrument="eurusd"),
+            retrace_bar=retrace,
+            retrace_bar_number=1,
+        )
         self.assertIsNotNone(signal)
         assert signal is not None
         self.assertEqual(signal.side, "BUY")
         self.assertAlmostEqual(signal.stop, 1.0998)
-        self.assertAlmostEqual(signal.risk_points, 0.001)
-        self.assertAlmostEqual(signal.target, 1.1028)
+        self.assertAlmostEqual(signal.risk_points, 0.0006)
+        self.assertAlmostEqual(signal.target, 1.1016)
         self.assertEqual(signal.trigger_level, 1.1)
+        self.assertEqual(signal.retrace_bar_open_time_utc, "2026-07-30T08:15:00+00:00")
+        self.assertEqual(signal.signal_time_utc, "2026-07-30T08:30:00+00:00")
 
     def test_sell_signal_has_unique_deterministic_id(self) -> None:
         candle = bar("2026-07-30T08:00:00", 150.0, 150.0, 149.8, 149.9)
+        retrace = bar("2026-07-30T08:15:00", 149.9, 150.0, 149.7, 149.85)
         config = StrategyConfig(instrument="usdjpy")
-        first = build_signal(candle, config)
-        second = build_signal(candle, config)
+        first = build_signal(
+            candle,
+            config,
+            retrace_bar=retrace,
+            retrace_bar_number=1,
+        )
+        second = build_signal(
+            candle,
+            config,
+            retrace_bar=retrace,
+            retrace_bar_number=1,
+        )
         self.assertEqual(first, second)
         assert first is not None
         self.assertEqual(len(first.key), 16)
         self.assertEqual(first.side, "SELL")
         self.assertEqual(first.stop, 150.02)
-        self.assertEqual(first.target, 149.66)
+        self.assertEqual(first.target, 149.51)
+
+    def test_one_percent_margin_is_relative_to_the_wickless_open(self) -> None:
+        wickless = bar("2026-07-30T08:00:00", 100, 102, 100, 101)
+        within = bar("2026-07-30T08:15:00", 102, 102, 100.9, 101.5)
+        outside = bar("2026-07-30T08:15:00", 102, 103, 101.01, 102)
+        self.assertTrue(
+            retrace_touches_origin(wickless, within, margin_percent=1.0)
+        )
+        self.assertFalse(
+            retrace_touches_origin(wickless, outside, margin_percent=1.0)
+        )
+
+    def test_retrace_must_occur_on_one_of_the_next_three_contiguous_bars(self) -> None:
+        bars = [
+            bar("2026-07-30T08:00:00", 1.1000, 1.1010, 1.1000, 1.1008),
+            bar("2026-07-30T08:15:00", 1.1008, 1.1010, 1.1005, 1.1007),
+            bar("2026-07-30T08:30:00", 1.1007, 1.1010, 1.1004, 1.1006),
+            bar("2026-07-30T08:45:00", 1.1006, 1.1009, 1.1003, 1.1005),
+            bar("2026-07-30T09:00:00", 1.1005, 1.1008, 1.1000, 1.1004),
+        ]
+        signals = find_retrace_signals(
+            bars,
+            config=StrategyConfig(
+                instrument="eurusd",
+                retrace_margin_percent=0,
+            ),
+        )
+        source_signals = [
+            item
+            for item in signals
+            if item.bar_open_time_utc == "2026-07-30T08:00:00+00:00"
+        ]
+        self.assertEqual(source_signals, [])
+
+    def test_first_qualifying_retrace_is_used_and_later_ones_are_ignored(self) -> None:
+        bars = [
+            bar("2026-07-30T08:00:00", 1.1000, 1.1010, 1.1000, 1.1008),
+            bar("2026-07-30T08:15:00", 1.1008, 1.1010, 1.1005, 1.1007),
+            bar("2026-07-30T08:30:00", 1.1007, 1.1010, 1.1000, 1.1005),
+            bar("2026-07-30T08:45:00", 1.1005, 1.1008, 1.1000, 1.1004),
+        ]
+        signals = find_retrace_signals(
+            bars,
+            config=StrategyConfig(
+                instrument="eurusd",
+                retrace_margin_percent=0,
+            ),
+        )
+        source_signal = next(
+            item
+            for item in signals
+            if item.bar_open_time_utc == "2026-07-30T08:00:00+00:00"
+        )
+        self.assertEqual(source_signal.retrace_bar_number, 2)
+        self.assertEqual(
+            source_signal.retrace_bar_open_time_utc,
+            "2026-07-30T08:30:00+00:00",
+        )
+
+    def test_third_retrace_bar_is_included(self) -> None:
+        bars = [
+            bar("2026-07-30T08:00:00", 1.1000, 1.1010, 1.1000, 1.1008),
+            bar("2026-07-30T08:15:00", 1.1008, 1.1010, 1.1005, 1.1007),
+            bar("2026-07-30T08:30:00", 1.1007, 1.1010, 1.1004, 1.1006),
+            bar("2026-07-30T08:45:00", 1.1006, 1.1009, 1.1000, 1.1005),
+        ]
+        signals = find_retrace_signals(
+            bars,
+            config=StrategyConfig(
+                instrument="eurusd",
+                retrace_margin_percent=0,
+            ),
+        )
+        source_signal = next(
+            item
+            for item in signals
+            if item.bar_open_time_utc == "2026-07-30T08:00:00+00:00"
+        )
+        self.assertEqual(source_signal.retrace_bar_number, 3)
+
+    def test_missing_fifteen_minute_bar_cancels_pending_setup(self) -> None:
+        signals = find_retrace_signals(
+            [
+                bar("2026-07-30T08:00:00", 1.1000, 1.1010, 1.1000, 1.1008),
+                bar("2026-07-30T08:30:00", 1.1008, 1.1010, 1.1000, 1.1004),
+            ],
+            config=StrategyConfig(instrument="eurusd"),
+        )
+        self.assertEqual(signals, [])
 
     def test_only_finalized_fresh_bars_are_returned(self) -> None:
         bars = [
             bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
-            bar("2026-07-30T08:15:00", 1.1, 1.101, 1.1, 1.1008),
-            bar("2026-07-30T08:30:00", 1.1, 1.101, 1.1, 1.1008),
+            bar("2026-07-30T08:15:00", 1.1008, 1.101, 1.1, 1.1004),
+            bar("2026-07-30T08:30:00", 1.1004, 1.101, 1.099, 1.1000),
         ]
         signals = find_fresh_signals(
             bars,
             config=StrategyConfig(instrument="eurusd"),
-            as_of=datetime(2026, 7, 30, 8, 32, tzinfo=UTC),
+            as_of=datetime(2026, 7, 30, 8, 31, tzinfo=UTC),
             max_signal_age_minutes=30,
         )
         self.assertEqual(
             [item.bar_open_time_utc for item in signals],
-            [
-                "2026-07-30T08:00:00+00:00",
-                "2026-07-30T08:15:00+00:00",
-            ],
+            ["2026-07-30T08:00:00+00:00"],
         )
 
     def test_discord_embed_is_valid_and_mentions_are_disabled(self) -> None:
         signal = build_signal(
             bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
             StrategyConfig(instrument="eurusd"),
+            retrace_bar=bar(
+                "2026-07-30T08:15:00",
+                1.1008,
+                1.1009,
+                1.1,
+                1.1004,
+            ),
+            retrace_bar_number=1,
         )
         assert signal is not None
         payload = discord_payload(signal)
@@ -188,6 +312,7 @@ class SignalTests(unittest.TestCase):
             "targets the missing",
             payload["embeds"][0]["description"],
         )
+        self.assertIn("candle 1 of 3", payload["embeds"][0]["description"])
         self.assertLess(len(json.dumps(payload)), 6000)
 
 
@@ -195,7 +320,8 @@ class BacktestTests(unittest.TestCase):
     def test_target_hit_closes_at_two_r(self) -> None:
         bars = [
             bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
-            bar("2026-07-30T08:15:00", 1.1008, 1.1030, 1.1005, 1.1029),
+            bar("2026-07-30T08:15:00", 1.1008, 1.1009, 1.1, 1.1004),
+            bar("2026-07-30T08:30:00", 1.1004, 1.1020, 1.1002, 1.1019),
         ]
         result = run_backtest(
             bars,
@@ -213,7 +339,8 @@ class BacktestTests(unittest.TestCase):
     def test_same_bar_stop_and_target_is_counted_as_stop(self) -> None:
         bars = [
             bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
-            bar("2026-07-30T08:15:00", 1.1008, 1.1030, 1.0995, 1.1000),
+            bar("2026-07-30T08:15:00", 1.1008, 1.1009, 1.1, 1.1004),
+            bar("2026-07-30T08:30:00", 1.1004, 1.1020, 1.0995, 1.1000),
         ]
         result = run_backtest(
             bars,
@@ -242,14 +369,38 @@ class BacktestTests(unittest.TestCase):
 
 
 class ScannerTests(unittest.TestCase):
-    def test_scanner_posts_each_signal_once_across_runs(self) -> None:
+    def test_scanner_does_not_alert_on_unconfirmed_no_wick_candle(self) -> None:
         now = datetime(2026, 7, 30, 8, 16, tzinfo=UTC)
-        candle = bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_csv(
+                root / "eurusd-m15-bid-live.csv",
+                [bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008)],
+            )
+            with patch("wickless_bot.post_discord") as post:
+                result = scan_markets(
+                    data_dir=root,
+                    instruments=["eurusd"],
+                    state_path=root / "state.json",
+                    as_of=now,
+                    max_signal_age_minutes=20,
+                    state_retention_days=14,
+                    webhook_url="https://discord.com/api/webhooks/123/token",
+                )
+            post.assert_not_called()
+        self.assertEqual(result, (0, 0))
+
+    def test_scanner_posts_each_signal_once_across_runs(self) -> None:
+        now = datetime(2026, 7, 30, 8, 31, tzinfo=UTC)
+        candles = [
+            bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
+            bar("2026-07-30T08:15:00", 1.1008, 1.1009, 1.1, 1.1004),
+        ]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             csv_path = root / "eurusd-m15-bid-live.csv"
             state = root / "state" / "seen.json"
-            write_csv(csv_path, [candle])
+            write_csv(csv_path, candles)
             with patch("wickless_bot.post_discord") as post:
                 first = scan_markets(
                     data_dir=root,
@@ -276,12 +427,21 @@ class ScannerTests(unittest.TestCase):
             self.assertEqual(len(saved), 1)
 
     def test_dry_run_does_not_require_webhook(self) -> None:
-        now = datetime(2026, 7, 30, 8, 16, tzinfo=UTC)
+        now = datetime(2026, 7, 30, 8, 31, tzinfo=UTC)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             write_csv(
                 root / "eurusd-m15-bid-live.csv",
-                [bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008)],
+                [
+                    bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
+                    bar(
+                        "2026-07-30T08:15:00",
+                        1.1008,
+                        1.1009,
+                        1.1,
+                        1.1004,
+                    ),
+                ],
             )
             result = scan_markets(
                 data_dir=root,

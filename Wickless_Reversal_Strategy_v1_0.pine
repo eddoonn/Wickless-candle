@@ -1,7 +1,7 @@
 //@version=6
 strategy(
-     title = "Wickless Directional Strategy 15m",
-     shorttitle = "Wickless Directional 15m",
+     title = "Wickless Three-Bar Retrace Strategy 15m",
+     shorttitle = "Wickless Retrace 15m",
      overlay = true,
      initial_capital = 50000,
      default_qty_type = strategy.percent_of_equity,
@@ -16,8 +16,9 @@ strategy(
 )
 
 // Execution layer for the public wickless-candle premise:
-// - bullish open≈low candle -> BUY;
-// - bearish open≈high candle -> SELL.
+// - detect a bullish open≈low or bearish open≈high candle;
+// - wait for price to revisit its opening-price band on bars 1–3;
+// - enter at the qualifying retrace candle's close in the candle's direction.
 // The source indicator publishes no bracket rules. This strategy uses a
 // transparent candle-extreme stop and configurable R-multiple target.
 
@@ -29,6 +30,21 @@ toleranceTicks = input.float(
      "Opening-wick tolerance (ticks)",
      minval = 0.0,
      maxval = 2.0,
+     step = 0.1,
+     group = groupRules
+)
+retraceBars = input.int(
+     3,
+     "Retrace window (15m bars)",
+     minval = 1,
+     maxval = 20,
+     group = groupRules
+)
+retraceMarginPercent = input.float(
+     1.0,
+     "Origin-price margin (%)",
+     minval = 0.0,
+     maxval = 100.0,
      step = 0.1,
      group = groupRules
 )
@@ -52,58 +68,112 @@ bearishWickless = barstate.isconfirmed and close < open and high - open <= toler
 
 var float activeStop = na
 var float activeTarget = na
+var array<int> pendingBars = array.new_int()
+var array<int> pendingSides = array.new_int()
+var array<float> pendingOrigins = array.new_float()
+var array<float> pendingHighs = array.new_float()
+var array<float> pendingLows = array.new_float()
 
 flat = strategy.position_size == 0
-sellSignal = flat and enableShorts and bearishWickless
-buySignal = flat and enableLongs and bullishWickless
+bool sellSignal = false
+bool buySignal = false
+bool entrySubmitted = false
 
-if sellSignal
-    entryPrice = close
-    stopPrice = high + stopBuffer
-    risk = stopPrice - entryPrice
-    targetPrice = entryPrice - rewardRisk * risk
-    if risk > syminfo.mintick / 2
-        activeStop := stopPrice
-        activeTarget := targetPrice
-        strategy.entry("Wickless SELL", strategy.short)
-        strategy.exit(
-             "SELL bracket",
-             from_entry = "Wickless SELL",
-             stop = stopPrice,
-             limit = targetPrice
-        )
-        payload = '{"content":"**WICKLESS 15m: SELL ' + syminfo.ticker + '**\\n' +
-             'Entry reference: `' + str.tostring(entryPrice, format.mintick) + '`\\n' +
-             'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
-             'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' +
-             str.tostring(targetPrice, format.mintick) + '`\\n' +
-             'Pattern: bearish candle missing upper wick\\n' +
-             'Time: ' + str.format_time(time_close, "yyyy-MM-dd HH:mm z", "Europe/London") + '"}'
-        alert(payload, alert.freq_once_per_bar_close)
+// Process older setups before adding the current candle, so a no-wick candle
+// can only be confirmed by one of the next bars and never by itself.
+int pendingIndex = array.size(pendingBars) - 1
+while pendingIndex >= 0
+    signalBar = array.get(pendingBars, pendingIndex)
+    signalSide = array.get(pendingSides, pendingIndex)
+    signalOrigin = array.get(pendingOrigins, pendingIndex)
+    signalHigh = array.get(pendingHighs, pendingIndex)
+    signalLow = array.get(pendingLows, pendingIndex)
+    age = bar_index - signalBar
+    removeSetup = age > retraceBars
 
-if buySignal
-    entryPrice = close
-    stopPrice = low - stopBuffer
-    risk = entryPrice - stopPrice
-    targetPrice = entryPrice + rewardRisk * risk
-    if risk > syminfo.mintick / 2
-        activeStop := stopPrice
-        activeTarget := targetPrice
-        strategy.entry("Wickless BUY", strategy.long)
-        strategy.exit(
-             "BUY bracket",
-             from_entry = "Wickless BUY",
-             stop = stopPrice,
-             limit = targetPrice
-        )
-        payload = '{"content":"**WICKLESS 15m: BUY ' + syminfo.ticker + '**\\n' +
-             'Entry reference: `' + str.tostring(entryPrice, format.mintick) + '`\\n' +
-             'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
-             'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' +
-             str.tostring(targetPrice, format.mintick) + '`\\n' +
-             'Pattern: bullish candle missing lower wick\\n' +
-             'Time: ' + str.format_time(time_close, "yyyy-MM-dd HH:mm z", "Europe/London") + '"}'
-        alert(payload, alert.freq_once_per_bar_close)
+    if age >= 1 and age <= retraceBars
+        margin = signalOrigin * retraceMarginPercent / 100.0
+        lowerBand = signalOrigin - margin
+        upperBand = signalOrigin + margin
+        retraced = low <= upperBand and high >= lowerBand
+        if retraced
+            removeSetup := true
+            if flat and not entrySubmitted
+                entryPrice = close
+                if signalSide == 1 and enableLongs
+                    stopPrice = signalLow - stopBuffer
+                    risk = entryPrice - stopPrice
+                    targetPrice = entryPrice + rewardRisk * risk
+                    if risk > syminfo.mintick / 2
+                        buySignal := true
+                        entrySubmitted := true
+                        activeStop := stopPrice
+                        activeTarget := targetPrice
+                        strategy.entry("Wickless BUY", strategy.long)
+                        strategy.exit(
+                             "BUY bracket",
+                             from_entry = "Wickless BUY",
+                             stop = stopPrice,
+                             limit = targetPrice
+                        )
+                        payload = '{"content":"**WICKLESS 15m RETRACE: BUY ' + syminfo.ticker + '**\\n' +
+                             'Entry reference: `' + str.tostring(entryPrice, format.mintick) + '`\\n' +
+                             'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
+                             'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' +
+                             str.tostring(targetPrice, format.mintick) + '`\\n' +
+                             'Wickless origin: `' + str.tostring(signalOrigin, format.mintick) + '`\\n' +
+                             'Retrace: bar ' + str.tostring(age) + '/' + str.tostring(retraceBars) +
+                             ' within ±' + str.tostring(retraceMarginPercent, "#.##") + '%\\n' +
+                             'Time: ' + str.format_time(time_close, "yyyy-MM-dd HH:mm z", "Europe/London") + '"}'
+                        alert(payload, alert.freq_once_per_bar_close)
+                if signalSide == -1 and enableShorts and not entrySubmitted
+                    stopPrice = signalHigh + stopBuffer
+                    risk = stopPrice - entryPrice
+                    targetPrice = entryPrice - rewardRisk * risk
+                    if risk > syminfo.mintick / 2
+                        sellSignal := true
+                        entrySubmitted := true
+                        activeStop := stopPrice
+                        activeTarget := targetPrice
+                        strategy.entry("Wickless SELL", strategy.short)
+                        strategy.exit(
+                             "SELL bracket",
+                             from_entry = "Wickless SELL",
+                             stop = stopPrice,
+                             limit = targetPrice
+                        )
+                        payload = '{"content":"**WICKLESS 15m RETRACE: SELL ' + syminfo.ticker + '**\\n' +
+                             'Entry reference: `' + str.tostring(entryPrice, format.mintick) + '`\\n' +
+                             'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
+                             'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' +
+                             str.tostring(targetPrice, format.mintick) + '`\\n' +
+                             'Wickless origin: `' + str.tostring(signalOrigin, format.mintick) + '`\\n' +
+                             'Retrace: bar ' + str.tostring(age) + '/' + str.tostring(retraceBars) +
+                             ' within ±' + str.tostring(retraceMarginPercent, "#.##") + '%\\n' +
+                             'Time: ' + str.format_time(time_close, "yyyy-MM-dd HH:mm z", "Europe/London") + '"}'
+                        alert(payload, alert.freq_once_per_bar_close)
+
+    if removeSetup
+        array.remove(pendingBars, pendingIndex)
+        array.remove(pendingSides, pendingIndex)
+        array.remove(pendingOrigins, pendingIndex)
+        array.remove(pendingHighs, pendingIndex)
+        array.remove(pendingLows, pendingIndex)
+    pendingIndex -= 1
+
+if bullishWickless
+    array.push(pendingBars, bar_index)
+    array.push(pendingSides, 1)
+    array.push(pendingOrigins, open)
+    array.push(pendingHighs, high)
+    array.push(pendingLows, low)
+
+if bearishWickless
+    array.push(pendingBars, bar_index)
+    array.push(pendingSides, -1)
+    array.push(pendingOrigins, open)
+    array.push(pendingHighs, high)
+    array.push(pendingLows, low)
 
 if strategy.position_size == 0 and strategy.position_size[1] != 0
     activeStop := na
@@ -145,5 +215,5 @@ plotshape(
      size = size.tiny
 )
 
-alertcondition(sellSignal, title = "Wickless SELL setup", message = "Wickless SELL setup")
-alertcondition(buySignal, title = "Wickless BUY setup", message = "Wickless BUY setup")
+alertcondition(sellSignal, title = "Wickless SELL retrace", message = "Wickless SELL retrace")
+alertcondition(buySignal, title = "Wickless BUY retrace", message = "Wickless BUY retrace")

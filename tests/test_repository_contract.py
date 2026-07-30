@@ -25,11 +25,17 @@ class RepositoryContractTests(unittest.TestCase):
             self.assertIn("high - open <= tolerance", source)
         self.assertIn("alertcondition(", indicator)
         self.assertIn("alert(payload, alert.freq_once_per_bar_close)", strategy)
-        self.assertIn(
+        self.assertIn('3,\n     "Retrace window (15m bars)"', strategy)
+        self.assertIn('1.0,\n     "Origin-price margin (%)"', strategy)
+        self.assertIn("age >= 1 and age <= retraceBars", strategy)
+        self.assertIn("low <= upperBand and high >= lowerBand", strategy)
+        self.assertIn("if bullishWickless", strategy)
+        self.assertIn("if bearishWickless", strategy)
+        self.assertNotIn(
             "buySignal = flat and enableLongs and bullishWickless",
             strategy,
         )
-        self.assertIn(
+        self.assertNotIn(
             "sellSignal = flat and enableShorts and bearishWickless",
             strategy,
         )
