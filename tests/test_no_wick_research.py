@@ -82,11 +82,11 @@ class NoWickExecutionTests(unittest.TestCase):
     def test_phase3_requires_market_side_zone_touch_and_directional_reclaim(self) -> None:
         bids = [
             bar(0, 1.1000, 1.1010, 1.1000, 1.10095),
-            bar(15, 1.10095, 1.1010, 1.09998, 1.10012),
+            bar(15, 1.10095, 1.1010, 1.09998, 1.10014),
         ]
         asks = [
             bar(0, 1.1001, 1.1011, 1.1001, 1.10105),
-            bar(15, 1.10105, 1.1011, 1.10008, 1.10022),
+            bar(15, 1.10105, 1.1011, 1.10008, 1.10024),
         ]
         result = run_no_wick_backtest(
             bids,
@@ -96,12 +96,12 @@ class NoWickExecutionTests(unittest.TestCase):
         self.assertEqual(result.filled_orders, 1)
         fill = result.fills[0]
         self.assertAlmostEqual(fill.origin_price, 1.1001)
-        self.assertAlmostEqual(fill.origin_zone_low, 1.1000)
-        self.assertAlmostEqual(fill.origin_zone_high, 1.1002)
+        self.assertAlmostEqual(fill.origin_zone_low, 1.09998)
+        self.assertAlmostEqual(fill.origin_zone_high, 1.10022)
         self.assertEqual(fill.touch_bar_number, 1)
         self.assertEqual(fill.confirmation_bar_number, 1)
-        self.assertAlmostEqual(fill.entry, 1.10022)
-        self.assertAlmostEqual(fill.entry_displacement_atr, 0.12)
+        self.assertAlmostEqual(fill.entry, 1.10024)
+        self.assertAlmostEqual(fill.entry_displacement_atr, 0.14)
 
     def test_reclaim_without_an_actual_zone_touch_does_not_enter(self) -> None:
         bids = [
@@ -124,12 +124,12 @@ class NoWickExecutionTests(unittest.TestCase):
         bids = [
             bar(0, 1.1000, 1.1010, 1.1000, 1.10095),
             bar(15, 1.10095, 1.1010, 1.09998, 1.10002),
-            bar(30, 1.10020, 1.1004, 1.10011, 1.10012),
+            bar(30, 1.10020, 1.1004, 1.10011, 1.10014),
         ]
         asks = [
             bar(0, 1.1001, 1.1011, 1.1001, 1.10105),
             bar(15, 1.10105, 1.1011, 1.10008, 1.10012),
-            bar(30, 1.10030, 1.1005, 1.10021, 1.10022),
+            bar(30, 1.10030, 1.1005, 1.10021, 1.10024),
         ]
         result = run_no_wick_backtest(
             bids,

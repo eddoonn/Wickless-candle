@@ -39,7 +39,7 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('minimumBodyRatio = input.float(0.80', strategy)
         self.assertIn('minimumRangeAtr = input.float(0.50', strategy)
         self.assertIn('maximumRangeAtr = input.float(2.00', strategy)
-        self.assertIn('originZoneAtrFraction = input.float(0.10', strategy)
+        self.assertIn('originZoneAtrFraction = input.float(0.12', strategy)
         self.assertIn('setupExpiryBars = input.int(5', strategy)
         self.assertIn('maximumEntryDisplacementAtr = input.float(0.30', strategy)
         self.assertIn("riskValid = risk >= minimumRisk and risk <= maximumRisk", strategy)
