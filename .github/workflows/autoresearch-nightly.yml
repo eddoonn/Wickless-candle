@@ -1,0 +1,146 @@
+name: Nightly Wickless autoresearch
+
+on:
+  schedule:
+    - cron: "0 23 * * *"
+      timezone: "Europe/London"
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: "Number of controlled experiments (1-20)"
+        required: false
+        default: "12"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wickless-autoresearch-nightly
+  cancel-in-progress: false
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      FRAMEWORK_BRANCH: autoresearch/framework-v1
+      NIGHTLY_BRANCH: autoresearch/nightly
+      DATA_ROOT: .runtime-data/autoresearch-datasets
+      BI5_CACHE: .runtime-data/duka-bi5
+      BATCH_SIZE: ${{ github.event.inputs.batch_size || '12' }}
+    steps:
+      - name: Check out the fixed framework
+        uses: actions/checkout@v4
+        with:
+          ref: autoresearch/framework-v1
+          fetch-depth: 0
+
+      - name: Resume the isolated nightly branch
+        shell: bash
+        run: |
+          git config user.name "wickless-autoresearch[bot]"
+          git config user.email "wickless-autoresearch[bot]@users.noreply.github.com"
+          git fetch origin "$FRAMEWORK_BRANCH"
+          if git ls-remote --exit-code --heads origin "refs/heads/$NIGHTLY_BRANCH"; then
+            git fetch origin "$NIGHTLY_BRANCH"
+            git checkout -B "$NIGHTLY_BRANCH" "origin/$NIGHTLY_BRANCH"
+            git merge --no-edit "origin/$FRAMEWORK_BRANCH"
+          else
+            git checkout -b "$NIGHTLY_BRANCH" "origin/$FRAMEWORK_BRANCH"
+          fi
+
+      - name: Require Discord notifications
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: test -n "$DISCORD_WEBHOOK_URL"
+
+      - name: Restore fixed BID ASK research data
+        id: dataset-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .runtime-data/autoresearch-datasets
+            .runtime-data/duka-bi5
+          key: wickless-autoresearch-data-v1-complete
+          restore-keys: |
+            wickless-autoresearch-data-v1-partial-
+
+      - name: Build missing June and July BID ASK datasets
+        shell: bash
+        run: |
+          pairs=(EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD)
+          june="$DATA_ROOT/dukascopy_m1_bidask_2026-06"
+          july="$DATA_ROOT/dukascopy_m1_bidask_2026-07"
+          if [[ ! -s "$june/manifest.json" ]]; then
+            python scripts/download_m1_bid_ask.py "${pairs[@]}" \
+              --start 2026-05-27 --end 2026-06-30 \
+              --output "$june" --cache "$BI5_CACHE"
+          fi
+          if [[ ! -s "$july/manifest.json" ]]; then
+            python scripts/download_m1_bid_ask.py "${pairs[@]}" \
+              --start 2026-06-29 --end 2026-07-31 \
+              --output "$july" --cache "$BI5_CACHE"
+          fi
+          test "$(find "$june" -name '*.csv.gz' | wc -l)" -eq 7
+          test "$(find "$july" -name '*.csv.gz' | wc -l)" -eq 7
+
+      - name: Save complete research data
+        if: success() && steps.dataset-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .runtime-data/autoresearch-datasets
+            .runtime-data/duka-bi5
+          key: wickless-autoresearch-data-v1-complete
+
+      - name: Save partial download for automatic retry
+        if: failure() && steps.dataset-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .runtime-data/autoresearch-datasets
+            .runtime-data/duka-bi5
+          key: wickless-autoresearch-data-v1-partial-${{ github.run_id }}
+
+      - name: Run profitability-first experiment batch
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: >-
+          python -m autoresearch.nightly_batch
+          --data-root "$DATA_ROOT"
+          --batch-size "$BATCH_SIZE"
+          --git-commits
+
+      - name: Validate code and protected scope
+        shell: bash
+        run: |
+          python -m compileall -q \
+            wickless_bot.py no_wick_research.py live_data.py run_daemon.py \
+            autoresearch scripts tests
+          python -m unittest discover -s tests -v
+          python autoresearch/verify_scope.py \
+            --base "origin/$FRAMEWORK_BRANCH"
+
+      - name: Publish audit history to the nightly branch only
+        run: git push origin "$NIGHTLY_BRANCH"
+
+      - name: Alert Discord if the batch fails
+        if: failure()
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+          if webhook:
+              message = "❌ **Wickless nightly autoresearch failed**\n" + os.environ["RUN_URL"]
+              request = urllib.request.Request(
+                  webhook,
+                  data=json.dumps({"content": message}).encode(),
+                  headers={"Content-Type": "application/json"},
+                  method="POST",
+              )
+              urllib.request.urlopen(request, timeout=20).read()
+          PY
