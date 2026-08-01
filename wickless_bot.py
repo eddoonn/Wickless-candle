@@ -37,6 +37,12 @@ DEFAULT_MAX_SIGNAL_AGE_SECONDS = 120
 DEFAULT_MAX_QUOTE_AGE_SECONDS = 120
 DEFAULT_MAX_ENTRY_DEVIATION_R = 0.25
 DEFAULT_RESEARCH_LOOKBACK_SECONDS = 45 * 60
+DEFAULT_ATR_PERIOD = 14
+DEFAULT_MIN_STOP_ATR_FRACTION = 0.40
+DEFAULT_MAX_STOP_ATR_FRACTION = 1.50
+DEFAULT_MIN_SPREAD_MULTIPLE = 3.0
+DEFAULT_MAX_COST_TO_RISK_RATIO = 0.10
+DEFAULT_SLIPPAGE_TICKS_PER_SIDE = 1.0
 
 ACTIONABLE = "ACTIONABLE"
 EXPIRED_BY_AGE = "EXPIRED_BY_AGE"
@@ -48,27 +54,59 @@ AMBIGUOUS_PRICE_PATH = "AMBIGUOUS_PRICE_PATH"
 PRICE_MOVED_TOO_FAR = "PRICE_MOVED_TOO_FAR"
 ACTIVE_POSITION_EXISTS = "ACTIVE_POSITION_EXISTS"
 DUPLICATE_SIGNAL = "DUPLICATE_SIGNAL"
+STOP_TOO_TIGHT = "STOP_TOO_TIGHT"
+STOP_TOO_WIDE = "STOP_TOO_WIDE"
+EXECUTION_COST_TOO_LARGE_RELATIVE_TO_RISK = (
+    "EXECUTION_COST_TOO_LARGE_RELATIVE_TO_RISK"
+)
 
 
 @dataclass(frozen=True)
 class InstrumentProfile:
     key: str
     symbol: str
+    base_currency: str
+    quote_currency: str
+    pip_size: float
     tick_size: float
     price_decimals: int
     stop_buffer_ticks: int
+    minimum_stop_pips: float
     jetta_code: str
+
+    @property
+    def minimum_stop_distance(self) -> float:
+        return self.minimum_stop_pips * self.pip_size
+
+    def to_pips(self, distance: float) -> float:
+        return distance / self.pip_size
 
 
 INSTRUMENTS = {
-    "xauusd": InstrumentProfile("xauusd", "XAUUSD", 0.001, 3, 20, "XAU-USD"),
-    "eurusd": InstrumentProfile("eurusd", "EURUSD", 0.00001, 5, 20, "EUR-USD"),
-    "gbpusd": InstrumentProfile("gbpusd", "GBPUSD", 0.00001, 5, 20, "GBP-USD"),
-    "usdjpy": InstrumentProfile("usdjpy", "USDJPY", 0.001, 3, 20, "USD-JPY"),
-    "usdchf": InstrumentProfile("usdchf", "USDCHF", 0.00001, 5, 20, "USD-CHF"),
-    "usdcad": InstrumentProfile("usdcad", "USDCAD", 0.00001, 5, 20, "USD-CAD"),
-    "audusd": InstrumentProfile("audusd", "AUDUSD", 0.00001, 5, 20, "AUD-USD"),
-    "nzdusd": InstrumentProfile("nzdusd", "NZDUSD", 0.00001, 5, 20, "NZD-USD"),
+    "xauusd": InstrumentProfile(
+        "xauusd", "XAUUSD", "XAU", "USD", 0.01, 0.001, 3, 20, 50.0, "XAU-USD"
+    ),
+    "eurusd": InstrumentProfile(
+        "eurusd", "EURUSD", "EUR", "USD", 0.0001, 0.00001, 5, 20, 5.0, "EUR-USD"
+    ),
+    "gbpusd": InstrumentProfile(
+        "gbpusd", "GBPUSD", "GBP", "USD", 0.0001, 0.00001, 5, 20, 5.0, "GBP-USD"
+    ),
+    "usdjpy": InstrumentProfile(
+        "usdjpy", "USDJPY", "USD", "JPY", 0.01, 0.001, 3, 20, 5.0, "USD-JPY"
+    ),
+    "usdchf": InstrumentProfile(
+        "usdchf", "USDCHF", "USD", "CHF", 0.0001, 0.00001, 5, 20, 5.0, "USD-CHF"
+    ),
+    "usdcad": InstrumentProfile(
+        "usdcad", "USDCAD", "USD", "CAD", 0.0001, 0.00001, 5, 20, 5.0, "USD-CAD"
+    ),
+    "audusd": InstrumentProfile(
+        "audusd", "AUDUSD", "AUD", "USD", 0.0001, 0.00001, 5, 20, 5.0, "AUD-USD"
+    ),
+    "nzdusd": InstrumentProfile(
+        "nzdusd", "NZDUSD", "NZD", "USD", 0.0001, 0.00001, 5, 20, 5.0, "NZD-USD"
+    ),
 }
 FOREX_MAJORS = (
     "eurusd",
@@ -214,6 +252,16 @@ class OriginLimitSignal:
     distance_from_entry_r: float = 0.0
     signal_age_seconds: int = 0
     actionability_status: str = "UNVALIDATED"
+    risk_pips: float = 0.0
+    atr_15m: float = 0.0
+    stop_distance_atr: float = 0.0
+    minimum_stop_distance: float = 0.0
+    maximum_stop_distance: float = 0.0
+    minimum_stop_pips: float = 0.0
+    spread_multiple: float = 0.0
+    estimated_round_trip_cost: float = 0.0
+    cost_to_risk_ratio: float = 0.0
+    slippage_ticks_per_side: float = DEFAULT_SLIPPAGE_TICKS_PER_SIDE
 
 
 @dataclass(frozen=True)
@@ -273,6 +321,98 @@ def validate_bar(bar: Bar) -> None:
         raise ValueError(f"Invalid non-positive or non-finite OHLC bar: {bar}")
     if bar.low > min(bar.open, bar.close) or bar.high < max(bar.open, bar.close):
         raise ValueError(f"Inconsistent OHLC bar: {bar}")
+
+
+def atr_series(bars: Sequence[Bar], period: int = DEFAULT_ATR_PERIOD) -> list[float]:
+    """Return a causal simple ATR, using only bars known at each index."""
+
+    if period < 1:
+        raise ValueError("ATR period must be positive")
+    true_ranges: list[float] = []
+    values: list[float] = []
+    previous_close: float | None = None
+    for bar in bars:
+        validate_bar(bar)
+        true_range = bar.high - bar.low
+        if previous_close is not None:
+            true_range = max(
+                true_range,
+                abs(bar.high - previous_close),
+                abs(bar.low - previous_close),
+            )
+        true_ranges.append(true_range)
+        window = true_ranges[-period:]
+        values.append(sum(window) / len(window))
+        previous_close = bar.close
+    return values
+
+
+def evaluate_risk_integrity(
+    *,
+    profile: InstrumentProfile,
+    risk_distance: float,
+    atr_15m: float,
+    spread: float,
+    min_stop_atr_fraction: float = DEFAULT_MIN_STOP_ATR_FRACTION,
+    max_stop_atr_fraction: float = DEFAULT_MAX_STOP_ATR_FRACTION,
+    min_spread_multiple: float = DEFAULT_MIN_SPREAD_MULTIPLE,
+    max_cost_to_risk_ratio: float = DEFAULT_MAX_COST_TO_RISK_RATIO,
+    slippage_ticks_per_side: float = DEFAULT_SLIPPAGE_TICKS_PER_SIDE,
+) -> tuple[str | None, dict[str, float]]:
+    """Evaluate the shared pair, volatility, spread, and cost risk rules."""
+
+    values = (
+        risk_distance,
+        atr_15m,
+        spread,
+        min_stop_atr_fraction,
+        max_stop_atr_fraction,
+        min_spread_multiple,
+        max_cost_to_risk_ratio,
+        slippage_ticks_per_side,
+    )
+    if not all(math.isfinite(value) for value in values):
+        raise ValueError("Risk inputs must be finite")
+    if risk_distance <= 0 or atr_15m <= 0:
+        raise ValueError("Risk distance and ATR must be positive")
+    if spread < 0 or min_stop_atr_fraction < 0 or min_spread_multiple < 0:
+        raise ValueError("Spread and risk floors cannot be negative")
+    if max_stop_atr_fraction <= 0 or max_cost_to_risk_ratio < 0:
+        raise ValueError("Maximum risk settings must be positive")
+    if slippage_ticks_per_side < 0:
+        raise ValueError("Slippage cannot be negative")
+
+    atr_floor = atr_15m * min_stop_atr_fraction
+    spread_floor = spread * min_spread_multiple
+    minimum_stop = max(
+        profile.minimum_stop_distance,
+        atr_floor,
+        spread_floor,
+    )
+    maximum_stop = atr_15m * max_stop_atr_fraction
+    estimated_cost = spread + (
+        2 * slippage_ticks_per_side * profile.tick_size
+    )
+    cost_to_risk = estimated_cost / risk_distance
+    metrics = {
+        "risk_pips": profile.to_pips(risk_distance),
+        "atr_15m": atr_15m,
+        "stop_distance_atr": risk_distance / atr_15m,
+        "minimum_stop_distance": minimum_stop,
+        "maximum_stop_distance": maximum_stop,
+        "minimum_stop_pips": profile.minimum_stop_pips,
+        "spread_multiple": risk_distance / spread if spread else 0.0,
+        "estimated_round_trip_cost": estimated_cost,
+        "cost_to_risk_ratio": cost_to_risk,
+    }
+    tolerance = profile.tick_size / 100
+    if risk_distance + tolerance < minimum_stop:
+        return STOP_TOO_TIGHT, metrics
+    if risk_distance - tolerance > maximum_stop:
+        return STOP_TOO_WIDE, metrics
+    if cost_to_risk > max_cost_to_risk_ratio + 1e-12:
+        return EXECUTION_COST_TOO_LARGE_RELATIVE_TO_RISK, metrics
+    return None, metrics
 
 
 def classify_wickless(
@@ -523,6 +663,22 @@ def find_fresh_origin_limit_signals(
                 pivot_left=config.pivot_left,
                 pivot_right=config.pivot_right,
                 session_label="09:30–13:30 New York",
+                risk_pips=round(fill.risk_pips, 2),
+                atr_15m=_price(fill.atr_15m, profile),
+                stop_distance_atr=round(fill.stop_distance_atr, 4),
+                minimum_stop_distance=_price(
+                    fill.minimum_stop_distance, profile
+                ),
+                maximum_stop_distance=_price(
+                    fill.maximum_stop_distance, profile
+                ),
+                minimum_stop_pips=fill.minimum_stop_pips,
+                spread_multiple=round(fill.spread_multiple, 4),
+                estimated_round_trip_cost=_price(
+                    fill.estimated_round_trip_cost, profile
+                ),
+                cost_to_risk_ratio=round(fill.cost_to_risk_ratio, 4),
+                slippage_ticks_per_side=fill.slippage_ticks_per_side,
             )
         )
     return signals
@@ -903,11 +1059,28 @@ def validate_signal_actionability(
         else signal.entry_reference - current_price
     )
     distance_r = directional_distance / signal.risk_points
+    profile = INSTRUMENTS[signal.instrument]
+    atr_15m = signal.atr_15m
+    if atr_15m <= 0:
+        fill_open = parse_iso_datetime(signal.fill_bar_open_time_utc)
+        known_bars = [bar for bar in bid_bars if bar.timestamp <= fill_open]
+        if not known_bars:
+            raise ValueError("Cannot evaluate risk without a fill-time ATR")
+        atr_15m = atr_series(known_bars, DEFAULT_ATR_PERIOD)[-1]
+    risk_status, risk_metrics = evaluate_risk_integrity(
+        profile=profile,
+        risk_distance=signal.risk_points,
+        atr_15m=atr_15m,
+        spread=quote.spread,
+        slippage_ticks_per_side=signal.slippage_ticks_per_side,
+    )
     status = ACTIONABLE
     if fill_time > as_of or signal_age > max_signal_age_seconds:
         status = EXPIRED_BY_AGE
     elif quote_time > as_of or quote_age > max_quote_age_seconds:
         status = STALE_QUOTE
+    elif risk_status is not None:
+        status = risk_status
     else:
         path_status = _price_path_status(
             signal,
@@ -919,7 +1092,6 @@ def validate_signal_actionability(
             status = path_status
         elif abs(distance_r) > max_entry_deviation_r:
             status = PRICE_MOVED_TOO_FAR
-    profile = INSTRUMENTS[signal.instrument]
     return replace(
         signal,
         detected_time_utc=as_of.isoformat(),
@@ -930,6 +1102,21 @@ def validate_signal_actionability(
         distance_from_entry_r=round(distance_r, 4),
         signal_age_seconds=signal_age,
         actionability_status=status,
+        risk_pips=round(risk_metrics["risk_pips"], 2),
+        atr_15m=_price(risk_metrics["atr_15m"], profile),
+        stop_distance_atr=round(risk_metrics["stop_distance_atr"], 4),
+        minimum_stop_distance=_price(
+            risk_metrics["minimum_stop_distance"], profile
+        ),
+        maximum_stop_distance=_price(
+            risk_metrics["maximum_stop_distance"], profile
+        ),
+        minimum_stop_pips=risk_metrics["minimum_stop_pips"],
+        spread_multiple=round(risk_metrics["spread_multiple"], 4),
+        estimated_round_trip_cost=_price(
+            risk_metrics["estimated_round_trip_cost"], profile
+        ),
+        cost_to_risk_ratio=round(risk_metrics["cost_to_risk_ratio"], 4),
     )
 
 
@@ -1004,6 +1191,22 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                     {
                         "name": "Spread",
                         "value": f"`{signal.current_spread:.{digits}f}`",
+                        "inline": True,
+                    },
+                    {
+                        "name": "Risk distance",
+                        "value": (
+                            f"`{signal.risk_pips:.2f} pips • "
+                            f"{signal.stop_distance_atr:.2f} ATR`"
+                        ),
+                        "inline": True,
+                    },
+                    {
+                        "name": "Execution cost / 1R",
+                        "value": (
+                            f"`{100 * signal.cost_to_risk_ratio:.1f}% • "
+                            f"spread cover {signal.spread_multiple:.1f}x`"
+                        ),
                         "inline": True,
                     },
                     {
@@ -1163,6 +1366,14 @@ def _record_rejection(
         "timestamp": at.astimezone(UTC).isoformat(),
         "signal_age_seconds": signal.signal_age_seconds,
         "distance_from_entry_r": signal.distance_from_entry_r,
+        "risk_pips": signal.risk_pips,
+        "atr_15m": signal.atr_15m,
+        "stop_distance_atr": signal.stop_distance_atr,
+        "minimum_stop_distance": signal.minimum_stop_distance,
+        "maximum_stop_distance": signal.maximum_stop_distance,
+        "spread_multiple": signal.spread_multiple,
+        "estimated_round_trip_cost": signal.estimated_round_trip_cost,
+        "cost_to_risk_ratio": signal.cost_to_risk_ratio,
     }
     state.rejections.append(record)
     state.rejections = state.rejections[-500:]

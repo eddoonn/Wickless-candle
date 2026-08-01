@@ -56,20 +56,25 @@ or a post-close fill model. Those are deliberately explicit here:
 3. Accept new setups only from 09:30 through 13:30 America/New_York.
 4. Place an exact limit at the no-wick candle's opening price.
 5. Use the latest confirmed 3-left/3-right pivot plus one tick for the stop.
-6. Target `2R`.
-7. Allow multiple pending setups but only one active position per pair.
-8. Cancel a pending limit when its signal trend changes. There is no percentage
+6. Reject risk below the pair minimum (5 pips for FX majors; $0.50 for XAUUSD),
+   below `0.40 × ATR(14)`, or below `3 ×` the observed spread.
+7. Reject risk above `1.50 × ATR(14)` or when estimated spread plus slippage
+   exceeds 10% of `1R`.
+8. Target `2R`.
+9. Allow multiple pending setups but only one active position per pair.
+10. Cancel a pending limit when its signal trend changes. There is no percentage
    band and no three-candle expiry.
-9. If a historical bar has ambiguous fill/stop/target ordering, count the stop
+11. If a historical bar has ambiguous fill/stop/target ordering, count the stop
    first.
-10. Validate the current BID/ASK quote and reject a fill if its stop or target
+12. Validate the current BID/ASK quote and reject a fill if its stop or target
     already traded, its quote is stale, or price moved more than `0.25R`.
-11. Publish only signals no more than 120 seconds old.
-12. Pre-claim a deterministic fill ID and persist the active position so a
+13. Publish only signals no more than 120 seconds old.
+14. Pre-claim a deterministic fill ID and persist the active position so a
     retry or service restart cannot repost or overlap it.
 
 The Discord message contains side, symbol, 15m timeframe, exact origin entry,
 pivot stop, 2R target, current BID/ASK and spread, entry displacement in R,
+stop distance in pips and ATR, estimated execution cost as a percentage of 1R,
 signal age, publication time, actionability status, London fill time, and signal
 ID. It reports fills; it does not place or manage broker orders.
 
@@ -201,7 +206,10 @@ downloadable Actions artifact.
 The live strategy is the same trend-filtered origin-limit model used by this
 comparison: EMA(50) with a five-bar slope, confirmed 3/3 pivot stops plus one
 tick, the 09:30–13:30 New York signal window, 2R targets, multiple pending
-setups, one active position per pair, and trend-change expiry.
+setups, one active position per pair, trend-change expiry, and pair/ATR stop
+bounds. Python is the execution source of truth for BID/ASK spread and
+cost-to-risk validation because Pine historical bars do not provide equivalent
+market-side data.
 
 Run the complete comparison across the seven FX majors:
 

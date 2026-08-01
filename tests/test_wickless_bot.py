@@ -13,8 +13,11 @@ from unittest.mock import patch
 from wickless_bot import (
     ACTIONABLE,
     ASK_FILL_NOT_CONFIRMED,
+    EXECUTION_COST_TOO_LARGE_RELATIVE_TO_RISK,
     EXPIRED_BY_AGE,
     PRICE_MOVED_TOO_FAR,
+    STOP_TOO_TIGHT,
+    STOP_TOO_WIDE,
     STOP_ALREADY_REACHED,
     TARGET_ALREADY_REACHED,
     Bar,
@@ -27,6 +30,7 @@ from wickless_bot import (
     build_signal,
     classify_wickless,
     discord_payload,
+    evaluate_risk_integrity,
     find_fresh_origin_limit_signals,
     find_fresh_signals,
     find_retrace_signals,
@@ -131,6 +135,7 @@ def origin_signal() -> OriginLimitSignal:
         distance_from_entry_r=0.1,
         signal_age_seconds=20,
         actionability_status=ACTIONABLE,
+        slippage_ticks_per_side=0,
     )
 
 
@@ -532,6 +537,70 @@ class ActionabilityTests(unittest.TestCase):
         validated = self.validate(quote=quote)
         self.assertEqual(validated.actionability_status, PRICE_MOVED_TOO_FAR)
 
+    def test_current_spread_can_make_a_signal_uneconomic(self) -> None:
+        quote = CurrentQuote(
+            instrument="eurusd",
+            observed_time_utc="2026-07-30T14:15:10+00:00",
+            bid=1.1000,
+            ask=1.1002,
+            spread=0.0002,
+            source="test",
+        )
+        validated = self.validate(quote=quote)
+        self.assertEqual(
+            validated.actionability_status,
+            EXECUTION_COST_TOO_LARGE_RELATIVE_TO_RISK,
+        )
+        self.assertEqual(validated.cost_to_risk_ratio, 0.2)
+
+
+class RiskIntegrityTests(unittest.TestCase):
+    def evaluate(self, *, risk: float, atr: float, spread: float = 0.0):
+        return evaluate_risk_integrity(
+            profile=INSTRUMENTS["eurusd"],
+            risk_distance=risk,
+            atr_15m=atr,
+            spread=spread,
+            slippage_ticks_per_side=0,
+        )
+
+    def test_pair_metadata_centralizes_pip_and_currency_rules(self) -> None:
+        eurusd = INSTRUMENTS["eurusd"]
+        usdjpy = INSTRUMENTS["usdjpy"]
+        self.assertEqual((eurusd.base_currency, eurusd.quote_currency), ("EUR", "USD"))
+        self.assertEqual(eurusd.pip_size, 0.0001)
+        self.assertEqual(usdjpy.pip_size, 0.01)
+        self.assertEqual(eurusd.minimum_stop_distance, 0.0005)
+        self.assertEqual(usdjpy.minimum_stop_distance, 0.05)
+
+    def test_pair_and_atr_stop_floors_are_enforced(self) -> None:
+        pair_status, _ = self.evaluate(risk=0.0003, atr=0.0005)
+        atr_status, _ = self.evaluate(risk=0.0006, atr=0.0020)
+        self.assertEqual(pair_status, STOP_TOO_TIGHT)
+        self.assertEqual(atr_status, STOP_TOO_TIGHT)
+
+    def test_spread_floor_is_enforced(self) -> None:
+        status, metrics = self.evaluate(
+            risk=0.0010,
+            atr=0.0010,
+            spread=0.0004,
+        )
+        self.assertEqual(status, STOP_TOO_TIGHT)
+        self.assertAlmostEqual(metrics["minimum_stop_distance"], 0.0012)
+
+    def test_maximum_atr_stop_is_enforced(self) -> None:
+        status, _ = self.evaluate(risk=0.0016, atr=0.0010)
+        self.assertEqual(status, STOP_TOO_WIDE)
+
+    def test_cost_to_risk_cap_is_enforced(self) -> None:
+        status, metrics = self.evaluate(
+            risk=0.0010,
+            atr=0.0010,
+            spread=0.00011,
+        )
+        self.assertEqual(status, EXECUTION_COST_TOO_LARGE_RELATIVE_TO_RISK)
+        self.assertEqual(metrics["cost_to_risk_ratio"], 0.11)
+
 
 class ScannerTests(unittest.TestCase):
     def live_fixture(self, root: Path) -> datetime:
@@ -573,6 +642,11 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(config.pending_expiry, "trend_change")
         self.assertTrue(config.use_session)
         self.assertTrue(config.one_position_per_pair)
+        self.assertEqual(config.atr_period, 14)
+        self.assertEqual(config.minimum_stop_atr_fraction, 0.40)
+        self.assertEqual(config.maximum_stop_atr_fraction, 1.50)
+        self.assertEqual(config.minimum_spread_multiple, 3.0)
+        self.assertEqual(config.maximum_cost_to_risk_ratio, 0.10)
 
     def test_scanner_does_not_alert_on_unconfirmed_no_wick_candle(self) -> None:
         now = datetime(2026, 7, 30, 8, 16, tzinfo=UTC)

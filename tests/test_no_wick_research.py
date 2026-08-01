@@ -87,6 +87,9 @@ class NoWickExecutionTests(unittest.TestCase):
         self.assertEqual(result.filled_orders, 1)
         self.assertEqual(len(result.fills), 1)
         self.assertEqual(result.fills[0].entry, 1.1)
+        self.assertAlmostEqual(result.fills[0].risk_pips, 10.0)
+        self.assertAlmostEqual(result.fills[0].stop_distance_atr, 1.0)
+        self.assertEqual(result.fills[0].cost_to_risk_ratio, 0.0)
         self.assertEqual(
             result.fills[0].fill_time_utc,
             "2026-07-27T13:30:00+00:00",
@@ -230,6 +233,27 @@ class NoWickExecutionTests(unittest.TestCase):
         result = run_no_wick_backtest(bids, ask_bars=asks, config=config)
         self.assertEqual(result.filled_orders, 1)
         self.assertEqual(result.trades[0].exit_reason, "STOP")
+
+    def test_fill_is_rejected_when_execution_cost_exceeds_ten_percent_of_r(self) -> None:
+        bids = [
+            bar(0, 1.1000, 1.1010, 1.1000, 1.1008),
+            bar(15, 1.1008, 1.1010, 1.1000, 1.1005),
+        ]
+        asks = [
+            bar(0, 1.1002, 1.1012, 1.1002, 1.1010),
+            bar(15, 1.1010, 1.1012, 1.1000, 1.1007),
+        ]
+        config = NoWickConfig(
+            instrument="eurusd",
+            trend_filter="none",
+            use_session=False,
+            stop_mode="signal_range",
+            pending_expiry="bars",
+            slippage_ticks=0,
+        )
+        result = run_no_wick_backtest(bids, ask_bars=asks, config=config)
+        self.assertEqual(result.filled_orders, 0)
+        self.assertEqual(result.rejected_execution_cost, 1)
 
 
 if __name__ == "__main__":

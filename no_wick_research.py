@@ -11,6 +11,7 @@ The default research setup uses:
 * close versus EMA(50) plus a five-bar EMA slope;
 * limit entry at the signal candle's opening price;
 * a confirmed 3-left / 3-right local pivot stop plus one tick;
+* pair, ATR, spread, and execution-cost stop-distance validation;
 * a 2R target;
 * signals from 09:30 through 13:30 America/New_York;
 * multiple pending setups, but at most one active position per pair;
@@ -33,11 +34,18 @@ from typing import Sequence
 from zoneinfo import ZoneInfo
 
 from wickless_bot import (
+    DEFAULT_ATR_PERIOD,
+    DEFAULT_MAX_COST_TO_RISK_RATIO,
+    DEFAULT_MAX_STOP_ATR_FRACTION,
+    DEFAULT_MIN_SPREAD_MULTIPLE,
+    DEFAULT_MIN_STOP_ATR_FRACTION,
     FOREX_MAJORS,
     INSTRUMENTS,
     Bar,
     StrategyConfig,
+    atr_series,
     classify_wickless,
+    evaluate_risk_integrity,
     load_bars,
     run_backtest,
 )
@@ -66,6 +74,11 @@ class NoWickConfig:
     expiry_bars: int = 1
     slippage_ticks: float = 1.0
     one_position_per_pair: bool = True
+    atr_period: int = DEFAULT_ATR_PERIOD
+    minimum_stop_atr_fraction: float = DEFAULT_MIN_STOP_ATR_FRACTION
+    maximum_stop_atr_fraction: float = DEFAULT_MAX_STOP_ATR_FRACTION
+    minimum_spread_multiple: float = DEFAULT_MIN_SPREAD_MULTIPLE
+    maximum_cost_to_risk_ratio: float = DEFAULT_MAX_COST_TO_RISK_RATIO
 
     def __post_init__(self) -> None:
         if self.instrument not in INSTRUMENTS:
@@ -92,6 +105,16 @@ class NoWickConfig:
             raise ValueError("expiry_bars must be positive")
         if self.slippage_ticks < 0:
             raise ValueError("slippage_ticks cannot be negative")
+        if self.atr_period < 1:
+            raise ValueError("atr_period must be positive")
+        if self.minimum_stop_atr_fraction < 0:
+            raise ValueError("minimum_stop_atr_fraction cannot be negative")
+        if self.maximum_stop_atr_fraction <= 0:
+            raise ValueError("maximum_stop_atr_fraction must be positive")
+        if self.minimum_spread_multiple < 0:
+            raise ValueError("minimum_spread_multiple cannot be negative")
+        if self.maximum_cost_to_risk_ratio < 0:
+            raise ValueError("maximum_cost_to_risk_ratio cannot be negative")
 
     @property
     def profile(self):
@@ -111,6 +134,9 @@ class PendingOrder:
     target: float
     risk: float
     signal_trend: int
+    atr_15m: float
+    risk_pips: float
+    stop_distance_atr: float
 
 
 @dataclass(frozen=True)
@@ -144,6 +170,17 @@ class NoWickFill:
     stop: float
     target: float
     risk: float
+    risk_pips: float
+    atr_15m: float
+    stop_distance_atr: float
+    minimum_stop_distance: float
+    maximum_stop_distance: float
+    minimum_stop_pips: float
+    spread: float
+    spread_multiple: float
+    estimated_round_trip_cost: float
+    cost_to_risk_ratio: float
+    slippage_ticks_per_side: float
 
 
 @dataclass
@@ -154,6 +191,9 @@ class NoWickResult:
     expired_orders: int
     rejected_no_swing: int
     rejected_invalid_stop: int
+    rejected_stop_too_tight: int
+    rejected_stop_too_wide: int
+    rejected_execution_cost: int
     fills: list[NoWickFill]
     trades: list[NoWickTrade]
     open_positions: int
@@ -244,6 +284,7 @@ def _order_from_signal(
     pattern,
     pivot_low: float | None,
     pivot_high: float | None,
+    atr_15m: float,
     config: NoWickConfig,
 ) -> tuple[PendingOrder | None, str | None]:
     entry = bar.open
@@ -272,6 +313,19 @@ def _order_from_signal(
     )
     if risk <= config.profile.tick_size / 2:
         return None, "INVALID_STOP"
+    risk_status, risk_metrics = evaluate_risk_integrity(
+        profile=config.profile,
+        risk_distance=risk,
+        atr_15m=atr_15m,
+        spread=0.0,
+        min_stop_atr_fraction=config.minimum_stop_atr_fraction,
+        max_stop_atr_fraction=config.maximum_stop_atr_fraction,
+        min_spread_multiple=config.minimum_spread_multiple,
+        max_cost_to_risk_ratio=config.maximum_cost_to_risk_ratio,
+        slippage_ticks_per_side=config.slippage_ticks,
+    )
+    if risk_status is not None:
+        return None, risk_status
     target = (
         entry + config.reward_risk * risk
         if pattern.signal_side == "BUY"
@@ -295,8 +349,21 @@ def _order_from_signal(
             target=target,
             risk=risk,
             signal_trend=trend,
+            atr_15m=atr_15m,
+            risk_pips=risk_metrics["risk_pips"],
+            stop_distance_atr=risk_metrics["stop_distance_atr"],
         ),
         None,
+    )
+
+
+def _bar_spread(bid_bar: Bar, ask_bar: Bar) -> float:
+    """Conservative observable spread from synchronized OHLC snapshots."""
+
+    return max(
+        0.0,
+        ask_bar.open - bid_bar.open,
+        ask_bar.close - bid_bar.close,
     )
 
 
@@ -381,12 +448,15 @@ def run_no_wick_backtest(
         left=config.pivot_left,
         right=config.pivot_right,
     )
+    atr_values = atr_series(bars, config.atr_period)
     pending: list[PendingOrder] = []
     positions: list[tuple[PendingOrder, datetime]] = []
     fills: list[NoWickFill] = []
     trades: list[NoWickTrade] = []
-    eligible_signals = expired_orders = rejected_no_swing = 0
-    rejected_invalid_stop = filled_orders = ambiguous_exits = 0
+    eligible_signals = pending_orders_created = expired_orders = rejected_no_swing = 0
+    rejected_invalid_stop = rejected_stop_too_tight = 0
+    rejected_stop_too_wide = rejected_execution_cost = 0
+    filled_orders = ambiguous_exits = 0
     peak_open_positions = 0
 
     for index, bar in enumerate(bars):
@@ -444,6 +514,28 @@ def run_no_wick_backtest(
                 still_pending.append(order)
                 continue
 
+            spread = _bar_spread(bar, ask_bar)
+            risk_status, risk_metrics = evaluate_risk_integrity(
+                profile=config.profile,
+                risk_distance=order.risk,
+                atr_15m=order.atr_15m,
+                spread=spread,
+                min_stop_atr_fraction=config.minimum_stop_atr_fraction,
+                max_stop_atr_fraction=config.maximum_stop_atr_fraction,
+                min_spread_multiple=config.minimum_spread_multiple,
+                max_cost_to_risk_ratio=config.maximum_cost_to_risk_ratio,
+                slippage_ticks_per_side=config.slippage_ticks,
+            )
+            if risk_status == "STOP_TOO_TIGHT":
+                rejected_stop_too_tight += 1
+                continue
+            if risk_status == "STOP_TOO_WIDE":
+                rejected_stop_too_wide += 1
+                continue
+            if risk_status is not None:
+                rejected_execution_cost += 1
+                continue
+
             filled_orders += 1
             filled_this_bar = True
             fills.append(
@@ -459,6 +551,19 @@ def run_no_wick_backtest(
                     stop=order.stop,
                     target=order.target,
                     risk=order.risk,
+                    risk_pips=risk_metrics["risk_pips"],
+                    atr_15m=risk_metrics["atr_15m"],
+                    stop_distance_atr=risk_metrics["stop_distance_atr"],
+                    minimum_stop_distance=risk_metrics["minimum_stop_distance"],
+                    maximum_stop_distance=risk_metrics["maximum_stop_distance"],
+                    minimum_stop_pips=risk_metrics["minimum_stop_pips"],
+                    spread=spread,
+                    spread_multiple=risk_metrics["spread_multiple"],
+                    estimated_round_trip_cost=risk_metrics[
+                        "estimated_round_trip_cost"
+                    ],
+                    cost_to_risk_ratio=risk_metrics["cost_to_risk_ratio"],
+                    slippage_ticks_per_side=config.slippage_ticks,
                 )
             )
             stop_hit, target_touched = _exit_flags(order, bar, ask_bar)
@@ -510,24 +615,33 @@ def run_no_wick_backtest(
             pattern=pattern,
             pivot_low=pivot_lows[index],
             pivot_high=pivot_highs[index],
+            atr_15m=atr_values[index],
             config=config,
         )
         if rejection == "NO_SWING":
             rejected_no_swing += 1
         elif rejection == "INVALID_STOP":
             rejected_invalid_stop += 1
+        elif rejection == "STOP_TOO_TIGHT":
+            rejected_stop_too_tight += 1
+        elif rejection == "STOP_TOO_WIDE":
+            rejected_stop_too_wide += 1
+        elif rejection is not None:
+            rejected_execution_cost += 1
         elif order is not None:
             pending.append(order)
+            pending_orders_created += 1
 
     return NoWickResult(
         eligible_signals=eligible_signals,
-        pending_orders_created=(
-            eligible_signals - rejected_no_swing - rejected_invalid_stop
-        ),
+        pending_orders_created=pending_orders_created,
         filled_orders=filled_orders,
         expired_orders=expired_orders,
         rejected_no_swing=rejected_no_swing,
         rejected_invalid_stop=rejected_invalid_stop,
+        rejected_stop_too_tight=rejected_stop_too_tight,
+        rejected_stop_too_wide=rejected_stop_too_wide,
+        rejected_execution_cost=rejected_execution_cost,
         fills=fills,
         trades=trades,
         open_positions=len(positions),
@@ -567,6 +681,11 @@ def summarize_result(result: NoWickResult) -> dict[str, float | int | None]:
         "profit_factor": round(profit_factor, 4) if profit_factor is not None else None,
         "max_drawdown_r": round(max_drawdown, 4),
         "expired_orders": result.expired_orders,
+        "rejected_no_swing": result.rejected_no_swing,
+        "rejected_invalid_stop": result.rejected_invalid_stop,
+        "rejected_stop_too_tight": result.rejected_stop_too_tight,
+        "rejected_stop_too_wide": result.rejected_stop_too_wide,
+        "rejected_execution_cost": result.rejected_execution_cost,
         "open_positions_at_end": result.open_positions,
         "pending_at_end": result.pending_at_end,
         "ambiguous_exits_counted_as_stop": result.ambiguous_exits,
@@ -612,6 +731,11 @@ def _summarize_baseline(
         "profit_factor": round(profit_factor, 4) if profit_factor is not None else None,
         "max_drawdown_r": round(max_drawdown, 4),
         "expired_orders": 0,
+        "rejected_no_swing": 0,
+        "rejected_invalid_stop": 0,
+        "rejected_stop_too_tight": 0,
+        "rejected_stop_too_wide": 0,
+        "rejected_execution_cost": 0,
         "open_positions_at_end": int(result.open_signal is not None),
         "pending_at_end": 0,
         "ambiguous_exits_counted_as_stop": result.ambiguous_exits,
@@ -714,6 +838,15 @@ def compare_directory(
             "fills": sum(int(row["fills"]) for row in rows),
             "pending_orders": sum(int(row["pending_orders"]) for row in rows),
             "expired_orders": sum(int(row["expired_orders"]) for row in rows),
+            "rejected_stop_too_tight": sum(
+                int(row["rejected_stop_too_tight"]) for row in rows
+            ),
+            "rejected_stop_too_wide": sum(
+                int(row["rejected_stop_too_wide"]) for row in rows
+            ),
+            "rejected_execution_cost": sum(
+                int(row["rejected_execution_cost"]) for row in rows
+            ),
             "open_positions_at_end": sum(
                 int(row["open_positions_at_end"]) for row in rows
             ),
@@ -746,6 +879,14 @@ def compare_directory(
                 "reached after the limit fill; otherwise deferred"
             ),
             "session_timezone": "America/New_York",
+            "risk_integrity": {
+                "atr_period": DEFAULT_ATR_PERIOD,
+                "minimum_stop_atr_fraction": DEFAULT_MIN_STOP_ATR_FRACTION,
+                "maximum_stop_atr_fraction": DEFAULT_MAX_STOP_ATR_FRACTION,
+                "minimum_spread_multiple": DEFAULT_MIN_SPREAD_MULTIPLE,
+                "maximum_cost_to_risk_ratio": DEFAULT_MAX_COST_TO_RISK_RATIO,
+                "pair_minimum_stop": "5 pips FX; 50 XAU pips ($0.50)",
+            },
         },
         "variants": {
             "baseline_close_entry": (

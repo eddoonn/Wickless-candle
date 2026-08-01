@@ -21,7 +21,9 @@ strategy(
 // - signals only from 09:30–13:30 America/New_York;
 // - exact limit order at the no-wick candle's opening price;
 // - latest confirmed 3-left/3-right pivot plus one tick for the stop;
+// - pair minimum plus 0.40–1.50 ATR stop-distance bounds;
 // - 2R target, one active position, and pending cancellation on trend change.
+// Python remains the execution source of truth for BID/ASK spread and cost checks.
 
 groupRules = "Strategy"
 rewardRisk = input.float(2.0, "Reward / risk", minval = 0.1, step = 0.1, group = groupRules)
@@ -38,6 +40,9 @@ emaSlopeLookback = input.int(5, "EMA slope lookback", minval = 1, group = groupR
 pivotLeft = input.int(3, "Pivot bars left", minval = 1, group = groupRules)
 pivotRight = input.int(3, "Pivot bars right", minval = 1, group = groupRules)
 stopBufferTicks = input.int(1, "Stop buffer (ticks)", minval = 0, group = groupRules)
+atrLength = input.int(14, "ATR length", minval = 1, group = groupRules)
+minimumStopAtr = input.float(0.40, "Minimum stop (ATR)", minval = 0.0, step = 0.05, group = groupRules)
+maximumStopAtr = input.float(1.50, "Maximum stop (ATR)", minval = 0.1, step = 0.05, group = groupRules)
 entrySession = input.session("0930-1330", "New York signal session", group = groupRules)
 enforceFifteenMinutes = input.bool(true, "Require 15-minute chart", group = groupRules)
 enableLongs = input.bool(true, "Enable BUY signals", group = groupRules)
@@ -56,6 +61,11 @@ if barstate.isfirst and enforceFifteenMinutes and not isFifteenMinute
 tolerance = syminfo.mintick * toleranceTicks
 stopBuffer = syminfo.mintick * stopBufferTicks
 emaValue = ta.ema(close, emaLength)
+atrValue = ta.atr(atrLength)
+pipSize = syminfo.type == "forex" ? syminfo.mintick * 10 : 0.01
+pairMinimumStopPips = syminfo.type == "forex" ? 5.0 : 50.0
+minimumRisk = math.max(pairMinimumStopPips * pipSize, atrValue * minimumStopAtr)
+maximumRisk = atrValue * maximumStopAtr
 upTrend = close > emaValue and emaValue > emaValue[emaSlopeLookback]
 downTrend = close < emaValue and emaValue < emaValue[emaSlopeLookback]
 trend = upTrend ? 1 : downTrend ? -1 : 0
@@ -105,7 +115,7 @@ if buySetup and strategy.position_size == 0 and not na(latestPivotLow)
     entryPrice = open
     stopPrice = latestPivotLow - stopBuffer
     risk = entryPrice - stopPrice
-    if risk > syminfo.mintick / 2
+    if risk >= minimumRisk and risk <= maximumRisk
         targetPrice = entryPrice + rewardRisk * risk
         entryId = "NW-B-" + str.tostring(bar_index)
         exitId = "NW-X-" + str.tostring(bar_index)
@@ -137,7 +147,7 @@ if sellSetup and strategy.position_size == 0 and not na(latestPivotHigh)
     entryPrice = open
     stopPrice = latestPivotHigh + stopBuffer
     risk = stopPrice - entryPrice
-    if risk > syminfo.mintick / 2
+    if risk >= minimumRisk and risk <= maximumRisk
         targetPrice = entryPrice - rewardRisk * risk
         entryId = "NW-S-" + str.tostring(bar_index)
         exitId = "NW-X-" + str.tostring(bar_index)
