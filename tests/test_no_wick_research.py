@@ -68,6 +68,124 @@ class IndicatorStateTests(unittest.TestCase):
 
 
 class NoWickExecutionTests(unittest.TestCase):
+    def phase3_config(self, **overrides) -> NoWickConfig:
+        values = {
+            "instrument": "eurusd",
+            "trend_filter": "none",
+            "use_session": False,
+            "stop_mode": "signal_range",
+            "slippage_ticks": 0,
+        }
+        values.update(overrides)
+        return NoWickConfig(**values)
+
+    def test_phase3_requires_market_side_zone_touch_and_directional_reclaim(self) -> None:
+        bids = [
+            bar(0, 1.1000, 1.1010, 1.1000, 1.10095),
+            bar(15, 1.10095, 1.1010, 1.09998, 1.10012),
+        ]
+        asks = [
+            bar(0, 1.1001, 1.1011, 1.1001, 1.10105),
+            bar(15, 1.10105, 1.1011, 1.10008, 1.10022),
+        ]
+        result = run_no_wick_backtest(
+            bids,
+            ask_bars=asks,
+            config=self.phase3_config(),
+        )
+        self.assertEqual(result.filled_orders, 1)
+        fill = result.fills[0]
+        self.assertAlmostEqual(fill.origin_zone_low, 1.0999)
+        self.assertAlmostEqual(fill.origin_zone_high, 1.1001)
+        self.assertEqual(fill.touch_bar_number, 1)
+        self.assertEqual(fill.confirmation_bar_number, 1)
+        self.assertAlmostEqual(fill.entry, 1.10022)
+        self.assertAlmostEqual(fill.entry_displacement_atr, 0.22)
+
+    def test_reclaim_without_an_actual_zone_touch_does_not_enter(self) -> None:
+        bids = [
+            bar(0, 1.1000, 1.1010, 1.1000, 1.10095),
+            bar(15, 1.10095, 1.1012, 1.1002, 1.1004),
+        ]
+        asks = [
+            bar(0, 1.1001, 1.1011, 1.1001, 1.10105),
+            bar(15, 1.10105, 1.1013, 1.1003, 1.1005),
+        ]
+        result = run_no_wick_backtest(
+            bids,
+            ask_bars=asks,
+            config=self.phase3_config(),
+        )
+        self.assertEqual(result.filled_orders, 0)
+        self.assertEqual(result.pending_at_end, 1)
+
+    def test_zone_touch_can_precede_the_reclaim_bar(self) -> None:
+        bids = [
+            bar(0, 1.1000, 1.1010, 1.1000, 1.10095),
+            bar(15, 1.10095, 1.1010, 1.09998, 1.10002),
+            bar(30, 1.10020, 1.1004, 1.10011, 1.10012),
+        ]
+        asks = [
+            bar(0, 1.1001, 1.1011, 1.1001, 1.10105),
+            bar(15, 1.10105, 1.1011, 1.10008, 1.10012),
+            bar(30, 1.10030, 1.1005, 1.10021, 1.10022),
+        ]
+        result = run_no_wick_backtest(
+            bids,
+            ask_bars=asks,
+            config=self.phase3_config(),
+        )
+        self.assertEqual(result.filled_orders, 1)
+        self.assertEqual(result.fills[0].touch_bar_number, 1)
+        self.assertEqual(result.fills[0].confirmation_bar_number, 2)
+
+    def test_entry_more_than_point_three_atr_from_origin_is_rejected(self) -> None:
+        bids = [
+            bar(0, 1.1000, 1.1010, 1.1000, 1.10095),
+            bar(15, 1.10095, 1.1010, 1.09998, 1.10031),
+        ]
+        asks = [
+            bar(0, 1.1001, 1.1011, 1.1001, 1.10105),
+            bar(15, 1.10105, 1.1011, 1.10008, 1.10041),
+        ]
+        result = run_no_wick_backtest(
+            bids,
+            ask_bars=asks,
+            config=self.phase3_config(),
+        )
+        self.assertEqual(result.filled_orders, 0)
+        self.assertEqual(result.rejected_entry_displacement, 1)
+
+    def test_low_quality_wickless_impulse_is_rejected(self) -> None:
+        weak_close = [
+            bar(0, 1.1000, 1.1010, 1.1000, 1.10075),
+            bar(15, 1.10075, 1.1010, 1.09998, 1.10012),
+        ]
+        result = run_no_wick_backtest(
+            weak_close,
+            config=self.phase3_config(),
+        )
+        self.assertEqual(result.pending_orders_created, 0)
+        self.assertEqual(result.rejected_wickless_quality, 1)
+
+    def test_untouched_setup_expires_after_three_bars(self) -> None:
+        bars = [
+            bar(0, 1.1000, 1.1010, 1.1000, 1.10095),
+            bar(15, 1.10095, 1.1012, 1.1003, 1.1005),
+            bar(30, 1.1005, 1.1011, 1.1003, 1.1006),
+            bar(45, 1.1006, 1.1012, 1.1003, 1.1007),
+            Bar(
+                timestamp=datetime(2026, 7, 27, 14, 0, tzinfo=UTC),
+                open=1.1007,
+                high=1.1012,
+                low=1.1003,
+                close=1.1008,
+            ),
+        ]
+        result = run_no_wick_backtest(bars, config=self.phase3_config())
+        self.assertGreaterEqual(result.expired_orders, 1)
+        self.assertGreaterEqual(result.rejected_no_origin_touch, 1)
+
     def test_limit_order_waits_for_a_later_bar_and_hits_two_r(self) -> None:
         bars = [
             bar(0, 1.1000, 1.1010, 1.1000, 1.1008),
@@ -79,6 +197,8 @@ class NoWickExecutionTests(unittest.TestCase):
             trend_filter="none",
             use_session=False,
             stop_mode="signal_range",
+            entry_model="origin_limit",
+            enforce_quality=False,
             pending_expiry="bars",
             expiry_bars=2,
             slippage_ticks=0,
@@ -109,6 +229,8 @@ class NoWickExecutionTests(unittest.TestCase):
             trend_filter="none",
             use_session=False,
             stop_mode="signal_range",
+            entry_model="origin_limit",
+            enforce_quality=False,
             pending_expiry="bars",
             expiry_bars=1,
         )
@@ -126,6 +248,8 @@ class NoWickExecutionTests(unittest.TestCase):
             trend_filter="none",
             use_session=False,
             stop_mode="signal_range",
+            entry_model="origin_limit",
+            enforce_quality=False,
             pending_expiry="bars",
             slippage_ticks=0,
         )
@@ -144,6 +268,8 @@ class NoWickExecutionTests(unittest.TestCase):
             trend_filter="none",
             use_session=False,
             stop_mode="signal_range",
+            entry_model="origin_limit",
+            enforce_quality=False,
             pending_expiry="bars",
             slippage_ticks=0,
         )
@@ -165,6 +291,8 @@ class NoWickExecutionTests(unittest.TestCase):
             instrument="eurusd",
             trend_filter="none",
             stop_mode="signal_range",
+            entry_model="origin_limit",
+            enforce_quality=False,
             pending_expiry="never",
             session_start=time(9, 30),
             session_end=time(13, 30),
@@ -183,6 +311,8 @@ class NoWickExecutionTests(unittest.TestCase):
             trend_filter="none",
             use_session=False,
             stop_mode="signal_range",
+            entry_model="origin_limit",
+            enforce_quality=False,
             pending_expiry="never",
             slippage_ticks=0,
         )
@@ -206,6 +336,8 @@ class NoWickExecutionTests(unittest.TestCase):
             trend_filter="none",
             use_session=False,
             stop_mode="signal_range",
+            entry_model="origin_limit",
+            enforce_quality=False,
             pending_expiry="bars",
         )
         result = run_no_wick_backtest(bids, ask_bars=asks, config=config)
@@ -227,6 +359,8 @@ class NoWickExecutionTests(unittest.TestCase):
             trend_filter="none",
             use_session=False,
             stop_mode="signal_range",
+            entry_model="origin_limit",
+            enforce_quality=False,
             pending_expiry="never",
             slippage_ticks=0,
         )
@@ -248,6 +382,8 @@ class NoWickExecutionTests(unittest.TestCase):
             trend_filter="none",
             use_session=False,
             stop_mode="signal_range",
+            entry_model="origin_limit",
+            enforce_quality=False,
             pending_expiry="bars",
             slippage_ticks=0,
         )

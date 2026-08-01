@@ -136,6 +136,18 @@ def origin_signal() -> OriginLimitSignal:
         signal_age_seconds=20,
         actionability_status=ACTIONABLE,
         slippage_ticks_per_side=0,
+        entry_model="zone_reclaim",
+        origin_price=1.0998,
+        origin_zone_low=1.0997,
+        origin_zone_high=1.0999,
+        touch_bar_number=1,
+        confirmation_bar_number=2,
+        body_ratio=0.9,
+        wick_size_ticks=0,
+        wickless_range_atr=1.0,
+        close_location=0.05,
+        quality_score=97.5,
+        entry_displacement_atr=0.2,
     )
 
 
@@ -403,7 +415,7 @@ class SignalTests(unittest.TestCase):
         payload = discord_payload(origin_signal())
         self.assertEqual(payload["allowed_mentions"], {"parse": []})
         self.assertIn("BUY EURUSD", payload["embeds"][0]["title"])
-        self.assertIn("exact no-wick origin limit", payload["embeds"][0]["description"])
+        self.assertIn("origin-zone touch and directional reclaim", payload["embeds"][0]["description"])
         self.assertIn("EMA 50", json.dumps(payload))
         self.assertNotIn("0.25%", json.dumps(payload))
         self.assertLess(len(json.dumps(payload)), 6000)
@@ -505,6 +517,7 @@ class ActionabilityTests(unittest.TestCase):
 
     def test_buy_requires_ask_to_touch_origin(self) -> None:
         validated = self.validate(
+            signal=replace(self.signal, entry_model="origin_limit"),
             ask_bars=[
                 bar("2026-07-30T14:00:00", 1.1003, 1.1006, 1.1002, 1.1003)
             ]
@@ -513,17 +526,31 @@ class ActionabilityTests(unittest.TestCase):
 
     def test_stop_or_target_before_publication_is_rejected(self) -> None:
         stopped = self.validate(
+            signal=replace(self.signal, entry_model="origin_limit"),
             bid_bars=[
                 bar("2026-07-30T14:00:00", 1.1002, 1.1005, 1.0989, 1.1000)
             ]
         )
         targeted = self.validate(
+            signal=replace(self.signal, entry_model="origin_limit"),
             bid_bars=[
                 bar("2026-07-30T14:00:00", 1.1002, 1.1021, 1.0998, 1.1000)
             ]
         )
         self.assertEqual(stopped.actionability_status, STOP_ALREADY_REACHED)
         self.assertEqual(targeted.actionability_status, TARGET_ALREADY_REACHED)
+
+    def test_reclaim_entry_is_rejected_when_current_quote_reached_stop(self) -> None:
+        quote = CurrentQuote(
+            instrument="eurusd",
+            observed_time_utc="2026-07-30T14:15:10+00:00",
+            bid=1.0989,
+            ask=1.0990,
+            spread=0.0001,
+            source="test",
+        )
+        validated = self.validate(quote=quote)
+        self.assertEqual(validated.actionability_status, STOP_ALREADY_REACHED)
 
     def test_entry_displacement_over_quarter_r_is_rejected(self) -> None:
         quote = CurrentQuote(
@@ -639,7 +666,8 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual((config.pivot_left, config.pivot_right), (3, 3))
         self.assertEqual(config.stop_buffer_ticks, 1)
         self.assertEqual(config.reward_risk, 2)
-        self.assertEqual(config.pending_expiry, "trend_change")
+        self.assertEqual(config.pending_expiry, "bars")
+        self.assertEqual(config.expiry_bars, 3)
         self.assertTrue(config.use_session)
         self.assertTrue(config.one_position_per_pair)
         self.assertEqual(config.atr_period, 14)
@@ -647,6 +675,16 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(config.maximum_stop_atr_fraction, 1.50)
         self.assertEqual(config.minimum_spread_multiple, 3.0)
         self.assertEqual(config.maximum_cost_to_risk_ratio, 0.10)
+        self.assertEqual(config.entry_model, "zone_reclaim")
+        self.assertEqual(config.origin_zone_atr_fraction, 0.10)
+        self.assertEqual(config.origin_zone_minimum_ticks, 2)
+        self.assertEqual(config.reclaim_buffer_ticks, 1)
+        self.assertEqual(config.minimum_body_ratio, 0.80)
+        self.assertEqual(config.maximum_wick_ticks, 2.0)
+        self.assertEqual(config.minimum_range_atr, 0.50)
+        self.assertEqual(config.maximum_range_atr, 2.00)
+        self.assertEqual(config.close_location_fraction, 0.10)
+        self.assertEqual(config.maximum_entry_displacement_atr, 0.30)
 
     def test_scanner_does_not_alert_on_unconfirmed_no_wick_candle(self) -> None:
         now = datetime(2026, 7, 30, 8, 16, tzinfo=UTC)

@@ -1,7 +1,7 @@
 //@version=6
 strategy(
-     title = "No Wick EMA Origin-Limit Strategy 15m",
-     shorttitle = "No Wick Origin 15m",
+     title = "No Wick EMA Origin-Reclaim Strategy 15m",
+     shorttitle = "No Wick Reclaim 15m",
      overlay = true,
      initial_capital = 50000,
      default_qty_type = strategy.percent_of_equity,
@@ -10,31 +10,34 @@ strategy(
      commission_type = strategy.commission.cash_per_order,
      commission_value = 0,
      slippage = 1,
-     process_orders_on_close = false,
+     process_orders_on_close = true,
      calc_on_every_tick = false,
      calc_on_order_fills = true
 )
 
-// Shared live/backtest rules:
-// - finalized bullish open≈low / bearish open≈high 15-minute candle;
-// - close versus EMA(50) plus a five-bar EMA slope;
-// - signals only from 09:30–13:30 America/New_York;
-// - exact limit order at the no-wick candle's opening price;
-// - latest confirmed 3-left/3-right pivot plus one tick for the stop;
-// - pair minimum plus 0.40–1.50 ATR stop-distance bounds;
-// - 2R target, one active position, and pending cancellation on trend change.
+// Shared Phase 1–3 rules:
+// - finalized, directional 15-minute wickless impulse;
+// - EMA(50) direction plus five-bar slope and 09:30–13:30 New York session;
+// - 80% body, <=2-tick opening wick, 0.50–2.00 ATR range, top/bottom 10% close;
+// - symmetric 0.10 ATR origin zone with a two-tick floor;
+// - actual zone touch followed by a one-tick directional reclaim;
+// - entry on the reclaim close, no more than 0.30 ATR from the origin;
+// - confirmed 3/3 pivot stop, 0.40–1.50 ATR risk, 2R target;
+// - three-bar setup expiry, strict invalidation, and one position per pair.
 // Python remains the execution source of truth for BID/ASK spread and cost checks.
 
 groupRules = "Strategy"
 rewardRisk = input.float(2.0, "Reward / risk", minval = 0.1, step = 0.1, group = groupRules)
-toleranceTicks = input.float(
-     0.5,
-     "Opening-wick tolerance (ticks)",
-     minval = 0.0,
-     maxval = 2.0,
-     step = 0.1,
-     group = groupRules
-)
+maximumWickTicks = input.float(2.0, "Maximum opening wick (ticks)", minval = 0.0, maxval = 2.0, step = 0.1, group = groupRules)
+minimumBodyRatio = input.float(0.80, "Minimum body ratio", minval = 0.0, maxval = 1.0, step = 0.05, group = groupRules)
+minimumRangeAtr = input.float(0.50, "Minimum impulse range (ATR)", minval = 0.0, step = 0.05, group = groupRules)
+maximumRangeAtr = input.float(2.00, "Maximum impulse range (ATR)", minval = 0.1, step = 0.05, group = groupRules)
+closeLocationFraction = input.float(0.10, "Maximum close distance from impulse edge", minval = 0.0, maxval = 1.0, step = 0.05, group = groupRules)
+originZoneAtrFraction = input.float(0.10, "Origin-zone half-width (ATR)", minval = 0.0, step = 0.05, group = groupRules)
+originZoneMinimumTicks = input.int(2, "Origin-zone minimum half-width (ticks)", minval = 0, group = groupRules)
+reclaimBufferTicks = input.int(1, "Directional reclaim buffer (ticks)", minval = 0, group = groupRules)
+maximumEntryDisplacementAtr = input.float(0.30, "Maximum entry displacement (ATR)", minval = 0.0, step = 0.05, group = groupRules)
+setupExpiryBars = input.int(3, "Setup expiry (bars)", minval = 1, group = groupRules)
 emaLength = input.int(50, "EMA length", minval = 2, group = groupRules)
 emaSlopeLookback = input.int(5, "EMA slope lookback", minval = 1, group = groupRules)
 pivotLeft = input.int(3, "Pivot bars left", minval = 1, group = groupRules)
@@ -56,13 +59,14 @@ sellColor = input.color(color.rgb(231, 76, 60), "SELL color", group = groupDispl
 
 isFifteenMinute = timeframe.isminutes and timeframe.multiplier == 15
 if barstate.isfirst and enforceFifteenMinutes and not isFifteenMinute
-    runtime.error("No Wick Origin-Limit Strategy requires a 15-minute chart.")
+    runtime.error("No Wick Origin-Reclaim Strategy requires a 15-minute chart.")
 
-tolerance = syminfo.mintick * toleranceTicks
-stopBuffer = syminfo.mintick * stopBufferTicks
+tick = syminfo.mintick
+stopBuffer = tick * stopBufferTicks
+reclaimBuffer = tick * reclaimBufferTicks
 emaValue = ta.ema(close, emaLength)
 atrValue = ta.atr(atrLength)
-pipSize = syminfo.type == "forex" ? syminfo.mintick * 10 : 0.01
+pipSize = syminfo.type == "forex" ? tick * 10 : 0.01
 pairMinimumStopPips = syminfo.type == "forex" ? 5.0 : 50.0
 minimumRisk = math.max(pairMinimumStopPips * pipSize, atrValue * minimumStopAtr)
 maximumRisk = atrValue * maximumStopAtr
@@ -80,119 +84,151 @@ if not na(pivotLow)
 if not na(pivotHigh)
     latestPivotHigh := pivotHigh
 
-bullishWickless = barstate.isconfirmed and close > open and open - low <= tolerance
-bearishWickless = barstate.isconfirmed and close < open and high - open <= tolerance
-buySetup = bullishWickless and upTrend and inSession and enableLongs
-sellSetup = bearishWickless and downTrend and inSession and enableShorts
+candleRange = high - low
+bodyRatio = candleRange > 0 ? math.abs(close - open) / candleRange : 0.0
+rangeAtr = atrValue > 0 ? candleRange / atrValue : 0.0
+bullWickTicks = (open - low) / tick
+bearWickTicks = (high - open) / tick
+bullCloseLocation = candleRange > 0 ? (high - close) / candleRange : 1.0
+bearCloseLocation = candleRange > 0 ? (close - low) / candleRange : 1.0
+bullishWickless = barstate.isconfirmed and close > open and open - low <= maximumWickTicks * tick
+bearishWickless = barstate.isconfirmed and close < open and high - open <= maximumWickTicks * tick
+rangeQuality = rangeAtr >= minimumRangeAtr and rangeAtr <= maximumRangeAtr
+bullQuality = bullishWickless and bodyRatio >= minimumBodyRatio and bullWickTicks <= maximumWickTicks and rangeQuality and bullCloseLocation <= closeLocationFraction
+bearQuality = bearishWickless and bodyRatio >= minimumBodyRatio and bearWickTicks <= maximumWickTicks and rangeQuality and bearCloseLocation <= closeLocationFraction
+buySetup = bullQuality and upTrend and inSession and enableLongs
+sellSetup = bearQuality and downTrend and inSession and enableShorts
 
 var array<string> pendingIds = array.new_string()
+var array<int> pendingSides = array.new_int()
+var array<int> pendingSignalBars = array.new_int()
 var array<int> pendingTrends = array.new_int()
+var array<float> pendingOrigins = array.new_float()
+var array<float> pendingZoneLows = array.new_float()
+var array<float> pendingZoneHighs = array.new_float()
+var array<float> pendingStops = array.new_float()
+var array<float> pendingAtrs = array.new_float()
+var array<float> pendingQualityScores = array.new_float()
+var array<bool> pendingTouched = array.new_bool()
+var array<int> pendingTouchBars = array.new_int()
 
-// Recalculate immediately after a fill and cancel every other pending entry.
-// This keeps TradingView aligned with the Python one-position-per-pair rule.
-if strategy.position_size != 0 and array.size(pendingIds) > 0
+removeCandidate(int candidateIndex) =>
+    array.remove(pendingIds, candidateIndex)
+    array.remove(pendingSides, candidateIndex)
+    array.remove(pendingSignalBars, candidateIndex)
+    array.remove(pendingTrends, candidateIndex)
+    array.remove(pendingOrigins, candidateIndex)
+    array.remove(pendingZoneLows, candidateIndex)
+    array.remove(pendingZoneHighs, candidateIndex)
+    array.remove(pendingStops, candidateIndex)
+    array.remove(pendingAtrs, candidateIndex)
+    array.remove(pendingQualityScores, candidateIndex)
+    array.remove(pendingTouched, candidateIndex)
+    array.remove(pendingTouchBars, candidateIndex)
+
+filledThisBar = false
+if barstate.isconfirmed and array.size(pendingIds) > 0
     pendingIndex = array.size(pendingIds) - 1
     while pendingIndex >= 0
-        strategy.cancel(array.get(pendingIds, pendingIndex))
-        array.remove(pendingIds, pendingIndex)
-        array.remove(pendingTrends, pendingIndex)
+        side = array.get(pendingSides, pendingIndex)
+        signalBar = array.get(pendingSignalBars, pendingIndex)
+        signalTrend = array.get(pendingTrends, pendingIndex)
+        origin = array.get(pendingOrigins, pendingIndex)
+        zoneLow = array.get(pendingZoneLows, pendingIndex)
+        zoneHigh = array.get(pendingZoneHighs, pendingIndex)
+        stopPrice = array.get(pendingStops, pendingIndex)
+        signalAtr = array.get(pendingAtrs, pendingIndex)
+        qualityScore = array.get(pendingQualityScores, pendingIndex)
+        touchedBefore = array.get(pendingTouched, pendingIndex)
+        touchBar = array.get(pendingTouchBars, pendingIndex)
+        age = bar_index - signalBar
+        expired = age > setupExpiryBars
+        trendInvalidated = trend != signalTrend
+        stopInvalidated = side == 1 ? low <= stopPrice : high >= stopPrice
+        if expired or trendInvalidated or stopInvalidated or strategy.position_size != 0 or filledThisBar
+            removeCandidate(pendingIndex)
+        else
+            touchesNow = low <= zoneHigh and high >= zoneLow
+            touched = touchedBefore or touchesNow
+            if touchesNow and not touchedBefore
+                touchBar := age
+                array.set(pendingTouchBars, pendingIndex, touchBar)
+            array.set(pendingTouched, pendingIndex, touched)
+            reclaimed = side == 1 ? close >= zoneHigh + reclaimBuffer : close <= zoneLow - reclaimBuffer
+            displacementAtr = signalAtr > 0 ? side * (close - origin) / signalAtr : 10.0
+            entryPrice = close
+            risk = side == 1 ? entryPrice - stopPrice : stopPrice - entryPrice
+            riskValid = risk >= minimumRisk and risk <= maximumRisk
+            displacementValid = displacementAtr <= maximumEntryDisplacementAtr
+            if touched and reclaimed and displacementValid and riskValid
+                targetPrice = side == 1 ? entryPrice + rewardRisk * risk : entryPrice - rewardRisk * risk
+                entryId = array.get(pendingIds, pendingIndex)
+                exitId = "NW-X-" + str.tostring(signalBar)
+                sideLabel = side == 1 ? "BUY" : "SELL"
+                payload = '{"content":"**NO WICK 15m ORIGIN RECLAIM: ' + sideLabel + ' ' + syminfo.ticker + '**\\n' +
+                     'Entry: `' + str.tostring(entryPrice, format.mintick) + '`\\n' +
+                     'Origin zone: `' + str.tostring(zoneLow, format.mintick) + '–' + str.tostring(zoneHigh, format.mintick) + '`\\n' +
+                     'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
+                     'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' + str.tostring(targetPrice, format.mintick) + '`\\n' +
+                     'Touch/reclaim bars: ' + str.tostring(touchBar) + '/' + str.tostring(age) + '\\n' +
+                     'Quality: ' + str.tostring(qualityScore, "#.0") + '/100"}'
+                strategy.entry(entryId, side == 1 ? strategy.long : strategy.short, alert_message = payload)
+                strategy.exit(exitId, from_entry = entryId, stop = stopPrice, limit = targetPrice)
+                filledThisBar := true
+                removeCandidate(pendingIndex)
+            else if touched and reclaimed
+                removeCandidate(pendingIndex)
         pendingIndex -= 1
 
-// Pine evaluates at bar close. Cancelling here removes every still-pending
-// origin limit from the prior trend; filled positions and their brackets stay.
-if barstate.isconfirmed and trend != trend[1]
+// One confirmed entry invalidates every other candidate for this pair.
+if filledThisBar and array.size(pendingIds) > 0
     pendingIndex = array.size(pendingIds) - 1
     while pendingIndex >= 0
-        pendingId = array.get(pendingIds, pendingIndex)
-        pendingTrend = array.get(pendingTrends, pendingIndex)
-        if trend != pendingTrend
-            strategy.cancel(pendingId)
-            array.remove(pendingIds, pendingIndex)
-            array.remove(pendingTrends, pendingIndex)
+        removeCandidate(pendingIndex)
         pendingIndex -= 1
 
-if buySetup and strategy.position_size == 0 and not na(latestPivotLow)
-    entryPrice = open
+if buySetup and strategy.position_size == 0 and not filledThisBar and not na(latestPivotLow)
+    origin = open
     stopPrice = latestPivotLow - stopBuffer
-    risk = entryPrice - stopPrice
-    if risk >= minimumRisk and risk <= maximumRisk
-        targetPrice = entryPrice + rewardRisk * risk
-        entryId = "NW-B-" + str.tostring(bar_index)
-        exitId = "NW-X-" + str.tostring(bar_index)
-        payload = '{"content":"**NO WICK 15m ORIGIN FILL: BUY ' + syminfo.ticker + '**\\n' +
-             'Entry limit: `' + str.tostring(entryPrice, format.mintick) + '`\\n' +
-             'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
-             'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' +
-             str.tostring(targetPrice, format.mintick) + '`\\n' +
-             'Filter: EMA(' + str.tostring(emaLength) + ') slope ' +
-             str.tostring(emaSlopeLookback) + ', pivot ' +
-             str.tostring(pivotLeft) + '/' + str.tostring(pivotRight) + '\\n' +
-             'Signal session: 09:30–13:30 New York"}'
-        strategy.entry(
-             entryId,
-             strategy.long,
-             limit = entryPrice,
-             alert_message = payload
-        )
-        strategy.exit(
-             exitId,
-             from_entry = entryId,
-             stop = stopPrice,
-             limit = targetPrice
-        )
-        array.push(pendingIds, entryId)
+    riskAtOrigin = origin - stopPrice
+    if riskAtOrigin >= minimumRisk and riskAtOrigin <= maximumRisk
+        zoneHalfWidth = math.max(originZoneMinimumTicks * tick, atrValue * originZoneAtrFraction)
+        wickQuality = maximumWickTicks > 0 ? math.max(0.0, 1.0 - bullWickTicks / maximumWickTicks) : 1.0
+        qualityScore = 25.0 * (math.min(bodyRatio, 1.0) + math.max(0.0, 1.0 - bullCloseLocation) + wickQuality + 1.0)
+        array.push(pendingIds, "NW-B-" + str.tostring(bar_index))
+        array.push(pendingSides, 1)
+        array.push(pendingSignalBars, bar_index)
         array.push(pendingTrends, 1)
+        array.push(pendingOrigins, origin)
+        array.push(pendingZoneLows, origin - zoneHalfWidth)
+        array.push(pendingZoneHighs, origin + zoneHalfWidth)
+        array.push(pendingStops, stopPrice)
+        array.push(pendingAtrs, atrValue)
+        array.push(pendingQualityScores, qualityScore)
+        array.push(pendingTouched, false)
+        array.push(pendingTouchBars, 0)
 
-if sellSetup and strategy.position_size == 0 and not na(latestPivotHigh)
-    entryPrice = open
+if sellSetup and strategy.position_size == 0 and not filledThisBar and not na(latestPivotHigh)
+    origin = open
     stopPrice = latestPivotHigh + stopBuffer
-    risk = stopPrice - entryPrice
-    if risk >= minimumRisk and risk <= maximumRisk
-        targetPrice = entryPrice - rewardRisk * risk
-        entryId = "NW-S-" + str.tostring(bar_index)
-        exitId = "NW-X-" + str.tostring(bar_index)
-        payload = '{"content":"**NO WICK 15m ORIGIN FILL: SELL ' + syminfo.ticker + '**\\n' +
-             'Entry limit: `' + str.tostring(entryPrice, format.mintick) + '`\\n' +
-             'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
-             'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' +
-             str.tostring(targetPrice, format.mintick) + '`\\n' +
-             'Filter: EMA(' + str.tostring(emaLength) + ') slope ' +
-             str.tostring(emaSlopeLookback) + ', pivot ' +
-             str.tostring(pivotLeft) + '/' + str.tostring(pivotRight) + '\\n' +
-             'Signal session: 09:30–13:30 New York"}'
-        strategy.entry(
-             entryId,
-             strategy.short,
-             limit = entryPrice,
-             alert_message = payload
-        )
-        strategy.exit(
-             exitId,
-             from_entry = entryId,
-             stop = stopPrice,
-             limit = targetPrice
-        )
-        array.push(pendingIds, entryId)
+    riskAtOrigin = stopPrice - origin
+    if riskAtOrigin >= minimumRisk and riskAtOrigin <= maximumRisk
+        zoneHalfWidth = math.max(originZoneMinimumTicks * tick, atrValue * originZoneAtrFraction)
+        wickQuality = maximumWickTicks > 0 ? math.max(0.0, 1.0 - bearWickTicks / maximumWickTicks) : 1.0
+        qualityScore = 25.0 * (math.min(bodyRatio, 1.0) + math.max(0.0, 1.0 - bearCloseLocation) + wickQuality + 1.0)
+        array.push(pendingIds, "NW-S-" + str.tostring(bar_index))
+        array.push(pendingSides, -1)
+        array.push(pendingSignalBars, bar_index)
         array.push(pendingTrends, -1)
+        array.push(pendingOrigins, origin)
+        array.push(pendingZoneLows, origin - zoneHalfWidth)
+        array.push(pendingZoneHighs, origin + zoneHalfWidth)
+        array.push(pendingStops, stopPrice)
+        array.push(pendingAtrs, atrValue)
+        array.push(pendingQualityScores, qualityScore)
+        array.push(pendingTouched, false)
+        array.push(pendingTouchBars, 0)
 
 plot(showEma ? emaValue : na, title = "EMA trend", color = color.orange)
-plotshape(
-     showSignals and buySetup,
-     title = "Eligible BUY origin",
-     style = shape.labelup,
-     location = location.belowbar,
-     color = buyColor,
-     text = "BUY LIMIT",
-     textcolor = color.white,
-     size = size.tiny
-)
-plotshape(
-     showSignals and sellSetup,
-     title = "Eligible SELL origin",
-     style = shape.labeldown,
-     location = location.abovebar,
-     color = sellColor,
-     text = "SELL LIMIT",
-     textcolor = color.white,
-     size = size.tiny
-)
+plotshape(showSignals and buySetup, title = "Eligible BUY origin", style = shape.labelup, location = location.belowbar, color = buyColor, text = "BUY SETUP", textcolor = color.white, size = size.tiny)
+plotshape(showSignals and sellSetup, title = "Eligible SELL origin", style = shape.labeldown, location = location.abovebar, color = sellColor, text = "SELL SETUP", textcolor = color.white, size = size.tiny)

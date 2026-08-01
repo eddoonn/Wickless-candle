@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared engine for trend-filtered no-wick origin-limit entries.
+"""Shared engine for trend-filtered no-wick origin-reclaim entries.
 
 The live scanner and historical research use this same mechanical engine so
 Discord alerts cannot drift away from the backtested rules.
@@ -9,13 +9,15 @@ The default research setup uses:
 * finalized 15-minute bars;
 * bullish ``open == low`` / bearish ``open == high`` signals;
 * close versus EMA(50) plus a five-bar EMA slope;
-* limit entry at the signal candle's opening price;
+* a narrow ATR-based origin zone, actual market-side touch, and directional reclaim;
+* entry at the reclaim candle's executable market-side close;
+* quality gates for body, wick, range, and close location;
 * a confirmed 3-left / 3-right local pivot stop plus one tick;
 * pair, ATR, spread, and execution-cost stop-distance validation;
 * a 2R target;
 * signals from 09:30 through 13:30 America/New_York;
 * multiple pending setups, but at most one active position per pair;
-* pending orders cancelled when the trend changes.
+* setups expire after three bars and invalidate on trend change or stop breach.
 
 Only information available at each historical bar close is used.  Same-bar
 fill/exit ambiguity is resolved against the strategy by counting the stop.
@@ -59,7 +61,7 @@ NEW_YORK = ZoneInfo("America/New_York")
 class NoWickConfig:
     instrument: str = "eurusd"
     reward_risk: float = 2.0
-    tolerance_ticks: float = 0.5
+    tolerance_ticks: float = 2.0
     trend_filter: str = "ema_slope"
     ema_length: int = 50
     ema_slope_lookback: int = 5
@@ -70,8 +72,8 @@ class NoWickConfig:
     pivot_left: int = 3
     pivot_right: int = 3
     stop_buffer_ticks: int = 1
-    pending_expiry: str = "trend_change"
-    expiry_bars: int = 1
+    pending_expiry: str = "bars"
+    expiry_bars: int = 3
     slippage_ticks: float = 1.0
     one_position_per_pair: bool = True
     atr_period: int = DEFAULT_ATR_PERIOD
@@ -79,6 +81,18 @@ class NoWickConfig:
     maximum_stop_atr_fraction: float = DEFAULT_MAX_STOP_ATR_FRACTION
     minimum_spread_multiple: float = DEFAULT_MIN_SPREAD_MULTIPLE
     maximum_cost_to_risk_ratio: float = DEFAULT_MAX_COST_TO_RISK_RATIO
+    entry_model: str = "zone_reclaim"
+    origin_zone_atr_fraction: float = 0.10
+    origin_zone_minimum_ticks: int = 2
+    reclaim_buffer_ticks: int = 1
+    minimum_body_ratio: float = 0.80
+    maximum_wick_ticks: float = 2.0
+    minimum_range_atr: float = 0.50
+    maximum_range_atr: float = 2.00
+    close_location_fraction: float = 0.10
+    maximum_entry_displacement_atr: float = 0.30
+    enforce_quality: bool = True
+    invalidate_on_trend_change: bool = True
 
     def __post_init__(self) -> None:
         if self.instrument not in INSTRUMENTS:
@@ -115,6 +129,24 @@ class NoWickConfig:
             raise ValueError("minimum_spread_multiple cannot be negative")
         if self.maximum_cost_to_risk_ratio < 0:
             raise ValueError("maximum_cost_to_risk_ratio cannot be negative")
+        if self.entry_model not in {"zone_reclaim", "origin_limit"}:
+            raise ValueError("entry_model must be zone_reclaim or origin_limit")
+        if self.origin_zone_atr_fraction < 0:
+            raise ValueError("origin_zone_atr_fraction cannot be negative")
+        if self.origin_zone_minimum_ticks < 0 or self.reclaim_buffer_ticks < 0:
+            raise ValueError("zone and reclaim tick settings cannot be negative")
+        if not 0 < self.minimum_body_ratio <= 1:
+            raise ValueError("minimum_body_ratio must be in (0, 1]")
+        if self.maximum_wick_ticks < 0:
+            raise ValueError("maximum_wick_ticks cannot be negative")
+        if self.minimum_range_atr < 0:
+            raise ValueError("minimum_range_atr cannot be negative")
+        if self.maximum_range_atr <= self.minimum_range_atr:
+            raise ValueError("maximum_range_atr must exceed minimum_range_atr")
+        if not 0 <= self.close_location_fraction <= 1:
+            raise ValueError("close_location_fraction must be between zero and one")
+        if self.maximum_entry_displacement_atr < 0:
+            raise ValueError("maximum_entry_displacement_atr cannot be negative")
 
     @property
     def profile(self):
@@ -137,6 +169,15 @@ class PendingOrder:
     atr_15m: float
     risk_pips: float
     stop_distance_atr: float
+    origin_zone_low: float
+    origin_zone_high: float
+    zone_touched: bool
+    touch_bar_number: int | None
+    body_ratio: float
+    wick_size_ticks: float
+    wickless_range_atr: float
+    close_location: float
+    quality_score: float
 
 
 @dataclass(frozen=True)
@@ -181,6 +222,17 @@ class NoWickFill:
     estimated_round_trip_cost: float
     cost_to_risk_ratio: float
     slippage_ticks_per_side: float
+    origin_price: float
+    origin_zone_low: float
+    origin_zone_high: float
+    touch_bar_number: int
+    confirmation_bar_number: int
+    body_ratio: float
+    wick_size_ticks: float
+    wickless_range_atr: float
+    close_location: float
+    quality_score: float
+    entry_displacement_atr: float
 
 
 @dataclass
@@ -194,6 +246,11 @@ class NoWickResult:
     rejected_stop_too_tight: int
     rejected_stop_too_wide: int
     rejected_execution_cost: int
+    rejected_wickless_quality: int
+    rejected_no_origin_touch: int
+    rejected_no_directional_reclaim: int
+    rejected_entry_displacement: int
+    invalidated_setups: int
     fills: list[NoWickFill]
     trades: list[NoWickTrade]
     open_positions: int
@@ -276,6 +333,61 @@ def _in_entry_session(bar: Bar, config: NoWickConfig) -> bool:
     return config.session_start <= local_open < config.session_end
 
 
+def _wickless_quality(
+    bar: Bar,
+    *,
+    pattern,
+    atr_15m: float,
+    config: NoWickConfig,
+) -> tuple[str | None, dict[str, float]]:
+    """Score a wickless impulse and enforce the Phase 3 quality gates."""
+
+    candle_range = bar.high - bar.low
+    if candle_range <= 0 or atr_15m <= 0:
+        return "WICKLESS_RANGE_TOO_SMALL", {}
+    body_ratio = abs(bar.close - bar.open) / candle_range
+    if pattern.signal_side == "BUY":
+        wick_size = bar.open - bar.low
+        close_location = (bar.high - bar.close) / candle_range
+    else:
+        wick_size = bar.high - bar.open
+        close_location = (bar.close - bar.low) / candle_range
+    wick_size_ticks = wick_size / config.profile.tick_size
+    range_atr = candle_range / atr_15m
+    wick_quality = (
+        1.0
+        if config.maximum_wick_ticks == 0 and wick_size_ticks <= 1e-12
+        else max(0.0, 1.0 - wick_size_ticks / max(config.maximum_wick_ticks, 1e-12))
+    )
+    range_quality = 1.0 if config.minimum_range_atr <= range_atr <= config.maximum_range_atr else 0.0
+    quality_score = 25.0 * (
+        min(body_ratio, 1.0)
+        + max(0.0, 1.0 - close_location)
+        + wick_quality
+        + range_quality
+    )
+    metrics = {
+        "body_ratio": body_ratio,
+        "wick_size_ticks": wick_size_ticks,
+        "wickless_range_atr": range_atr,
+        "close_location": close_location,
+        "quality_score": quality_score,
+    }
+    if not config.enforce_quality:
+        return None, metrics
+    if body_ratio + 1e-12 < config.minimum_body_ratio:
+        return "WICKLESS_BODY_TOO_SMALL", metrics
+    if wick_size_ticks > config.maximum_wick_ticks + 1e-12:
+        return "WICK_TOO_LARGE", metrics
+    if range_atr + 1e-12 < config.minimum_range_atr:
+        return "WICKLESS_RANGE_TOO_SMALL", metrics
+    if range_atr - 1e-12 > config.maximum_range_atr:
+        return "WICKLESS_RANGE_TOO_LARGE", metrics
+    if close_location > config.close_location_fraction + 1e-12:
+        return "CLOSE_LOCATION_WEAK", metrics
+    return None, metrics
+
+
 def _order_from_signal(
     *,
     bar: Bar,
@@ -288,6 +400,14 @@ def _order_from_signal(
     config: NoWickConfig,
 ) -> tuple[PendingOrder | None, str | None]:
     entry = bar.open
+    quality_rejection, quality = _wickless_quality(
+        bar,
+        pattern=pattern,
+        atr_15m=atr_15m,
+        config=config,
+    )
+    if quality_rejection is not None:
+        return None, quality_rejection
     if config.stop_mode == "signal_range":
         candle_range = bar.high - bar.low
         stop = (
@@ -336,6 +456,10 @@ def _order_from_signal(
         f"{config.instrument}-{index}-{pattern.kind.lower()}-"
         f"{config.stop_mode}"
     )
+    zone_half_width = max(
+        config.origin_zone_minimum_ticks * config.profile.tick_size,
+        atr_15m * config.origin_zone_atr_fraction,
+    )
     return (
         PendingOrder(
             order_id=order_id,
@@ -352,6 +476,15 @@ def _order_from_signal(
             atr_15m=atr_15m,
             risk_pips=risk_metrics["risk_pips"],
             stop_distance_atr=risk_metrics["stop_distance_atr"],
+            origin_zone_low=entry - zone_half_width,
+            origin_zone_high=entry + zone_half_width,
+            zone_touched=False,
+            touch_bar_number=None,
+            body_ratio=quality["body_ratio"],
+            wick_size_ticks=quality["wick_size_ticks"],
+            wickless_range_atr=quality["wickless_range_atr"],
+            close_location=quality["close_location"],
+            quality_score=quality["quality_score"],
         ),
         None,
     )
@@ -372,6 +505,137 @@ def _limit_touched(order: PendingOrder, bid_bar: Bar, ask_bar: Bar) -> bool:
         ask_bar.low <= order.entry
         if order.side == "BUY"
         else bid_bar.high >= order.entry
+    )
+
+
+def _zone_touched(order: PendingOrder, bid_bar: Bar, ask_bar: Bar) -> bool:
+    market_bar = ask_bar if order.side == "BUY" else bid_bar
+    return (
+        market_bar.low <= order.origin_zone_high + 1e-12
+        and market_bar.high >= order.origin_zone_low - 1e-12
+    )
+
+
+def _directional_reclaim(
+    order: PendingOrder,
+    bid_bar: Bar,
+    ask_bar: Bar,
+    config: NoWickConfig,
+) -> bool:
+    buffer_ = config.reclaim_buffer_ticks * config.profile.tick_size
+    return (
+        bid_bar.close >= order.origin_zone_high + buffer_
+        if order.side == "BUY"
+        else ask_bar.close <= order.origin_zone_low - buffer_
+    )
+
+
+def _setup_stop_traded(
+    order: PendingOrder,
+    bid_bar: Bar,
+    ask_bar: Bar,
+) -> bool:
+    return (
+        bid_bar.low <= order.stop
+        if order.side == "BUY"
+        else ask_bar.high >= order.stop
+    )
+
+
+def _confirmed_order(
+    order: PendingOrder,
+    *,
+    bid_bar: Bar,
+    ask_bar: Bar,
+    config: NoWickConfig,
+) -> tuple[PendingOrder | None, str | None, dict[str, float]]:
+    entry = ask_bar.close if order.side == "BUY" else bid_bar.close
+    displacement = (
+        entry - order.entry if order.side == "BUY" else order.entry - entry
+    )
+    entry_displacement_atr = displacement / order.atr_15m
+    if entry_displacement_atr > config.maximum_entry_displacement_atr + 1e-12:
+        return None, "ENTRY_TOO_FAR_FROM_ORIGIN", {
+            "entry_displacement_atr": entry_displacement_atr
+        }
+    risk = entry - order.stop if order.side == "BUY" else order.stop - entry
+    if risk <= config.profile.tick_size / 2:
+        return None, "INVALID_STOP", {"entry_displacement_atr": entry_displacement_atr}
+    spread = _bar_spread(bid_bar, ask_bar)
+    risk_status, metrics = evaluate_risk_integrity(
+        profile=config.profile,
+        risk_distance=risk,
+        atr_15m=order.atr_15m,
+        spread=spread,
+        min_stop_atr_fraction=config.minimum_stop_atr_fraction,
+        max_stop_atr_fraction=config.maximum_stop_atr_fraction,
+        min_spread_multiple=config.minimum_spread_multiple,
+        max_cost_to_risk_ratio=config.maximum_cost_to_risk_ratio,
+        slippage_ticks_per_side=config.slippage_ticks,
+    )
+    metrics["spread"] = spread
+    metrics["entry_displacement_atr"] = entry_displacement_atr
+    if risk_status is not None:
+        return None, risk_status, metrics
+    target = (
+        entry + config.reward_risk * risk
+        if order.side == "BUY"
+        else entry - config.reward_risk * risk
+    )
+    return replace(
+        order,
+        entry=entry,
+        target=target,
+        risk=risk,
+        risk_pips=metrics["risk_pips"],
+        stop_distance_atr=metrics["stop_distance_atr"],
+    ), None, metrics
+
+
+def _fill_record(
+    order: PendingOrder,
+    *,
+    bar: Bar,
+    metrics: dict[str, float],
+    config: NoWickConfig,
+    confirmation_bar_number: int,
+) -> NoWickFill:
+    return NoWickFill(
+        order_id=order.order_id,
+        instrument=order.instrument,
+        side=order.side,
+        pattern=order.pattern,
+        signal_time_utc=order.signal_time_utc,
+        fill_bar_open_time_utc=bar.timestamp.astimezone(UTC).isoformat(),
+        fill_time_utc=bar.close_time.astimezone(UTC).isoformat(),
+        entry=order.entry,
+        stop=order.stop,
+        target=order.target,
+        risk=order.risk,
+        risk_pips=metrics["risk_pips"],
+        atr_15m=metrics["atr_15m"],
+        stop_distance_atr=metrics["stop_distance_atr"],
+        minimum_stop_distance=metrics["minimum_stop_distance"],
+        maximum_stop_distance=metrics["maximum_stop_distance"],
+        minimum_stop_pips=metrics["minimum_stop_pips"],
+        spread=metrics["spread"],
+        spread_multiple=metrics["spread_multiple"],
+        estimated_round_trip_cost=metrics["estimated_round_trip_cost"],
+        cost_to_risk_ratio=metrics["cost_to_risk_ratio"],
+        slippage_ticks_per_side=config.slippage_ticks,
+        origin_price=order.entry if config.entry_model == "origin_limit" else (
+            (order.origin_zone_low + order.origin_zone_high) / 2
+        ),
+        origin_zone_low=order.origin_zone_low,
+        origin_zone_high=order.origin_zone_high,
+        touch_bar_number=order.touch_bar_number or confirmation_bar_number,
+        confirmation_bar_number=confirmation_bar_number,
+        body_ratio=order.body_ratio,
+        wick_size_ticks=order.wick_size_ticks,
+        wickless_range_atr=order.wickless_range_atr,
+        close_location=order.close_location,
+        quality_score=order.quality_score,
+        entry_displacement_atr=metrics.get("entry_displacement_atr", 0.0),
     )
 
 
@@ -456,6 +720,9 @@ def run_no_wick_backtest(
     eligible_signals = pending_orders_created = expired_orders = rejected_no_swing = 0
     rejected_invalid_stop = rejected_stop_too_tight = 0
     rejected_stop_too_wide = rejected_execution_cost = 0
+    rejected_wickless_quality = rejected_no_origin_touch = 0
+    rejected_no_directional_reclaim = rejected_entry_displacement = 0
+    invalidated_setups = 0
     filled_orders = ambiguous_exits = 0
     peak_open_positions = 0
 
@@ -495,81 +762,123 @@ def run_no_wick_backtest(
         filled_this_bar = False
         for order in pending:
             age = index - order.signal_index
-            expired = (
-                config.pending_expiry == "trend_change"
-                and prior_trend != order.signal_trend
-            ) or (
-                config.pending_expiry == "bars"
-                and age > config.expiry_bars
+            expected_time = datetime.fromisoformat(order.signal_time_utc) + (
+                age * (bar.close_time - bar.timestamp)
             )
-            if expired:
+            missing_bar = bar.timestamp != expected_time
+            trend_invalidated = (
+                config.invalidate_on_trend_change
+                and config.trend_filter != "none"
+                and prior_trend != order.signal_trend
+            )
+            expired_by_age = (
+                config.pending_expiry == "bars" and age > config.expiry_bars
+            )
+            legacy_trend_expiry = (
+                config.pending_expiry == "trend_change" and trend_invalidated
+            )
+            if missing_bar or trend_invalidated or legacy_trend_expiry:
+                invalidated_setups += 1
+                continue
+            if expired_by_age:
                 expired_orders += 1
+                if order.zone_touched:
+                    rejected_no_directional_reclaim += 1
+                else:
+                    rejected_no_origin_touch += 1
                 continue
             if config.one_position_per_pair and (
                 position_was_open or positions or filled_this_bar
             ):
                 still_pending.append(order)
                 continue
-            if not _limit_touched(order, bar, ask_bar):
-                still_pending.append(order)
-                continue
 
-            spread = _bar_spread(bar, ask_bar)
-            risk_status, risk_metrics = evaluate_risk_integrity(
-                profile=config.profile,
-                risk_distance=order.risk,
-                atr_15m=order.atr_15m,
-                spread=spread,
-                min_stop_atr_fraction=config.minimum_stop_atr_fraction,
-                max_stop_atr_fraction=config.maximum_stop_atr_fraction,
-                min_spread_multiple=config.minimum_spread_multiple,
-                max_cost_to_risk_ratio=config.maximum_cost_to_risk_ratio,
-                slippage_ticks_per_side=config.slippage_ticks,
-            )
+            confirmation_order = order
+            if config.entry_model == "origin_limit":
+                if not _limit_touched(order, bar, ask_bar):
+                    still_pending.append(order)
+                    continue
+                spread = _bar_spread(bar, ask_bar)
+                risk_status, risk_metrics = evaluate_risk_integrity(
+                    profile=config.profile,
+                    risk_distance=order.risk,
+                    atr_15m=order.atr_15m,
+                    spread=spread,
+                    min_stop_atr_fraction=config.minimum_stop_atr_fraction,
+                    max_stop_atr_fraction=config.maximum_stop_atr_fraction,
+                    min_spread_multiple=config.minimum_spread_multiple,
+                    max_cost_to_risk_ratio=config.maximum_cost_to_risk_ratio,
+                    slippage_ticks_per_side=config.slippage_ticks,
+                )
+                risk_metrics["spread"] = spread
+                risk_metrics["entry_displacement_atr"] = 0.0
+                confirmation_order = replace(
+                    order,
+                    zone_touched=True,
+                    touch_bar_number=age,
+                )
+            else:
+                if _setup_stop_traded(order, bar, ask_bar):
+                    invalidated_setups += 1
+                    continue
+                touched = order.zone_touched or _zone_touched(order, bar, ask_bar)
+                touch_bar_number = order.touch_bar_number
+                if touched and touch_bar_number is None:
+                    touch_bar_number = age
+                touched_order = replace(
+                    order,
+                    zone_touched=touched,
+                    touch_bar_number=touch_bar_number,
+                )
+                if not touched or not _directional_reclaim(
+                    touched_order, bar, ask_bar, config
+                ):
+                    still_pending.append(touched_order)
+                    continue
+                confirmation_order, risk_status, risk_metrics = _confirmed_order(
+                    touched_order,
+                    bid_bar=bar,
+                    ask_bar=ask_bar,
+                    config=config,
+                )
+                if confirmation_order is None and risk_status == "ENTRY_TOO_FAR_FROM_ORIGIN":
+                    rejected_entry_displacement += 1
+                    continue
             if risk_status == "STOP_TOO_TIGHT":
                 rejected_stop_too_tight += 1
                 continue
             if risk_status == "STOP_TOO_WIDE":
                 rejected_stop_too_wide += 1
                 continue
+            if risk_status == "INVALID_STOP":
+                rejected_invalid_stop += 1
+                continue
             if risk_status is not None:
                 rejected_execution_cost += 1
                 continue
+            assert confirmation_order is not None
 
             filled_orders += 1
             filled_this_bar = True
             fills.append(
-                NoWickFill(
-                    order_id=order.order_id,
-                    instrument=order.instrument,
-                    side=order.side,
-                    pattern=order.pattern,
-                    signal_time_utc=order.signal_time_utc,
-                    fill_bar_open_time_utc=bar.timestamp.astimezone(UTC).isoformat(),
-                    fill_time_utc=bar.close_time.astimezone(UTC).isoformat(),
-                    entry=order.entry,
-                    stop=order.stop,
-                    target=order.target,
-                    risk=order.risk,
-                    risk_pips=risk_metrics["risk_pips"],
-                    atr_15m=risk_metrics["atr_15m"],
-                    stop_distance_atr=risk_metrics["stop_distance_atr"],
-                    minimum_stop_distance=risk_metrics["minimum_stop_distance"],
-                    maximum_stop_distance=risk_metrics["maximum_stop_distance"],
-                    minimum_stop_pips=risk_metrics["minimum_stop_pips"],
-                    spread=spread,
-                    spread_multiple=risk_metrics["spread_multiple"],
-                    estimated_round_trip_cost=risk_metrics[
-                        "estimated_round_trip_cost"
-                    ],
-                    cost_to_risk_ratio=risk_metrics["cost_to_risk_ratio"],
-                    slippage_ticks_per_side=config.slippage_ticks,
+                _fill_record(
+                    confirmation_order,
+                    bar=bar,
+                    metrics=risk_metrics,
+                    config=config,
+                    confirmation_bar_number=age,
                 )
             )
-            stop_hit, target_touched = _exit_flags(order, bar, ask_bar)
+            if config.entry_model == "zone_reclaim":
+                positions.append((confirmation_order, bar.close_time))
+                continue
+            stop_hit, target_touched = _exit_flags(confirmation_order, bar, ask_bar)
             target_after_fill_is_certain = target_touched and (
-                (order.side == "BUY" and bar.close >= order.target)
-                or (order.side == "SELL" and ask_bar.close <= order.target)
+                (confirmation_order.side == "BUY" and bar.close >= confirmation_order.target)
+                or (
+                    confirmation_order.side == "SELL"
+                    and ask_bar.close <= confirmation_order.target
+                )
             )
             if stop_hit or target_after_fill_is_certain:
                 if stop_hit:
@@ -581,7 +890,7 @@ def run_no_wick_backtest(
                     exit_price = order.target
                 trades.append(
                     _close_trade(
-                        order,
+                        confirmation_order,
                         entry_time=bar.timestamp,
                         exit_time=bar.timestamp,
                         exit_price=exit_price,
@@ -590,7 +899,7 @@ def run_no_wick_backtest(
                     )
                 )
             else:
-                positions.append((order, bar.timestamp))
+                positions.append((confirmation_order, bar.timestamp))
         pending = still_pending
         peak_open_positions = max(peak_open_positions, len(positions))
 
@@ -626,6 +935,14 @@ def run_no_wick_backtest(
             rejected_stop_too_tight += 1
         elif rejection == "STOP_TOO_WIDE":
             rejected_stop_too_wide += 1
+        elif rejection in {
+            "WICKLESS_BODY_TOO_SMALL",
+            "WICK_TOO_LARGE",
+            "WICKLESS_RANGE_TOO_SMALL",
+            "WICKLESS_RANGE_TOO_LARGE",
+            "CLOSE_LOCATION_WEAK",
+        }:
+            rejected_wickless_quality += 1
         elif rejection is not None:
             rejected_execution_cost += 1
         elif order is not None:
@@ -642,6 +959,11 @@ def run_no_wick_backtest(
         rejected_stop_too_tight=rejected_stop_too_tight,
         rejected_stop_too_wide=rejected_stop_too_wide,
         rejected_execution_cost=rejected_execution_cost,
+        rejected_wickless_quality=rejected_wickless_quality,
+        rejected_no_origin_touch=rejected_no_origin_touch,
+        rejected_no_directional_reclaim=rejected_no_directional_reclaim,
+        rejected_entry_displacement=rejected_entry_displacement,
+        invalidated_setups=invalidated_setups,
         fills=fills,
         trades=trades,
         open_positions=len(positions),
@@ -686,6 +1008,11 @@ def summarize_result(result: NoWickResult) -> dict[str, float | int | None]:
         "rejected_stop_too_tight": result.rejected_stop_too_tight,
         "rejected_stop_too_wide": result.rejected_stop_too_wide,
         "rejected_execution_cost": result.rejected_execution_cost,
+        "rejected_wickless_quality": result.rejected_wickless_quality,
+        "rejected_no_origin_touch": result.rejected_no_origin_touch,
+        "rejected_no_directional_reclaim": result.rejected_no_directional_reclaim,
+        "rejected_entry_displacement": result.rejected_entry_displacement,
+        "invalidated_setups": result.invalidated_setups,
         "open_positions_at_end": result.open_positions,
         "pending_at_end": result.pending_at_end,
         "ambiguous_exits_counted_as_stop": result.ambiguous_exits,
@@ -736,6 +1063,11 @@ def _summarize_baseline(
         "rejected_stop_too_tight": 0,
         "rejected_stop_too_wide": 0,
         "rejected_execution_cost": 0,
+        "rejected_wickless_quality": 0,
+        "rejected_no_origin_touch": 0,
+        "rejected_no_directional_reclaim": 0,
+        "rejected_entry_displacement": 0,
+        "invalidated_setups": 0,
         "open_positions_at_end": int(result.open_signal is not None),
         "pending_at_end": 0,
         "ambiguous_exits_counted_as_stop": result.ambiguous_exits,
@@ -753,6 +1085,9 @@ def comparison_variants(instrument: str) -> dict[str, NoWickConfig]:
             stop_mode="signal_range",
             pending_expiry="bars",
             expiry_bars=1,
+            entry_model="origin_limit",
+            enforce_quality=False,
+            invalidate_on_trend_change=False,
         ),
         "ema_range_all_day": replace(
             base,
@@ -847,6 +1182,21 @@ def compare_directory(
             "rejected_execution_cost": sum(
                 int(row["rejected_execution_cost"]) for row in rows
             ),
+            "rejected_wickless_quality": sum(
+                int(row["rejected_wickless_quality"]) for row in rows
+            ),
+            "rejected_no_origin_touch": sum(
+                int(row["rejected_no_origin_touch"]) for row in rows
+            ),
+            "rejected_no_directional_reclaim": sum(
+                int(row["rejected_no_directional_reclaim"]) for row in rows
+            ),
+            "rejected_entry_displacement": sum(
+                int(row["rejected_entry_displacement"]) for row in rows
+            ),
+            "invalidated_setups": sum(
+                int(row["invalidated_setups"]) for row in rows
+            ),
             "open_positions_at_end": sum(
                 int(row["open_positions_at_end"]) for row in rows
             ),
@@ -872,12 +1222,10 @@ def compare_directory(
         "cost_model": "one tick of slippage per side; no commission or full spread",
         "execution": {
             "pending_orders": "multiple allowed",
-            "trend_expiry": "checked using the prior finalized bar",
+            "setup_expiry": "three finalized bars",
+            "invalidation": "trend change, missing bar, or structural stop breach",
             "same_bar_ambiguity": "stop first",
-            "fill_bar_target": (
-                "credited only when the closing price proves the target was "
-                "reached after the limit fill; otherwise deferred"
-            ),
+            "entry": "market-side confirmation close after origin touch and reclaim",
             "session_timezone": "America/New_York",
             "risk_integrity": {
                 "atr_period": DEFAULT_ATR_PERIOD,
@@ -886,6 +1234,15 @@ def compare_directory(
                 "minimum_spread_multiple": DEFAULT_MIN_SPREAD_MULTIPLE,
                 "maximum_cost_to_risk_ratio": DEFAULT_MAX_COST_TO_RISK_RATIO,
                 "pair_minimum_stop": "5 pips FX; 50 XAU pips ($0.50)",
+            },
+            "signal_quality": {
+                "origin_zone_atr_fraction": 0.10,
+                "origin_zone_minimum_ticks": 2,
+                "minimum_body_ratio": 0.80,
+                "maximum_wick_ticks": 2.0,
+                "range_atr": [0.50, 2.00],
+                "close_location_fraction": 0.10,
+                "maximum_entry_displacement_atr": 0.30,
             },
         },
         "variants": {
@@ -898,14 +1255,13 @@ def compare_directory(
                 "next-bar expiry."
             ),
             "ema_range_all_day": (
-                "EMA(50)+slope(5), origin limit, range stop, all day, "
-                "trend-change expiry."
+                "EMA(50)+slope(5), origin touch/reclaim, range stop, all day."
             ),
             "ema_range_ny": (
                 "EMA/range variant restricted to 09:30–13:30 New York."
             ),
             "ema_pivot_all_day": (
-                "EMA(50)+slope(5), origin limit, confirmed pivot(3,3)+one-tick "
+                "EMA(50)+slope(5), origin touch/reclaim, confirmed pivot(3,3)+one-tick "
                 "stop, all day."
             ),
             "recommended_ema_pivot_ny": (

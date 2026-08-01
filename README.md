@@ -15,11 +15,12 @@ candles with no wick **from the opening price**, which makes the core rule:
 | Bullish and `open ≈ low` | Lower wick | `BUY` |
 | Bearish and `open ≈ high` | Upper wick | `SELL` |
 
-`≈` defaults to half of one minimum tick. A doji is not classified. Signals use
+`≈` allows at most two minimum ticks. A doji is not classified. Signals use
 only finalized fifteen-minute candles, so the live detector does not repaint.
-The pattern becomes a pending exact-price limit order only when it agrees with
-the EMA trend during the New York signal window. Discord receives a signal
-only after price trades back to the no-wick candle's opening price.
+The pattern becomes a three-bar setup only when it passes the impulse-quality
+gates and agrees with the EMA trend during the New York signal window. Discord
+receives a signal only after the executable market side touches the narrow
+origin zone and a finalized candle reclaims that zone in the setup direction.
 
 ## What is included
 
@@ -54,29 +55,37 @@ or a post-close fill model. Those are deliberately explicit here:
 2. Require a BUY candle to close above a rising EMA(50), or a SELL candle to
    close below a falling EMA(50). EMA slope uses a five-bar lookback.
 3. Accept new setups only from 09:30 through 13:30 America/New_York.
-4. Place an exact limit at the no-wick candle's opening price.
-5. Use the latest confirmed 3-left/3-right pivot plus one tick for the stop.
-6. Reject risk below the pair minimum (5 pips for FX majors; $0.50 for XAUUSD),
+4. Require at least an 80% body, no more than a two-tick opening wick, a
+   `0.50–2.00 × ATR(14)` range, and a close in the final 10% of the impulse.
+5. Create a symmetric origin zone with half-width
+   `max(2 ticks, 0.10 × ATR(14))` around the wickless candle's open.
+6. Require an actual ASK-side zone touch for BUY or BID-side touch for SELL,
+   followed within three bars by a one-tick directional reclaim.
+7. Enter at the reclaim candle's ASK close for BUY or BID close for SELL. Reject
+   an entry more than `0.30 × ATR(14)` from the origin.
+8. Use the latest confirmed 3-left/3-right pivot plus one tick for the stop.
+9. Reject risk below the pair minimum (5 pips for FX majors; $0.50 for XAUUSD),
    below `0.40 × ATR(14)`, or below `3 ×` the observed spread.
-7. Reject risk above `1.50 × ATR(14)` or when estimated spread plus slippage
+10. Reject risk above `1.50 × ATR(14)` or when estimated spread plus slippage
    exceeds 10% of `1R`.
-8. Target `2R`.
-9. Allow multiple pending setups but only one active position per pair.
-10. Cancel a pending limit when its signal trend changes. There is no percentage
-   band and no three-candle expiry.
-11. If a historical bar has ambiguous fill/stop/target ordering, count the stop
+11. Target `2R`.
+12. Allow multiple setup candidates but only one active position per pair.
+13. Invalidate a setup on trend change, missing candle, structural stop breach,
+    or after three confirmation bars.
+14. If a historical bar has ambiguous stop/target ordering, count the stop
    first.
-12. Validate the current BID/ASK quote and reject a fill if its stop or target
+15. Validate the current BID/ASK quote and reject an entry if its stop or target
     already traded, its quote is stale, or price moved more than `0.25R`.
-13. Publish only signals no more than 120 seconds old.
-14. Pre-claim a deterministic fill ID and persist the active position so a
+16. Publish only signals no more than 120 seconds old.
+17. Pre-claim a deterministic signal ID and persist the active position so a
     retry or service restart cannot repost or overlap it.
 
-The Discord message contains side, symbol, 15m timeframe, exact origin entry,
-pivot stop, 2R target, current BID/ASK and spread, entry displacement in R,
+The Discord message contains side, symbol, 15m timeframe, origin zone, quality
+score, touch/reclaim bars, reclaim entry, pivot stop, 2R target, current BID/ASK
+and spread, entry displacement in ATR and R,
 stop distance in pips and ATR, estimated execution cost as a percentage of 1R,
 signal age, publication time, actionability status, London fill time, and signal
-ID. It reports fills; it does not place or manage broker orders.
+ID. It reports validated entries; it does not place or manage broker orders.
 
 ## Automatic Discord signals with GitHub Actions
 
@@ -137,8 +146,8 @@ Strategy and direct TradingView-to-Discord alerts:
 2. Review the Strategy Tester and set costs/size to match the intended market.
 3. Create an alert for **Order fills only**.
 4. Paste the rotated Discord webhook into TradingView's **Webhook URL** field.
-5. Set the alert message to `{{strategy.order.alert_message}}`; the filled
-   limit order supplies valid Discord JSON.
+5. Set the alert message to `{{strategy.order.alert_message}}`; the confirmed
+   reclaim entry supplies valid Discord JSON.
 
 TradingView saves a snapshot of the script, chart, symbol, timeframe, and
 inputs. Delete and recreate the alert after changing any of them.
@@ -203,11 +212,11 @@ downloadable Actions artifact.
 
 ## Reproduce the seven-pair comparison
 
-The live strategy is the same trend-filtered origin-limit model used by this
+The live strategy is the same trend-filtered origin-reclaim model used by this
 comparison: EMA(50) with a five-bar slope, confirmed 3/3 pivot stops plus one
-tick, the 09:30–13:30 New York signal window, 2R targets, multiple pending
-setups, one active position per pair, trend-change expiry, and pair/ATR stop
-bounds. Python is the execution source of truth for BID/ASK spread and
+tick, the 09:30–13:30 New York signal window, quality-gated 0.10 ATR origin
+zones, touch plus reclaim, three-bar expiry, 2R targets, one active position
+per pair, and pair/ATR stop bounds. Python is the execution source of truth for BID/ASK spread and
 cost-to-risk validation because Pine historical bars do not provide equivalent
 market-side data.
 
@@ -231,17 +240,16 @@ is deducted.
 
 ## Accuracy and risk notes
 
-- Live validation uses Dukascopy BID/ASK: BUY limits fill on ASK and exit on
-  BID; SELL limits fill on BID and exit on ASK. Bid-only historical files remain
+- Live validation uses Dukascopy BID/ASK: BUY zones touch and enter on ASK and
+  exit on BID; SELL zones touch and enter on BID and exit on ASK. Bid-only historical files remain
   supported for legacy research and are explicitly reported as a limitation.
 - Historical 15m OHLC cannot reveal intrabar ordering. Same-bar stop/target
   touches are treated conservatively as stops.
 - A pattern match is not evidence of an edge. Backtest multiple regimes,
   account for costs, and validate out of sample.
-- The live scanner reconstructs pending orders from a rolling two-week history.
-  Extremely old orders from a trend lasting longer than that window are outside
-  the reconstruction horizon.
-- The half-tick tolerance handles representation noise. Raising it toward two
-  ticks changes the pattern and should be treated as optimization.
+- The live scanner reconstructs three-bar setup candidates from a rolling
+  two-week history; expired candidates cannot return after a restart.
+- The two-tick wick ceiling is a signal-quality parameter and must be evaluated
+  out of sample before it is changed.
 - This is research software and signal delivery, not financial advice or an
   automatic trade-execution system.

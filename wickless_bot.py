@@ -219,7 +219,7 @@ class Signal:
 
 @dataclass(frozen=True)
 class OriginLimitSignal:
-    """A filled order from the live trend-filtered origin-limit strategy."""
+    """A confirmed entry from the live trend-filtered origin-reclaim strategy."""
 
     key: str
     instrument: str
@@ -262,6 +262,20 @@ class OriginLimitSignal:
     estimated_round_trip_cost: float = 0.0
     cost_to_risk_ratio: float = 0.0
     slippage_ticks_per_side: float = DEFAULT_SLIPPAGE_TICKS_PER_SIDE
+    # Keep the legacy default so Phase 2 state can be reloaded safely; new
+    # signals always set this explicitly from the shared engine configuration.
+    entry_model: str = "origin_limit"
+    origin_price: float = 0.0
+    origin_zone_low: float = 0.0
+    origin_zone_high: float = 0.0
+    touch_bar_number: int = 0
+    confirmation_bar_number: int = 0
+    body_ratio: float = 0.0
+    wick_size_ticks: float = 0.0
+    wickless_range_atr: float = 0.0
+    close_location: float = 0.0
+    quality_score: float = 0.0
+    entry_displacement_atr: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -595,7 +609,7 @@ def find_fresh_origin_limit_signals(
     max_signal_age_seconds: int = DEFAULT_MAX_SIGNAL_AGE_SECONDS,
     ask_bars: Sequence[Bar] | None = None,
 ) -> list[OriginLimitSignal]:
-    """Return recent exact-origin fills from the shared backtest/live engine."""
+    """Return recent origin-touch/reclaim entries from the shared strategy engine."""
 
     if max_signal_age_seconds < 1:
         raise ValueError("max_signal_age_seconds must be positive")
@@ -632,7 +646,7 @@ def find_fresh_origin_limit_signals(
         signal_bar_open = parse_iso_datetime(fill.signal_time_utc)
         signal_close = signal_bar_open + timedelta(minutes=TIMEFRAME_MINUTES)
         identity = (
-            f"no-wick-origin-v1|{instrument}|{fill.signal_time_utc}|"
+            f"no-wick-origin-reclaim-v3|{instrument}|{fill.signal_time_utc}|"
             f"{fill.fill_bar_open_time_utc}|{fill.pattern}|{TIMEFRAME_LABEL}|"
             f"{config.ema_length}|{config.ema_slope_lookback}|"
             f"{config.pivot_left}|{config.pivot_right}|{config.reward_risk:g}"
@@ -679,6 +693,18 @@ def find_fresh_origin_limit_signals(
                 ),
                 cost_to_risk_ratio=round(fill.cost_to_risk_ratio, 4),
                 slippage_ticks_per_side=fill.slippage_ticks_per_side,
+                entry_model=config.entry_model,
+                origin_price=_price(fill.origin_price, profile),
+                origin_zone_low=_price(fill.origin_zone_low, profile),
+                origin_zone_high=_price(fill.origin_zone_high, profile),
+                touch_bar_number=fill.touch_bar_number,
+                confirmation_bar_number=fill.confirmation_bar_number,
+                body_ratio=round(fill.body_ratio, 4),
+                wick_size_ticks=round(fill.wick_size_ticks, 4),
+                wickless_range_atr=round(fill.wickless_range_atr, 4),
+                close_location=round(fill.close_location, 4),
+                quality_score=round(fill.quality_score, 2),
+                entry_displacement_atr=round(fill.entry_displacement_atr, 4),
             )
         )
     return signals
@@ -999,7 +1025,11 @@ def _price_path_status(
     require_ask_fill: bool,
 ) -> str | None:
     fill_open = parse_iso_datetime(signal.fill_bar_open_time_utc)
-    if signal.side == "BUY" and require_ask_fill:
+    if (
+        signal.entry_model == "origin_limit"
+        and signal.side == "BUY"
+        and require_ask_fill
+    ):
         ask_fill_bar = _bar_at(ask_bars, fill_open)
         if ask_fill_bar is None or ask_fill_bar.low > signal.entry_reference:
             return ASK_FILL_NOT_CONFIRMED
@@ -1007,7 +1037,9 @@ def _price_path_status(
     exit_bars = bid_bars if signal.side == "BUY" else ask_bars
     stop_seen = target_seen = False
     for bar in exit_bars:
-        if bar.timestamp < fill_open:
+        if bar.timestamp < fill_open or (
+            signal.entry_model == "zone_reclaim" and bar.timestamp == fill_open
+        ):
             continue
         if signal.side == "BUY":
             stop_hit = bar.low <= signal.stop
@@ -1074,11 +1106,27 @@ def validate_signal_actionability(
         spread=quote.spread,
         slippage_ticks_per_side=signal.slippage_ticks_per_side,
     )
+    current_stop_reached = (
+        quote.bid <= signal.stop
+        if signal.side == "BUY"
+        else quote.ask >= signal.stop
+    )
+    current_target_reached = (
+        quote.bid >= signal.target
+        if signal.side == "BUY"
+        else quote.ask <= signal.target
+    )
     status = ACTIONABLE
     if fill_time > as_of or signal_age > max_signal_age_seconds:
         status = EXPIRED_BY_AGE
     elif quote_time > as_of or quote_age > max_quote_age_seconds:
         status = STALE_QUOTE
+    elif current_stop_reached and current_target_reached:
+        status = AMBIGUOUS_PRICE_PATH
+    elif current_stop_reached:
+        status = STOP_ALREADY_REACHED
+    elif current_target_reached:
+        status = TARGET_ALREADY_REACHED
     elif risk_status is not None:
         status = risk_status
     else:
@@ -1135,7 +1183,7 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                 ),
                 "description": (
                     f"{pattern_label}; EMA({signal.ema_length}) trend confirmed "
-                    f"and the exact no-wick origin limit was filled."
+                    "after a market-side origin-zone touch and directional reclaim."
                 ),
                 "color": 0x2ECC71 if signal.side == "BUY" else 0xE74C3C,
                 "fields": [
@@ -1155,9 +1203,30 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                         "inline": True,
                     },
                     {
-                        "name": "Origin limit",
-                        "value": f"`{signal.entry_reference:.{digits}f}`",
+                        "name": "Origin zone",
+                        "value": (
+                            f"`{signal.origin_zone_low:.{digits}f}–"
+                            f"{signal.origin_zone_high:.{digits}f}`"
+                        ),
                         "inline": True,
+                    },
+                    {
+                        "name": "Setup quality",
+                        "value": (
+                            f"`{signal.quality_score:.1f}/100 • "
+                            f"body {100 * signal.body_ratio:.0f}% • "
+                            f"range {signal.wickless_range_atr:.2f} ATR`"
+                        ),
+                        "inline": True,
+                    },
+                    {
+                        "name": "Touch / reclaim",
+                        "value": (
+                            f"`bar {signal.touch_bar_number} / "
+                            f"bar {signal.confirmation_bar_number} • "
+                            f"entry {signal.entry_displacement_atr:.2f} ATR from origin`"
+                        ),
+                        "inline": False,
                     },
                     {
                         "name": "Trend filter",
@@ -1231,7 +1300,7 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                         "inline": False,
                     },
                     {
-                        "name": "Limit fill time (London)",
+                        "name": "Reclaim entry time (London)",
                         "value": f"`{signal.fill_time_london}`",
                         "inline": False,
                     },
@@ -1244,7 +1313,7 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                 "footer": {
                     "text": (
                         f"Dukascopy BID/ASK • finalized {signal.timeframe} candles • "
-                        "exact origin limit • research signal, not financial advice"
+                        "origin touch + reclaim • research signal, not financial advice"
                     )
                 },
                 "timestamp": signal.fill_time_utc,
@@ -1374,6 +1443,18 @@ def _record_rejection(
         "spread_multiple": signal.spread_multiple,
         "estimated_round_trip_cost": signal.estimated_round_trip_cost,
         "cost_to_risk_ratio": signal.cost_to_risk_ratio,
+        "entry_model": signal.entry_model,
+        "origin_price": signal.origin_price,
+        "origin_zone_low": signal.origin_zone_low,
+        "origin_zone_high": signal.origin_zone_high,
+        "touch_bar_number": signal.touch_bar_number,
+        "confirmation_bar_number": signal.confirmation_bar_number,
+        "body_ratio": signal.body_ratio,
+        "wick_size_ticks": signal.wick_size_ticks,
+        "wickless_range_atr": signal.wickless_range_atr,
+        "close_location": signal.close_location,
+        "quality_score": signal.quality_score,
+        "entry_displacement_atr": signal.entry_displacement_atr,
     }
     state.rejections.append(record)
     state.rejections = state.rejections[-500:]
@@ -1471,7 +1552,7 @@ def scan_markets(
             ask_bars=ask_bars,
         )
         if not signals:
-            print(f"{INSTRUMENTS[instrument].symbol}: no fresh origin-limit fill")
+            print(f"{INSTRUMENTS[instrument].symbol}: no fresh origin-reclaim entry")
             continue
         for signal in signals:
             found += 1
@@ -1588,13 +1669,22 @@ def command_backtest(args: argparse.Namespace) -> int:
                 f"{config.ema_slope_lookback}-bar slope"
             ),
             "signal_session": "09:30–13:30 America/New_York",
-            "entry": "exact limit at no-wick candle open",
+            "entry": "market-side close after origin-zone touch and directional reclaim",
             "stop": (
                 f"latest confirmed {config.pivot_left}/{config.pivot_right} "
                 f"pivot plus {config.stop_buffer_ticks} tick"
             ),
             "reward_risk": config.reward_risk,
-            "pending_expiry": "trend change",
+            "pending_expiry": f"{config.expiry_bars} bars",
+            "origin_zone_atr_fraction": config.origin_zone_atr_fraction,
+            "minimum_body_ratio": config.minimum_body_ratio,
+            "wickless_range_atr": [
+                config.minimum_range_atr,
+                config.maximum_range_atr,
+            ],
+            "maximum_entry_displacement_atr": (
+                config.maximum_entry_displacement_atr
+            ),
             "pending_orders": "multiple allowed",
             "slippage_ticks_per_side": config.slippage_ticks,
             "same_bar_ambiguity": "stop first",

@@ -34,7 +34,7 @@ jobs:
       - name: Download indicator warm-up and pending-order history
         run: python live_data.py --data-dir .runtime-data
 
-      - name: Post every unseen exact-origin limit fill
+      - name: Post every unseen origin-zone reclaim entry
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: >-
