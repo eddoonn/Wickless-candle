@@ -165,6 +165,19 @@ python tools/test_discord_webhook.py
 unset DISCORD_WEBHOOK_URL
 ```
 
+## Constrained autoresearch
+
+The repository includes an isolated research loop under `autoresearch/`, adapted
+from `eddoonn/autoresearch`. Experiments run only on `autoresearch/...` branches;
+they cannot update `main`, and the editable candidate surface cannot change the
+strategy's reward/risk, stop bounds, spread/cost limits, slippage, or
+one-position safeguards.
+
+Start with `autoresearch/README.md` and `autoresearch/program.md`. The fixed
+evaluator uses reusable Dukascopy M1 BID/ASK archives for June and July 2026,
+requires at least ten July trades, and prioritizes worst-fold profitability over
+raw frequency.
+
 ## Historical statistics and backtest
 
 Install the pinned downloader:
