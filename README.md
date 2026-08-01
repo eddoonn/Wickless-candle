@@ -17,9 +17,9 @@ candles with no wick **from the opening price**, which makes the core rule:
 
 `≈` defaults to half of one minimum tick. A doji is not classified. Signals use
 only finalized fifteen-minute candles, so the live detector does not repaint.
-The pattern is now a pending setup, not an immediate trade signal: one of the
-next three contiguous 15m candles must trade within ±0.25% of the no-wick
-candle's opening price before Discord receives a signal.
+The pattern becomes a pending exact-price limit order only when it agrees with
+the EMA trend during the New York signal window. Discord receives a signal
+only after price trades back to the no-wick candle's opening price.
 
 ## What is included
 
@@ -30,9 +30,8 @@ candle's opening price before Discord receives a signal.
   dynamic Discord JSON alerts.
 - `wickless_bot.py` — standard-library Python detector, scanner, Discord
   renderer, dedupe state, statistics, and conservative backtester.
-- `no_wick_research.py` — separate, no-lookahead comparison engine for
-  trend-filtered origin-limit entries, confirmed-pivot stops, New York session
-  filtering, and pending-order expiry. It does not alter live Discord signals.
+- `no_wick_research.py` — the shared, no-lookahead engine used by both live
+  Discord scanning and historical backtests.
 - `live_data.py` — account-free live Dukascopy bid candles, aggregated from 1m
   to true 15m OHLC.
 - `run_daemon.py`, `Dockerfile`, and `docker-compose.yml` — an always-on,
@@ -52,23 +51,22 @@ The public indicator does not define position sizing, stop loss, take profit,
 or a post-close fill model. Those are deliberately explicit here:
 
 1. Detect the pattern at the close of a finalized 15m bar.
-2. Store the no-wick candle's open as its origin price.
-3. Inspect only the next three contiguous finalized 15m bars.
-4. Confirm the setup when a bar's high/low range intersects the origin-price
-   band, which defaults to `origin ± 0.25%`. The earliest qualifying bar wins.
-5. Enter at the confirming bar's close in the candle's direction:
-   bullish open-low candle → `BUY`; bearish open-high candle → `SELL`.
-6. If none of bars 1–3 qualifies, expire the setup without an alert. A missing
-   15m bar/session gap also expires it.
-7. Use the no-wick bar's opposite extreme plus a 20-tick buffer as the stop.
-8. Target `2R` by default.
-9. Permit one open position per instrument in the backtester.
-10. If a historical bar touches stop and target, count the stop first.
-11. Use a deterministic signal ID and durable state so retries do not repost.
+2. Require a BUY candle to close above a rising EMA(50), or a SELL candle to
+   close below a falling EMA(50). EMA slope uses a five-bar lookback.
+3. Accept new setups only from 09:30 through 13:30 America/New_York.
+4. Place an exact limit at the no-wick candle's opening price.
+5. Use the latest confirmed 3-left/3-right pivot plus one tick for the stop.
+6. Target `2R`.
+7. Allow multiple independent pending orders and open positions per pair.
+8. Cancel a pending limit when its signal trend changes. There is no percentage
+   band and no three-candle expiry.
+9. If a historical bar has ambiguous fill/stop/target ordering, count the stop
+   first.
+10. Use a deterministic fill ID and durable state so retries do not repost.
 
-The Discord message contains side, symbol, 15m timeframe, entry reference, stop,
-2R target, opening-price trigger, retrace candle number/margin, London time, and
-signal ID. It does not place or manage broker orders.
+The Discord message contains side, symbol, 15m timeframe, exact origin entry,
+pivot stop, 2R target, EMA and pivot settings, signal session, London fill time,
+and signal ID. It reports fills; it does not place or manage broker orders.
 
 ## Automatic Discord signals with GitHub Actions
 
@@ -102,8 +100,9 @@ docker compose logs -f wickless-signals
 ```
 
 The daemon wakes 20 seconds after each fifteen-minute boundary, refreshes a
-two-hour lookback for every market concurrently, reconstructs pending setups
-from finalized candles, and persists signal IDs in a named volume. It shuts
+two-week reconstruction window for every market concurrently, rebuilds the
+EMA, confirmed pivots and pending orders from finalized candles, and persists
+signal IDs in a named volume. It shuts
 down cleanly on `SIGTERM`, runs as a non-root user, drops Linux capabilities,
 and has no broker credentials.
 
@@ -125,9 +124,10 @@ Strategy and direct TradingView-to-Discord alerts:
 
 1. Open `Wickless_Reversal_Strategy_v1_0.pine`, save, and add it to a 15m chart.
 2. Review the Strategy Tester and set costs/size to match the intended market.
-3. Create an alert with **Any alert() function call**.
+3. Create an alert for **Order fills only**.
 4. Paste the rotated Discord webhook into TradingView's **Webhook URL** field.
-5. Leave the alert message unchanged; the script supplies valid Discord JSON.
+5. Set the alert message to `{{strategy.order.alert_message}}`; the filled
+   limit order supplies valid Discord JSON.
 
 TradingView saves a snapshot of the script, chart, symbol, timeframe, and
 inputs. Delete and recreate the alert after changing any of them.
@@ -137,7 +137,8 @@ inputs. Delete and recreate the alert after changing any of them.
 No Python packages are required:
 
 ```bash
-python -m compileall -q wickless_bot.py live_data.py run_daemon.py tests
+python -m compileall -q \
+  wickless_bot.py no_wick_research.py live_data.py run_daemon.py tests
 python -m unittest discover -s tests -v
 ```
 
@@ -177,8 +178,11 @@ python wickless_bot.py backtest \
   --csv .runtime-data/eurusd-m15-bid-2026-06-29-2026-07-30.csv \
   --start 2026-06-30T00:00:00Z \
   --end 2026-07-30T00:00:00Z \
-  --retrace-bars 3 \
-  --retrace-margin-percent 0.25 \
+  --ema-length 50 \
+  --ema-slope-lookback 5 \
+  --pivot-left 3 \
+  --pivot-right 3 \
+  --stop-buffer-ticks 1 \
   --output reports/latest/eurusd
 ```
 
@@ -186,15 +190,12 @@ The result includes `summary.json` and a trade-by-trade `trades.csv`. The
 monthly workflow produces the same files for all eight default markets as a
 downloadable Actions artifact.
 
-## Trend-filtered retracement research
+## Reproduce the seven-pair comparison
 
-The separately described "No Wick Strategy" changes the execution model: it
-filters wickless candles with price versus EMA(50) plus a five-bar EMA slope,
-places a limit order at the signal candle's open, uses the most recently
-confirmed 3-left/3-right pivot plus one tick for the stop, and accepts new
-signals only from 09:30 through 13:30 America/New_York. Pending orders are
-cancelled on a trend change and targets remain 2R for a like-for-like
-comparison.
+The live strategy is the same trend-filtered origin-limit model used by this
+comparison: EMA(50) with a five-bar slope, confirmed 3/3 pivot stops plus one
+tick, the 09:30–13:30 New York signal window, 2R targets, multiple pending
+orders, and trend-change expiry.
 
 Run the complete comparison across the seven FX majors:
 
@@ -213,10 +214,6 @@ limit, EMA/range-stop variants with and without the New York window, and
 EMA/pivot-stop variants with and without the window. Multiple pending orders
 are allowed, and one tick of slippage per side is deducted.
 
-The research strategy is deliberately not wired into live alerts. A profitable
-historical window is evidence to continue out-of-sample testing, not permission
-to replace the live strategy.
-
 ## Accuracy and risk notes
 
 - Dukascopy automation uses bid OHLC. Live BUY fills occur on ask, so the raw
@@ -225,9 +222,9 @@ to replace the live strategy.
   touches are treated conservatively as stops.
 - A pattern match is not evidence of an edge. Backtest multiple regimes,
   account for costs, and validate out of sample.
-- A 0.25% price band is still wide for major FX pairs (roughly 20–40 pips
-  around typical prices). Treat it as a configurable condition, not as proof
-  of a meaningful pullback filter.
+- The live scanner reconstructs pending orders from a rolling two-week history.
+  Extremely old orders from a trend lasting longer than that window are outside
+  the reconstruction horizon.
 - The half-tick tolerance handles representation noise. Raising it toward two
   ticks changes the pattern and should be treated as optimization.
 - This is research software and signal delivery, not financial advice or an

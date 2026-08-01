@@ -84,6 +84,8 @@ class Bar:
 
 @dataclass(frozen=True)
 class StrategyConfig:
+    """Legacy confirmation-close baseline retained for research comparisons."""
+
     instrument: str = "eurusd"
     reward_risk: float = 2.0
     tolerance_ticks: float = 0.5
@@ -160,6 +162,34 @@ class Signal:
     candle_close: float
     risk_points: float
     reward_risk: float
+
+
+@dataclass(frozen=True)
+class OriginLimitSignal:
+    """A filled order from the live trend-filtered origin-limit strategy."""
+
+    key: str
+    instrument: str
+    symbol: str
+    timeframe: str
+    pattern: str
+    missing_wick: str
+    side: str
+    signal_bar_open_time_utc: str
+    signal_time_utc: str
+    fill_bar_open_time_utc: str
+    fill_time_utc: str
+    fill_time_london: str
+    entry_reference: float
+    stop: float
+    target: float
+    risk_points: float
+    reward_risk: float
+    ema_length: int
+    ema_slope_lookback: int
+    pivot_left: int
+    pivot_right: int
+    session_label: str
 
 
 @dataclass(frozen=True)
@@ -373,6 +403,77 @@ def load_bars(path: Path) -> list[Bar]:
                 continue
             bars_by_time[bar.timestamp] = bar
     return [bars_by_time[key] for key in sorted(bars_by_time)]
+
+
+def find_fresh_origin_limit_signals(
+    bars: Sequence[Bar],
+    *,
+    instrument: str,
+    as_of: datetime,
+    max_signal_age_minutes: int = 45,
+) -> list[OriginLimitSignal]:
+    """Return recent exact-origin fills from the shared backtest/live engine."""
+
+    if max_signal_age_minutes < TIMEFRAME_MINUTES:
+        raise ValueError(
+            f"max_signal_age_minutes must be at least {TIMEFRAME_MINUTES}"
+        )
+    # Imported lazily to avoid a module cycle: the shared strategy engine uses
+    # the detector and Bar type defined above.
+    from no_wick_research import NoWickConfig, run_no_wick_backtest
+
+    as_of = as_of.astimezone(UTC)
+    finalized = [
+        bar
+        for bar in sorted(bars, key=lambda item: item.timestamp)
+        if bar.close_time <= as_of
+    ]
+    config = NoWickConfig(instrument=instrument)
+    result = run_no_wick_backtest(finalized, config=config)
+    cutoff = as_of - timedelta(minutes=max_signal_age_minutes)
+    profile = config.profile
+    signals: list[OriginLimitSignal] = []
+    for fill in result.fills:
+        fill_time = parse_iso_datetime(fill.fill_time_utc)
+        if not cutoff <= fill_time <= as_of:
+            continue
+        signal_bar_open = parse_iso_datetime(fill.signal_time_utc)
+        signal_close = signal_bar_open + timedelta(minutes=TIMEFRAME_MINUTES)
+        identity = (
+            f"no-wick-origin-v1|{instrument}|{fill.signal_time_utc}|"
+            f"{fill.fill_bar_open_time_utc}|{fill.pattern}|{TIMEFRAME_LABEL}|"
+            f"{config.ema_length}|{config.ema_slope_lookback}|"
+            f"{config.pivot_left}|{config.pivot_right}|{config.reward_risk:g}"
+        )
+        signals.append(
+            OriginLimitSignal(
+                key=hashlib.sha256(identity.encode("utf-8")).hexdigest()[:16],
+                instrument=instrument,
+                symbol=profile.symbol,
+                timeframe=TIMEFRAME_LABEL,
+                pattern=fill.pattern,
+                missing_wick=(
+                    "LOWER" if fill.side == "BUY" else "UPPER"
+                ),
+                side=fill.side,
+                signal_bar_open_time_utc=fill.signal_time_utc,
+                signal_time_utc=signal_close.astimezone(UTC).isoformat(),
+                fill_bar_open_time_utc=fill.fill_bar_open_time_utc,
+                fill_time_utc=fill.fill_time_utc,
+                fill_time_london=fill_time.astimezone(LONDON).isoformat(),
+                entry_reference=_price(fill.entry, profile),
+                stop=_price(fill.stop, profile),
+                target=_price(fill.target, profile),
+                risk_points=_price(fill.risk, profile),
+                reward_risk=config.reward_risk,
+                ema_length=config.ema_length,
+                ema_slope_lookback=config.ema_slope_lookback,
+                pivot_left=config.pivot_left,
+                pivot_right=config.pivot_right,
+                session_label="09:30–13:30 New York",
+            )
+        )
+    return signals
 
 
 def find_fresh_signals(
@@ -647,7 +748,7 @@ def validate_webhook_url(url: str) -> str:
     return candidate
 
 
-def discord_payload(signal: Signal) -> dict[str, object]:
+def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
     profile = INSTRUMENTS[signal.instrument]
     digits = profile.price_decimals
     pattern_label = signal.pattern.replace("_", " ").title()
@@ -661,10 +762,8 @@ def discord_payload(signal: Signal) -> dict[str, object]:
                     f"{signal.timeframe}"
                 ),
                 "description": (
-                    f"{pattern_label}; origin retrace confirmed on candle "
-                    f"{signal.retrace_bar_number} of "
-                    f"{signal.retrace_window_bars} within "
-                    f"±{signal.retrace_margin_percent:g}%."
+                    f"{pattern_label}; EMA({signal.ema_length}) trend confirmed "
+                    f"and the exact no-wick origin limit was filled."
                 ),
                 "color": 0x2ECC71 if signal.side == "BUY" else 0xE74C3C,
                 "fields": [
@@ -684,22 +783,34 @@ def discord_payload(signal: Signal) -> dict[str, object]:
                         "inline": True,
                     },
                     {
-                        "name": "Wickless candle open",
-                        "value": f"`{signal.trigger_level:.{digits}f}`",
+                        "name": "Origin limit",
+                        "value": f"`{signal.entry_reference:.{digits}f}`",
                         "inline": True,
                     },
                     {
-                        "name": "Retrace confirmation",
+                        "name": "Trend filter",
                         "value": (
-                            f"`bar {signal.retrace_bar_number}/"
-                            f"{signal.retrace_window_bars} • "
-                            f"±{signal.retrace_margin_percent:g}%`"
+                            f"`EMA {signal.ema_length} • "
+                            f"slope {signal.ema_slope_lookback}`"
                         ),
                         "inline": True,
                     },
                     {
-                        "name": "London time",
-                        "value": f"`{signal.signal_time_london}`",
+                        "name": "Pivot stop",
+                        "value": (
+                            f"`{signal.pivot_left}/{signal.pivot_right} "
+                            "confirmed + 1 tick`"
+                        ),
+                        "inline": True,
+                    },
+                    {
+                        "name": "Signal session",
+                        "value": f"`{signal.session_label}`",
+                        "inline": False,
+                    },
+                    {
+                        "name": "Limit fill time (London)",
+                        "value": f"`{signal.fill_time_london}`",
                         "inline": False,
                     },
                     {
@@ -710,19 +821,18 @@ def discord_payload(signal: Signal) -> dict[str, object]:
                 ],
                 "footer": {
                     "text": (
-                        f"Dukascopy bid • finalized {signal.timeframe} candle • "
-                        "research signal, "
-                        "not financial advice"
+                        f"Dukascopy bid • finalized {signal.timeframe} candles • "
+                        "exact origin limit • research signal, not financial advice"
                     )
                 },
-                "timestamp": signal.signal_time_utc,
+                "timestamp": signal.fill_time_utc,
             }
         ],
     }
 
 
 def post_discord(
-    signal: Signal,
+    signal: OriginLimitSignal,
     webhook_url: str,
     *,
     timeout_seconds: float = 20,
@@ -800,10 +910,8 @@ def scan_markets(
     state_retention_days: int,
     webhook_url: str | None,
     dry_run: bool = False,
-    retrace_bars: int = 3,
-    retrace_margin_percent: float = 0.25,
 ) -> tuple[int, int]:
-    """Post every unseen fresh signal and atomically persist its ID."""
+    """Post every unseen fresh origin-limit fill and atomically persist its ID."""
 
     if not dry_run:
         if not webhook_url:
@@ -823,20 +931,15 @@ def scan_markets(
 
     found = posted = 0
     for instrument in instruments:
-        config = StrategyConfig(
-            instrument=instrument,
-            retrace_bars=retrace_bars,
-            retrace_margin_percent=retrace_margin_percent,
-        )
         bars = load_bars(_latest_csv(data_dir, instrument))
-        signals = find_fresh_signals(
+        signals = find_fresh_origin_limit_signals(
             bars,
-            config=config,
+            instrument=instrument,
             as_of=as_of,
             max_signal_age_minutes=max_signal_age_minutes,
         )
         if not signals:
-            print(f"{config.profile.symbol}: no fresh confirmed retrace")
+            print(f"{INSTRUMENTS[instrument].symbol}: no fresh origin-limit fill")
             continue
         for signal in signals:
             found += 1
@@ -848,7 +951,7 @@ def scan_markets(
             else:
                 assert webhook_url is not None
                 post_discord(signal, webhook_url)
-            state[signal.key] = signal.signal_time_utc
+            state[signal.key] = signal.fill_time_utc
             _save_state(state_path, state)
             posted += 1
             print(f"{signal.symbol}: {'would send' if dry_run else 'sent'} {signal.key}")
@@ -857,49 +960,90 @@ def scan_markets(
     return found, posted
 
 
-def _config_from_args(args: argparse.Namespace) -> StrategyConfig:
-    return StrategyConfig(
+def command_backtest(args: argparse.Namespace) -> int:
+    from no_wick_research import (
+        NoWickConfig,
+        run_no_wick_backtest,
+        summarize_result,
+    )
+
+    config = NoWickConfig(
         instrument=args.instrument,
         reward_risk=args.reward_risk,
         tolerance_ticks=args.tolerance_ticks,
-        retrace_bars=args.retrace_bars,
-        retrace_margin_percent=args.retrace_margin_percent,
+        ema_length=args.ema_length,
+        ema_slope_lookback=args.ema_slope_lookback,
+        pivot_left=args.pivot_left,
+        pivot_right=args.pivot_right,
         stop_buffer_ticks=args.stop_buffer_ticks,
         slippage_ticks=args.slippage_ticks,
-        commission_per_side=args.commission_per_side,
     )
-
-
-def _strategy_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--instrument", choices=tuple(INSTRUMENTS), default="eurusd")
-    parser.add_argument("--reward-risk", type=float, default=2.0)
-    parser.add_argument("--tolerance-ticks", type=float, default=0.5)
-    parser.add_argument("--retrace-bars", type=int, default=3)
-    parser.add_argument("--retrace-margin-percent", type=float, default=0.25)
-    parser.add_argument("--stop-buffer-ticks", type=int)
-    parser.add_argument("--slippage-ticks", type=float, default=1.0)
-    parser.add_argument("--commission-per-side", type=float, default=0.0)
-
-
-def command_backtest(args: argparse.Namespace) -> int:
-    config = _config_from_args(args)
     start = parse_iso_datetime(args.start)
     end = parse_iso_datetime(args.end)
-    result = run_backtest(
-        load_bars(args.csv),
-        config=config,
-        start=start,
-        end=end,
+    result = run_no_wick_backtest(
+        load_bars(args.csv), config=config, start=start, end=end
     )
-    summary = summarize_backtest(
-        result,
-        config=config,
-        data_file=args.csv,
-        start=start,
-        end=end,
+    results = summarize_result(result)
+    summary = {
+        "generated_at_utc": datetime.now(UTC).isoformat(),
+        "source": {
+            "data_file": args.csv.name,
+            "instrument": config.profile.symbol,
+            "timeframe": TIMEFRAME_LABEL,
+        },
+        "window": {
+            "start_utc": start.isoformat(),
+            "end_utc_exclusive": end.isoformat(),
+        },
+        "configuration": {
+            "trend_filter": (
+                f"close vs EMA({config.ema_length}) + "
+                f"{config.ema_slope_lookback}-bar slope"
+            ),
+            "signal_session": "09:30–13:30 America/New_York",
+            "entry": "exact limit at no-wick candle open",
+            "stop": (
+                f"latest confirmed {config.pivot_left}/{config.pivot_right} "
+                f"pivot plus {config.stop_buffer_ticks} tick"
+            ),
+            "reward_risk": config.reward_risk,
+            "pending_expiry": "trend change",
+            "pending_orders": "multiple allowed",
+            "slippage_ticks_per_side": config.slippage_ticks,
+            "same_bar_ambiguity": "stop first",
+        },
+        "results": results,
+    }
+    args.output.mkdir(parents=True, exist_ok=True)
+    (args.output / "summary.json").write_text(
+        json.dumps(summary, indent=2) + "\n", encoding="utf-8"
     )
-    write_backtest(args.output, summary, result.trades)
-    print(json.dumps(summary["results"], indent=2))
+    rows = [asdict(trade) for trade in result.trades]
+    with (args.output / "trades.csv").open(
+        "w", newline="", encoding="utf-8"
+    ) as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=list(rows[0]) if rows else [
+                "order_id",
+                "instrument",
+                "side",
+                "pattern",
+                "signal_time_utc",
+                "entry_time_utc",
+                "exit_time_utc",
+                "entry",
+                "stop",
+                "target",
+                "exit",
+                "exit_reason",
+                "gross_r",
+                "net_r_after_costs",
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+    print(json.dumps(results, indent=2))
     return 0
 
 
@@ -914,15 +1058,16 @@ def command_scan(args: argparse.Namespace) -> int:
         state_retention_days=args.state_retention_days,
         webhook_url=os.getenv("DISCORD_WEBHOOK_URL"),
         dry_run=args.dry_run,
-        retrace_bars=args.retrace_bars,
-        retrace_margin_percent=args.retrace_margin_percent,
     )
     print(f"Scan complete: {found} fresh, {posted} newly handled")
     return 0
 
 
 def command_stats(args: argparse.Namespace) -> int:
-    config = _config_from_args(args)
+    config = StrategyConfig(
+        instrument=args.instrument,
+        tolerance_ticks=args.tolerance_ticks,
+    )
     bars = load_bars(args.csv)
     bullish = bearish = bullish_wickless = bearish_wickless = 0
     for bar in bars:
@@ -971,8 +1116,6 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--as-of")
     scan.add_argument("--max-signal-age-minutes", type=int, default=45)
     scan.add_argument("--state-retention-days", type=int, default=14)
-    scan.add_argument("--retrace-bars", type=int, default=3)
-    scan.add_argument("--retrace-margin-percent", type=float, default=0.25)
     scan.add_argument(
         "--instruments",
         nargs="+",
@@ -990,12 +1133,21 @@ def build_parser() -> argparse.ArgumentParser:
     backtest.add_argument("--start", required=True)
     backtest.add_argument("--end", required=True)
     backtest.add_argument("--output", type=Path, default=Path("reports/latest"))
-    _strategy_arguments(backtest)
+    backtest.add_argument("--instrument", choices=tuple(INSTRUMENTS), default="eurusd")
+    backtest.add_argument("--reward-risk", type=float, default=2.0)
+    backtest.add_argument("--tolerance-ticks", type=float, default=0.5)
+    backtest.add_argument("--ema-length", type=int, default=50)
+    backtest.add_argument("--ema-slope-lookback", type=int, default=5)
+    backtest.add_argument("--pivot-left", type=int, default=3)
+    backtest.add_argument("--pivot-right", type=int, default=3)
+    backtest.add_argument("--stop-buffer-ticks", type=int, default=1)
+    backtest.add_argument("--slippage-ticks", type=float, default=1.0)
     backtest.set_defaults(func=command_backtest)
 
     stats = subparsers.add_parser("stats", help="Reproduce indicator statistics")
     stats.add_argument("--csv", required=True, type=Path)
-    _strategy_arguments(stats)
+    stats.add_argument("--instrument", choices=tuple(INSTRUMENTS), default="eurusd")
+    stats.add_argument("--tolerance-ticks", type=float, default=0.5)
     stats.set_defaults(func=command_stats)
     return parser
 

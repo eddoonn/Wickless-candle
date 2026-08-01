@@ -29,7 +29,10 @@ from wickless_bot import (
 
 UTC = timezone.utc
 JETTA_BASE_URL = "https://jetta.dukascopy.com"
-LIVE_LOOKBACK_MINUTES = 120
+# The strategy needs EMA warm-up, confirmed pivots, and older pending orders
+# that remain valid until the EMA trend changes. Two weeks provides a stable
+# reconstruction window on every stateless GitHub Actions run.
+LIVE_LOOKBACK_MINUTES = 14 * 24 * 60
 
 
 def _price_digits(multiplier: float) -> int:
@@ -130,7 +133,7 @@ def fetch_current_day(
     *,
     now: datetime | None = None,
 ) -> list[dict[str, float | int]]:
-    """Fetch enough recent minutes to reconstruct a three-bar retrace setup."""
+    """Fetch enough history to reconstruct indicators and pending limit orders."""
 
     now = (now or datetime.now(UTC)).astimezone(UTC)
     lookback_start = now - timedelta(minutes=LIVE_LOOKBACK_MINUTES)

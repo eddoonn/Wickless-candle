@@ -55,7 +55,8 @@ class LiveDataTests(unittest.TestCase):
                 }
             )
 
-    def test_live_fetch_looks_back_across_midnight_for_pending_setups(self) -> None:
+    def test_live_fetch_uses_two_week_strategy_reconstruction_window(self) -> None:
+        self.assertEqual(LIVE_LOOKBACK_MINUTES, 14 * 24 * 60)
         now = datetime(2026, 7, 30, 0, 30, tzinfo=UTC)
         start = now - timedelta(minutes=LIVE_LOOKBACK_MINUTES)
         payload = {

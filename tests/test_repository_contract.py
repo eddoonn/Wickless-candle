@@ -24,21 +24,19 @@ class RepositoryContractTests(unittest.TestCase):
             self.assertIn("close < open", source)
             self.assertIn("high - open <= tolerance", source)
         self.assertIn("alertcondition(", indicator)
-        self.assertIn("alert(payload, alert.freq_once_per_bar_close)", strategy)
-        self.assertIn('3,\n     "Retrace window (15m bars)"', strategy)
-        self.assertIn('0.25,\n     "Origin-price margin (%)"', strategy)
-        self.assertIn("age >= 1 and age <= retraceBars", strategy)
-        self.assertIn("low <= upperBand and high >= lowerBand", strategy)
-        self.assertIn("if bullishWickless", strategy)
-        self.assertIn("if bearishWickless", strategy)
-        self.assertNotIn(
-            "buySignal = flat and enableLongs and bullishWickless",
-            strategy,
-        )
-        self.assertNotIn(
-            "sellSignal = flat and enableShorts and bearishWickless",
-            strategy,
-        )
+        self.assertIn("emaLength = input.int(50", strategy)
+        self.assertIn("emaSlopeLookback = input.int(5", strategy)
+        self.assertIn('input.session("0930-1330"', strategy)
+        self.assertIn('"America/New_York"', strategy)
+        self.assertIn("pivotLeft = input.int(3", strategy)
+        self.assertIn("pivotRight = input.int(3", strategy)
+        self.assertIn("stopBufferTicks = input.int(1", strategy)
+        self.assertIn("limit = entryPrice", strategy)
+        self.assertIn("alert_message = payload", strategy)
+        self.assertIn("strategy.cancel(pendingId)", strategy)
+        self.assertIn("pyramiding = 20", strategy)
+        self.assertNotIn("retraceMarginPercent", strategy)
+        self.assertNotIn("Retrace window", strategy)
 
     def test_workflow_scans_on_fifteen_minute_schedule_and_uses_secret(
         self,
@@ -50,7 +48,8 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("secrets.DISCORD_WEBHOOK_URL", workflow)
         self.assertIn("actions/cache/restore@", workflow)
         self.assertIn("actions/cache/save@", workflow)
-        self.assertIn("--retrace-margin-percent 0.25", workflow)
+        self.assertIn("exact-origin limit fill", workflow)
+        self.assertNotIn("--retrace-margin-percent", workflow)
         self.assertNotIn("discord.com/api/webhooks/", workflow)
 
     def test_no_discord_webhook_token_is_committed(self) -> None:

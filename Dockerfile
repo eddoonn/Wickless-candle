@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN useradd --create-home --uid 10001 wickless
 WORKDIR /app
 
-COPY wickless_bot.py live_data.py run_daemon.py ./
+COPY wickless_bot.py no_wick_research.py live_data.py run_daemon.py ./
 
 RUN mkdir -p /app/.runtime-data /app/.signal-state \
     && chown -R wickless:wickless /app

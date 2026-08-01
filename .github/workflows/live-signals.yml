@@ -16,7 +16,7 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,10 +31,10 @@ jobs:
           restore-keys: |
             wickless-signal-state-
 
-      - name: Download two-hour lookback and aggregate 15m candles
+      - name: Download indicator warm-up and pending-order history
         run: python live_data.py --data-dir .runtime-data
 
-      - name: Post every unseen fresh signal
+      - name: Post every unseen exact-origin limit fill
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: >-
@@ -42,8 +42,6 @@ jobs:
           --data-dir .runtime-data
           --state .signal-state/seen.json
           --max-signal-age-minutes 45
-          --retrace-bars 3
-          --retrace-margin-percent 0.25
 
       - name: Save cross-run signal state
         if: always()

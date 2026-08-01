@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from wickless_bot import (
@@ -13,10 +14,12 @@ from wickless_bot import (
     FOREX_MAJORS,
     INSTRUMENTS,
     LIVE_INSTRUMENTS,
+    OriginLimitSignal,
     StrategyConfig,
     build_signal,
     classify_wickless,
     discord_payload,
+    find_fresh_origin_limit_signals,
     find_fresh_signals,
     find_retrace_signals,
     load_bars,
@@ -54,6 +57,33 @@ def write_csv(path: Path, bars: list[Bar]) -> None:
         for item in bars
     )
     path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+
+
+def origin_signal() -> OriginLimitSignal:
+    return OriginLimitSignal(
+        key="1234567890abcdef",
+        instrument="eurusd",
+        symbol="EURUSD",
+        timeframe="15m",
+        pattern="BULLISH_WICKLESS",
+        missing_wick="LOWER",
+        side="BUY",
+        signal_bar_open_time_utc="2026-07-30T13:30:00+00:00",
+        signal_time_utc="2026-07-30T13:45:00+00:00",
+        fill_bar_open_time_utc="2026-07-30T14:00:00+00:00",
+        fill_time_utc="2026-07-30T14:15:00+00:00",
+        fill_time_london="2026-07-30T15:15:00+01:00",
+        entry_reference=1.1,
+        stop=1.099,
+        target=1.102,
+        risk_points=0.001,
+        reward_risk=2,
+        ema_length=50,
+        ema_slope_lookback=5,
+        pivot_left=3,
+        pivot_right=3,
+        session_label="09:30–13:30 New York",
+    )
 
 
 class WicklessDetectionTests(unittest.TestCase):
@@ -317,27 +347,12 @@ class SignalTests(unittest.TestCase):
         )
 
     def test_discord_embed_is_valid_and_mentions_are_disabled(self) -> None:
-        signal = build_signal(
-            bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
-            StrategyConfig(instrument="eurusd"),
-            retrace_bar=bar(
-                "2026-07-30T08:15:00",
-                1.1008,
-                1.1009,
-                1.1,
-                1.1004,
-            ),
-            retrace_bar_number=1,
-        )
-        assert signal is not None
-        payload = discord_payload(signal)
+        payload = discord_payload(origin_signal())
         self.assertEqual(payload["allowed_mentions"], {"parse": []})
         self.assertIn("BUY EURUSD", payload["embeds"][0]["title"])
-        self.assertNotIn(
-            "targets the missing",
-            payload["embeds"][0]["description"],
-        )
-        self.assertIn("candle 1 of 3", payload["embeds"][0]["description"])
+        self.assertIn("exact no-wick origin limit", payload["embeds"][0]["description"])
+        self.assertIn("EMA 50", json.dumps(payload))
+        self.assertNotIn("0.25%", json.dumps(payload))
         self.assertLess(len(json.dumps(payload)), 6000)
 
 
@@ -394,6 +409,28 @@ class BacktestTests(unittest.TestCase):
 
 
 class ScannerTests(unittest.TestCase):
+    def test_live_scanner_uses_the_verified_strategy_defaults(self) -> None:
+        candles = [
+            bar("2026-07-30T13:00:00", 1.1, 1.101, 1.099, 1.1005),
+        ]
+        with patch(
+            "no_wick_research.run_no_wick_backtest",
+            return_value=SimpleNamespace(fills=[]),
+        ) as engine:
+            find_fresh_origin_limit_signals(
+                candles,
+                instrument="eurusd",
+                as_of=datetime(2026, 7, 30, 13, 16, tzinfo=UTC),
+            )
+        config = engine.call_args.kwargs["config"]
+        self.assertEqual(config.ema_length, 50)
+        self.assertEqual(config.ema_slope_lookback, 5)
+        self.assertEqual((config.pivot_left, config.pivot_right), (3, 3))
+        self.assertEqual(config.stop_buffer_ticks, 1)
+        self.assertEqual(config.reward_risk, 2)
+        self.assertEqual(config.pending_expiry, "trend_change")
+        self.assertTrue(config.use_session)
+
     def test_scanner_does_not_alert_on_unconfirmed_no_wick_candle(self) -> None:
         now = datetime(2026, 7, 30, 8, 16, tzinfo=UTC)
         with tempfile.TemporaryDirectory() as directory:
@@ -426,7 +463,13 @@ class ScannerTests(unittest.TestCase):
             csv_path = root / "eurusd-m15-bid-live.csv"
             state = root / "state" / "seen.json"
             write_csv(csv_path, candles)
-            with patch("wickless_bot.post_discord") as post:
+            with (
+                patch(
+                    "wickless_bot.find_fresh_origin_limit_signals",
+                    return_value=[origin_signal()],
+                ),
+                patch("wickless_bot.post_discord") as post,
+            ):
                 first = scan_markets(
                     data_dir=root,
                     instruments=["eurusd"],
@@ -468,16 +511,20 @@ class ScannerTests(unittest.TestCase):
                     ),
                 ],
             )
-            result = scan_markets(
-                data_dir=root,
-                instruments=["eurusd"],
-                state_path=root / "state.json",
-                as_of=now,
-                max_signal_age_minutes=20,
-                state_retention_days=14,
-                webhook_url=None,
-                dry_run=True,
-            )
+            with patch(
+                "wickless_bot.find_fresh_origin_limit_signals",
+                return_value=[origin_signal()],
+            ):
+                result = scan_markets(
+                    data_dir=root,
+                    instruments=["eurusd"],
+                    state_path=root / "state.json",
+                    as_of=now,
+                    max_signal_age_minutes=20,
+                    state_retention_days=14,
+                    webhook_url=None,
+                    dry_run=True,
+                )
         self.assertEqual(result, (1, 1))
 
 
