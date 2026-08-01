@@ -13,7 +13,12 @@ from pathlib import Path
 from typing import Sequence
 
 from live_data import refresh
-from wickless_bot import LIVE_INSTRUMENTS, TIMEFRAME_MINUTES, scan_markets
+from wickless_bot import (
+    DEFAULT_MAX_SIGNAL_AGE_SECONDS,
+    LIVE_INSTRUMENTS,
+    TIMEFRAME_MINUTES,
+    scan_markets,
+)
 
 
 UTC = timezone.utc
@@ -56,7 +61,7 @@ def run_once(
         instruments=instruments,
         state_path=state_path,
         as_of=now,
-        max_signal_age_minutes=45,
+        max_signal_age_seconds=DEFAULT_MAX_SIGNAL_AGE_SECONDS,
         state_retention_days=14,
         webhook_url=os.getenv("DISCORD_WEBHOOK_URL"),
         dry_run=dry_run,

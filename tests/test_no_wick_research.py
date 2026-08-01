@@ -169,6 +169,68 @@ class NoWickExecutionTests(unittest.TestCase):
         result = run_no_wick_backtest([inside, outside], config=config)
         self.assertEqual(result.eligible_signals, 1)
 
+    def test_only_one_position_per_pair_can_be_active(self) -> None:
+        bars = [
+            bar(0, 1.1000, 1.1010, 1.1000, 1.1008),
+            bar(15, 1.1012, 1.1020, 1.1012, 1.1018),
+            bar(30, 1.1018, 1.1019, 1.0998, 1.1005),
+        ]
+        config = NoWickConfig(
+            instrument="eurusd",
+            trend_filter="none",
+            use_session=False,
+            stop_mode="signal_range",
+            pending_expiry="never",
+            slippage_ticks=0,
+        )
+        result = run_no_wick_backtest(bars, config=config)
+        self.assertEqual(result.filled_orders, 1)
+        self.assertEqual(result.open_positions, 1)
+        self.assertEqual(result.peak_open_positions, 1)
+        self.assertGreaterEqual(result.pending_at_end, 1)
+
+    def test_buy_limit_requires_ask_touch_and_long_exit_uses_bid(self) -> None:
+        bids = [
+            bar(0, 1.1000, 1.1010, 1.1000, 1.1008),
+            bar(15, 1.1008, 1.1009, 1.1000, 1.1005),
+        ]
+        asks = [
+            bar(0, 1.1001, 1.1011, 1.1001, 1.1009),
+            bar(15, 1.1009, 1.1010, 1.1001, 1.1006),
+        ]
+        config = NoWickConfig(
+            instrument="eurusd",
+            trend_filter="none",
+            use_session=False,
+            stop_mode="signal_range",
+            pending_expiry="bars",
+        )
+        result = run_no_wick_backtest(bids, ask_bars=asks, config=config)
+        self.assertEqual(result.filled_orders, 0)
+
+    def test_short_stop_uses_ask_not_bid(self) -> None:
+        bids = [
+            bar(0, 1.1000, 1.1000, 1.0990, 1.0992),
+            bar(15, 1.0992, 1.1000, 1.0988, 1.0995),
+            bar(30, 1.0995, 1.1009, 1.0990, 1.1005),
+        ]
+        asks = [
+            bar(0, 1.1001, 1.1001, 1.0991, 1.0993),
+            bar(15, 1.0993, 1.1001, 1.0989, 1.0996),
+            bar(30, 1.0996, 1.1011, 1.0991, 1.1006),
+        ]
+        config = NoWickConfig(
+            instrument="eurusd",
+            trend_filter="none",
+            use_session=False,
+            stop_mode="signal_range",
+            pending_expiry="never",
+            slippage_ticks=0,
+        )
+        result = run_no_wick_backtest(bids, ask_bars=asks, config=config)
+        self.assertEqual(result.filled_orders, 1)
+        self.assertEqual(result.trades[0].exit_reason, "STOP")
+
 
 if __name__ == "__main__":
     unittest.main()

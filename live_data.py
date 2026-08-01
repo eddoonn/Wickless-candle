@@ -132,15 +132,19 @@ def fetch_current_day(
     instrument: InstrumentProfile,
     *,
     now: datetime | None = None,
+    side: str = "BID",
 ) -> list[dict[str, float | int]]:
     """Fetch enough history to reconstruct indicators and pending limit orders."""
 
     now = (now or datetime.now(UTC)).astimezone(UTC)
+    side = side.upper()
+    if side not in {"BID", "ASK"}:
+        raise ValueError("side must be BID or ASK")
     lookback_start = now - timedelta(minutes=LIVE_LOOKBACK_MINUTES)
     from_ms = int(lookback_start.timestamp() * 1000)
     code = urllib.parse.quote(instrument.jetta_code, safe="-")
     query = urllib.parse.urlencode({"from": from_ms})
-    url = f"{JETTA_BASE_URL}/v1/candles/minute/{code}/BID?{query}"
+    url = f"{JETTA_BASE_URL}/v1/candles/minute/{code}/{side}?{query}"
     candles = decode_minute_candles(_request_json(url))
     if not candles:
         raise RuntimeError(f"No live candles returned for {instrument.symbol}")
@@ -160,6 +164,13 @@ def _write_csv(path: Path, rows: Sequence[dict[str, float | int]]) -> None:
     temporary.replace(path)
 
 
+def _write_json(path: Path, payload: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
 def refresh(
     data_dir: Path,
     *,
@@ -176,32 +187,79 @@ def refresh(
     outputs: dict[str, Path] = {}
     errors: dict[str, str] = {}
 
-    with ThreadPoolExecutor(max_workers=max(1, min(workers, len(instruments)))) as pool:
+    side_count = 2 * len(instruments)
+    with ThreadPoolExecutor(max_workers=max(1, min(workers, side_count))) as pool:
         futures = {
-            pool.submit(fetch_current_day, INSTRUMENTS[key], now=now): key
+            pool.submit(
+                fetch_current_day,
+                INSTRUMENTS[key],
+                now=now,
+                side=side,
+            ): (key, side)
             for key in instruments
+            for side in ("BID", "ASK")
         }
+        market_rows: dict[str, dict[str, list[dict[str, float | int]]]] = {}
+        observed_times: dict[str, dict[str, int]] = {}
         for future in as_completed(futures):
-            key = futures[future]
+            key, side = futures[future]
             try:
-                rows = aggregate_fifteen_minutes(future.result())
+                minute_rows = future.result()
+                if not minute_rows:
+                    raise RuntimeError("feed returned no minute candles")
+                observed_times.setdefault(key, {})[side] = int(
+                    minute_rows[-1]["timestamp"]
+                )
+                rows = aggregate_fifteen_minutes(minute_rows)
                 if not rows:
                     raise RuntimeError(
                         f"aggregation returned no {TIMEFRAME_MINUTES}-minute candles"
                     )
-                output = data_dir / f"{key}-{DATA_TIMEFRAME}-bid-live.csv"
+                output = data_dir / (
+                    f"{key}-{DATA_TIMEFRAME}-{side.lower()}-live.csv"
+                )
                 _write_csv(output, rows)
-                outputs[key] = output
+                market_rows.setdefault(key, {})[side] = rows
+                if side == "BID":
+                    outputs[key] = output
                 newest = datetime.fromtimestamp(int(rows[-1]["timestamp"]) / 1000, UTC)
                 print(
-                    f"{INSTRUMENTS[key].symbol}: {len(rows)} bars through "
+                    f"{INSTRUMENTS[key].symbol} {side}: {len(rows)} bars through "
                     f"{newest.isoformat()}"
                 )
             except (OSError, ValueError, RuntimeError) as error:
-                errors[key] = str(error)
+                errors[f"{key}-{side.lower()}"] = str(error)
     if errors:
         detail = "; ".join(f"{key}: {value}" for key, value in sorted(errors.items()))
         raise RuntimeError(f"Live refresh failed for {len(errors)} market(s): {detail}")
+    for key in instruments:
+        sides = market_rows.get(key, {})
+        if set(sides) != {"BID", "ASK"}:
+            raise RuntimeError(f"Live refresh did not return BID and ASK for {key}")
+        bid = sides["BID"][-1]
+        ask = sides["ASK"][-1]
+        if observed_times[key]["BID"] != observed_times[key]["ASK"]:
+            raise RuntimeError(
+                f"BID/ASK quote timestamps do not match for {INSTRUMENTS[key].symbol}"
+            )
+        observed_ms = observed_times[key]["BID"]
+        bid_close = float(bid["close"])
+        ask_close = float(ask["close"])
+        if ask_close < bid_close:
+            raise RuntimeError(f"Invalid negative spread for {INSTRUMENTS[key].symbol}")
+        _write_json(
+            data_dir / f"{key}-quote-live.json",
+            {
+                "instrument": key,
+                "observed_time_utc": datetime.fromtimestamp(
+                    observed_ms / 1000, UTC
+                ).isoformat(),
+                "bid": bid_close,
+                "ask": ask_close,
+                "spread": ask_close - bid_close,
+                "source": "Dukascopy Jetta BID/ASK minute candles",
+            },
+        )
     return outputs
 
 

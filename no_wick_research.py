@@ -13,7 +13,8 @@ The default research setup uses:
 * a confirmed 3-left / 3-right local pivot stop plus one tick;
 * a 2R target;
 * signals from 09:30 through 13:30 America/New_York;
-* multiple independent pending orders, cancelled when the trend changes.
+* multiple pending setups, but at most one active position per pair;
+* pending orders cancelled when the trend changes.
 
 Only information available at each historical bar close is used.  Same-bar
 fill/exit ambiguity is resolved against the strategy by counting the stop.
@@ -64,6 +65,7 @@ class NoWickConfig:
     pending_expiry: str = "trend_change"
     expiry_bars: int = 1
     slippage_ticks: float = 1.0
+    one_position_per_pair: bool = True
 
     def __post_init__(self) -> None:
         if self.instrument not in INSTRUMENTS:
@@ -298,14 +300,22 @@ def _order_from_signal(
     )
 
 
-def _limit_touched(order: PendingOrder, bar: Bar) -> bool:
-    return bar.low <= order.entry if order.side == "BUY" else bar.high >= order.entry
+def _limit_touched(order: PendingOrder, bid_bar: Bar, ask_bar: Bar) -> bool:
+    return (
+        ask_bar.low <= order.entry
+        if order.side == "BUY"
+        else bid_bar.high >= order.entry
+    )
 
 
-def _exit_flags(order: PendingOrder, bar: Bar) -> tuple[bool, bool]:
+def _exit_flags(
+    order: PendingOrder,
+    bid_bar: Bar,
+    ask_bar: Bar,
+) -> tuple[bool, bool]:
     if order.side == "BUY":
-        return bar.low <= order.stop, bar.high >= order.target
-    return bar.high >= order.stop, bar.low <= order.target
+        return bid_bar.low <= order.stop, bid_bar.high >= order.target
+    return ask_bar.high >= order.stop, ask_bar.low <= order.target
 
 
 def _close_trade(
@@ -344,6 +354,7 @@ def run_no_wick_backtest(
     bars: Sequence[Bar],
     *,
     config: NoWickConfig,
+    ask_bars: Sequence[Bar] | None = None,
     start: datetime | None = None,
     end: datetime | None = None,
 ) -> NoWickResult:
@@ -351,6 +362,13 @@ def run_no_wick_backtest(
     end = (end or datetime.max.replace(tzinfo=UTC)).astimezone(UTC)
     if start >= end:
         raise ValueError("start must be before end")
+    if ask_bars is None:
+        ask_bars = bars
+    if len(ask_bars) != len(bars) or any(
+        bid.timestamp != ask.timestamp
+        for bid, ask in zip(bars, ask_bars)
+    ):
+        raise ValueError("BID and ASK bars must have identical timestamps")
 
     trends = trend_series(
         bars,
@@ -372,12 +390,14 @@ def run_no_wick_backtest(
     peak_open_positions = 0
 
     for index, bar in enumerate(bars):
+        ask_bar = ask_bars[index]
         if bar.timestamp < start or bar.timestamp >= end:
             continue
 
+        position_was_open = bool(positions)
         still_open: list[tuple[PendingOrder, datetime]] = []
         for order, entry_time in positions:
-            stop_hit, target_hit = _exit_flags(order, bar)
+            stop_hit, target_hit = _exit_flags(order, bar, ask_bar)
             if not (stop_hit or target_hit):
                 still_open.append((order, entry_time))
                 continue
@@ -402,6 +422,7 @@ def run_no_wick_backtest(
 
         prior_trend = trends[index - 1] if index else 0
         still_pending: list[PendingOrder] = []
+        filled_this_bar = False
         for order in pending:
             age = index - order.signal_index
             expired = (
@@ -414,11 +435,17 @@ def run_no_wick_backtest(
             if expired:
                 expired_orders += 1
                 continue
-            if not _limit_touched(order, bar):
+            if config.one_position_per_pair and (
+                position_was_open or positions or filled_this_bar
+            ):
+                still_pending.append(order)
+                continue
+            if not _limit_touched(order, bar, ask_bar):
                 still_pending.append(order)
                 continue
 
             filled_orders += 1
+            filled_this_bar = True
             fills.append(
                 NoWickFill(
                     order_id=order.order_id,
@@ -434,10 +461,10 @@ def run_no_wick_backtest(
                     risk=order.risk,
                 )
             )
-            stop_hit, target_touched = _exit_flags(order, bar)
+            stop_hit, target_touched = _exit_flags(order, bar, ask_bar)
             target_after_fill_is_certain = target_touched and (
                 (order.side == "BUY" and bar.close >= order.target)
-                or (order.side == "SELL" and bar.close <= order.target)
+                or (order.side == "SELL" and ask_bar.close <= order.target)
             )
             if stop_hit or target_after_fill_is_certain:
                 if stop_hit:

@@ -4,13 +4,21 @@ import json
 import os
 import tempfile
 import unittest
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from wickless_bot import (
+    ACTIONABLE,
+    ASK_FILL_NOT_CONFIRMED,
+    EXPIRED_BY_AGE,
+    PRICE_MOVED_TOO_FAR,
+    STOP_ALREADY_REACHED,
+    TARGET_ALREADY_REACHED,
     Bar,
+    CurrentQuote,
     FOREX_MAJORS,
     INSTRUMENTS,
     LIVE_INSTRUMENTS,
@@ -26,6 +34,7 @@ from wickless_bot import (
     retrace_touches_origin,
     run_backtest,
     scan_markets,
+    validate_signal_actionability,
     validate_webhook_url,
 )
 
@@ -59,6 +68,36 @@ def write_csv(path: Path, bars: list[Bar]) -> None:
     path.write_text("\n".join(rows) + "\n", encoding="utf-8")
 
 
+def write_live_market(
+    root: Path,
+    *,
+    instrument: str,
+    bid_bars: list[Bar],
+    ask_bars: list[Bar] | None = None,
+    observed: datetime,
+    bid: float,
+    ask: float,
+) -> None:
+    write_csv(root / f"{instrument}-m15-bid-live.csv", bid_bars)
+    write_csv(
+        root / f"{instrument}-m15-ask-live.csv",
+        ask_bars or bid_bars,
+    )
+    (root / f"{instrument}-quote-live.json").write_text(
+        json.dumps(
+            {
+                "instrument": instrument,
+                "observed_time_utc": observed.isoformat(),
+                "bid": bid,
+                "ask": ask,
+                "spread": ask - bid,
+                "source": "test BID/ASK",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def origin_signal() -> OriginLimitSignal:
     return OriginLimitSignal(
         key="1234567890abcdef",
@@ -83,6 +122,15 @@ def origin_signal() -> OriginLimitSignal:
         pivot_left=3,
         pivot_right=3,
         session_label="09:30–13:30 New York",
+        detected_time_utc="2026-07-30T14:15:20+00:00",
+        published_time_utc="2026-07-30T14:15:20+00:00",
+        current_bid=1.1000,
+        current_ask=1.1001,
+        current_spread=0.0001,
+        distance_from_entry_points=0.0001,
+        distance_from_entry_r=0.1,
+        signal_age_seconds=20,
+        actionability_status=ACTIONABLE,
     )
 
 
@@ -408,7 +456,101 @@ class BacktestTests(unittest.TestCase):
         self.assertEqual(loaded[0].high, 1.2)
 
 
+class ActionabilityTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.signal = origin_signal()
+        self.as_of = datetime(2026, 7, 30, 14, 15, 20, tzinfo=UTC)
+        self.bid_bars = [
+            bar("2026-07-30T14:00:00", 1.1002, 1.1005, 1.0998, 1.1000)
+        ]
+        self.ask_bars = [
+            bar("2026-07-30T14:00:00", 1.1003, 1.1006, 1.0999, 1.1001)
+        ]
+        self.quote = CurrentQuote(
+            instrument="eurusd",
+            observed_time_utc="2026-07-30T14:15:10+00:00",
+            bid=1.1000,
+            ask=1.1001,
+            spread=0.0001,
+            source="test",
+        )
+
+    def validate(self, **overrides):
+        values = {
+            "signal": self.signal,
+            "bid_bars": self.bid_bars,
+            "ask_bars": self.ask_bars,
+            "quote": self.quote,
+            "as_of": self.as_of,
+        }
+        values.update(overrides)
+        return validate_signal_actionability(**values)
+
+    def test_fresh_current_signal_is_actionable(self) -> None:
+        validated = self.validate()
+        self.assertEqual(validated.actionability_status, ACTIONABLE)
+        self.assertEqual(validated.signal_age_seconds, 20)
+        self.assertEqual(validated.distance_from_entry_r, 0.1)
+
+    def test_old_signal_is_expired(self) -> None:
+        validated = self.validate(
+            as_of=datetime(2026, 7, 30, 14, 18, tzinfo=UTC)
+        )
+        self.assertEqual(validated.actionability_status, EXPIRED_BY_AGE)
+
+    def test_buy_requires_ask_to_touch_origin(self) -> None:
+        validated = self.validate(
+            ask_bars=[
+                bar("2026-07-30T14:00:00", 1.1003, 1.1006, 1.1002, 1.1003)
+            ]
+        )
+        self.assertEqual(validated.actionability_status, ASK_FILL_NOT_CONFIRMED)
+
+    def test_stop_or_target_before_publication_is_rejected(self) -> None:
+        stopped = self.validate(
+            bid_bars=[
+                bar("2026-07-30T14:00:00", 1.1002, 1.1005, 1.0989, 1.1000)
+            ]
+        )
+        targeted = self.validate(
+            bid_bars=[
+                bar("2026-07-30T14:00:00", 1.1002, 1.1021, 1.0998, 1.1000)
+            ]
+        )
+        self.assertEqual(stopped.actionability_status, STOP_ALREADY_REACHED)
+        self.assertEqual(targeted.actionability_status, TARGET_ALREADY_REACHED)
+
+    def test_entry_displacement_over_quarter_r_is_rejected(self) -> None:
+        quote = CurrentQuote(
+            instrument="eurusd",
+            observed_time_utc="2026-07-30T14:15:10+00:00",
+            bid=1.1003,
+            ask=1.1004,
+            spread=0.0001,
+            source="test",
+        )
+        validated = self.validate(quote=quote)
+        self.assertEqual(validated.actionability_status, PRICE_MOVED_TOO_FAR)
+
+
 class ScannerTests(unittest.TestCase):
+    def live_fixture(self, root: Path) -> datetime:
+        now = datetime(2026, 7, 30, 14, 15, 20, tzinfo=UTC)
+        write_live_market(
+            root,
+            instrument="eurusd",
+            bid_bars=[
+                bar("2026-07-30T14:00:00", 1.1002, 1.1005, 1.0998, 1.1000)
+            ],
+            ask_bars=[
+                bar("2026-07-30T14:00:00", 1.1003, 1.1006, 1.0999, 1.1001)
+            ],
+            observed=datetime(2026, 7, 30, 14, 15, 10, tzinfo=UTC),
+            bid=1.1000,
+            ask=1.1001,
+        )
+        return now
+
     def test_live_scanner_uses_the_verified_strategy_defaults(self) -> None:
         candles = [
             bar("2026-07-30T13:00:00", 1.1, 1.101, 1.099, 1.1005),
@@ -430,14 +572,19 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(config.reward_risk, 2)
         self.assertEqual(config.pending_expiry, "trend_change")
         self.assertTrue(config.use_session)
+        self.assertTrue(config.one_position_per_pair)
 
     def test_scanner_does_not_alert_on_unconfirmed_no_wick_candle(self) -> None:
         now = datetime(2026, 7, 30, 8, 16, tzinfo=UTC)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            write_csv(
-                root / "eurusd-m15-bid-live.csv",
-                [bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008)],
+            write_live_market(
+                root,
+                instrument="eurusd",
+                bid_bars=[bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008)],
+                observed=datetime(2026, 7, 30, 8, 15, 50, tzinfo=UTC),
+                bid=1.1008,
+                ask=1.1009,
             )
             with patch("wickless_bot.post_discord") as post:
                 result = scan_markets(
@@ -445,7 +592,7 @@ class ScannerTests(unittest.TestCase):
                     instruments=["eurusd"],
                     state_path=root / "state.json",
                     as_of=now,
-                    max_signal_age_minutes=20,
+                    max_signal_age_seconds=120,
                     state_retention_days=14,
                     webhook_url="https://discord.com/api/webhooks/123/token",
                 )
@@ -453,16 +600,25 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(result, (0, 0))
 
     def test_scanner_posts_each_signal_once_across_runs(self) -> None:
-        now = datetime(2026, 7, 30, 8, 31, tzinfo=UTC)
-        candles = [
-            bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
-            bar("2026-07-30T08:15:00", 1.1008, 1.1009, 1.1, 1.1004),
+        now = datetime(2026, 7, 30, 14, 15, 20, tzinfo=UTC)
+        bids = [
+            bar("2026-07-30T14:00:00", 1.1002, 1.1005, 1.0998, 1.1000),
+        ]
+        asks = [
+            bar("2026-07-30T14:00:00", 1.1003, 1.1006, 1.0999, 1.1001),
         ]
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            csv_path = root / "eurusd-m15-bid-live.csv"
             state = root / "state" / "seen.json"
-            write_csv(csv_path, candles)
+            write_live_market(
+                root,
+                instrument="eurusd",
+                bid_bars=bids,
+                ask_bars=asks,
+                observed=datetime(2026, 7, 30, 14, 15, 10, tzinfo=UTC),
+                bid=1.1000,
+                ask=1.1001,
+            )
             with (
                 patch(
                     "wickless_bot.find_fresh_origin_limit_signals",
@@ -475,7 +631,7 @@ class ScannerTests(unittest.TestCase):
                     instruments=["eurusd"],
                     state_path=state,
                     as_of=now,
-                    max_signal_age_minutes=20,
+                    max_signal_age_seconds=120,
                     state_retention_days=14,
                     webhook_url="https://discord.com/api/webhooks/123/token",
                 )
@@ -484,7 +640,7 @@ class ScannerTests(unittest.TestCase):
                     instruments=["eurusd"],
                     state_path=state,
                     as_of=now,
-                    max_signal_age_minutes=20,
+                    max_signal_age_seconds=120,
                     state_retention_days=14,
                     webhook_url="https://discord.com/api/webhooks/123/token",
                 )
@@ -492,24 +648,25 @@ class ScannerTests(unittest.TestCase):
             self.assertEqual(first, (1, 1))
             self.assertEqual(second, (1, 0))
             saved = json.loads(state.read_text(encoding="utf-8"))
-            self.assertEqual(len(saved), 1)
+            self.assertEqual(len(saved["handled"]), 1)
+            self.assertIn("eurusd", saved["positions"])
 
     def test_dry_run_does_not_require_webhook(self) -> None:
-        now = datetime(2026, 7, 30, 8, 31, tzinfo=UTC)
+        now = datetime(2026, 7, 30, 14, 15, 20, tzinfo=UTC)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            write_csv(
-                root / "eurusd-m15-bid-live.csv",
-                [
-                    bar("2026-07-30T08:00:00", 1.1, 1.101, 1.1, 1.1008),
-                    bar(
-                        "2026-07-30T08:15:00",
-                        1.1008,
-                        1.1009,
-                        1.1,
-                        1.1004,
-                    ),
+            write_live_market(
+                root,
+                instrument="eurusd",
+                bid_bars=[
+                    bar("2026-07-30T14:00:00", 1.1002, 1.1005, 1.0998, 1.1000)
                 ],
+                ask_bars=[
+                    bar("2026-07-30T14:00:00", 1.1003, 1.1006, 1.0999, 1.1001)
+                ],
+                observed=datetime(2026, 7, 30, 14, 15, 10, tzinfo=UTC),
+                bid=1.1000,
+                ask=1.1001,
             )
             with patch(
                 "wickless_bot.find_fresh_origin_limit_signals",
@@ -520,12 +677,125 @@ class ScannerTests(unittest.TestCase):
                     instruments=["eurusd"],
                     state_path=root / "state.json",
                     as_of=now,
-                    max_signal_age_minutes=20,
+                    max_signal_age_seconds=120,
                     state_retention_days=14,
                     webhook_url=None,
                     dry_run=True,
                 )
         self.assertEqual(result, (1, 1))
+
+    def test_second_same_pair_signal_is_rejected_while_position_is_active(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            now = self.live_fixture(root)
+            second = replace(origin_signal(), key="abcdef1234567890")
+            with (
+                patch(
+                    "wickless_bot.find_fresh_origin_limit_signals",
+                    return_value=[origin_signal(), second],
+                ),
+                patch("wickless_bot.post_discord") as post,
+            ):
+                result = scan_markets(
+                    data_dir=root,
+                    instruments=["eurusd"],
+                    state_path=root / "state.json",
+                    as_of=now,
+                    max_signal_age_seconds=120,
+                    state_retention_days=14,
+                    webhook_url="https://discord.com/api/webhooks/123/token",
+                )
+            state = json.loads((root / "state.json").read_text(encoding="utf-8"))
+        post.assert_called_once()
+        self.assertEqual(result, (2, 1))
+        self.assertEqual(
+            state["handled"][second.key]["status"],
+            "ACTIVE_POSITION_EXISTS",
+        )
+
+    def test_delivery_failure_is_preclaimed_and_cannot_duplicate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            now = self.live_fixture(root)
+            state_path = root / "state.json"
+            with (
+                patch(
+                    "wickless_bot.find_fresh_origin_limit_signals",
+                    return_value=[origin_signal()],
+                ),
+                patch(
+                    "wickless_bot.post_discord",
+                    side_effect=RuntimeError("ambiguous network failure"),
+                ) as post,
+            ):
+                with self.assertRaises(RuntimeError):
+                    scan_markets(
+                        data_dir=root,
+                        instruments=["eurusd"],
+                        state_path=state_path,
+                        as_of=now,
+                        max_signal_age_seconds=120,
+                        state_retention_days=14,
+                        webhook_url="https://discord.com/api/webhooks/123/token",
+                    )
+                second = scan_markets(
+                    data_dir=root,
+                    instruments=["eurusd"],
+                    state_path=state_path,
+                    as_of=now,
+                    max_signal_age_seconds=120,
+                    state_retention_days=14,
+                    webhook_url="https://discord.com/api/webhooks/123/token",
+                )
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+        post.assert_called_once()
+        self.assertEqual(second, (1, 0))
+        self.assertEqual(
+            state["handled"][origin_signal().key]["status"],
+            "DELIVERY_FAILED",
+        )
+
+    def test_stale_signal_is_audited_but_not_posted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            now = datetime(2026, 7, 30, 14, 18, tzinfo=UTC)
+            write_live_market(
+                root,
+                instrument="eurusd",
+                bid_bars=[
+                    bar("2026-07-30T14:00:00", 1.1002, 1.1005, 1.0998, 1.1000)
+                ],
+                ask_bars=[
+                    bar("2026-07-30T14:00:00", 1.1003, 1.1006, 1.0999, 1.1001)
+                ],
+                observed=datetime(2026, 7, 30, 14, 17, 50, tzinfo=UTC),
+                bid=1.1000,
+                ask=1.1001,
+            )
+            state_path = root / "state.json"
+            with (
+                patch(
+                    "wickless_bot.find_fresh_origin_limit_signals",
+                    return_value=[origin_signal()],
+                ),
+                patch("wickless_bot.post_discord") as post,
+            ):
+                result = scan_markets(
+                    data_dir=root,
+                    instruments=["eurusd"],
+                    state_path=state_path,
+                    as_of=now,
+                    max_signal_age_seconds=120,
+                    state_retention_days=14,
+                    webhook_url="https://discord.com/api/webhooks/123/token",
+                )
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+        post.assert_not_called()
+        self.assertEqual(result, (1, 0))
+        self.assertEqual(
+            state["handled"][origin_signal().key]["status"],
+            EXPIRED_BY_AGE,
+        )
 
 
 class SecurityAndProfileTests(unittest.TestCase):

@@ -21,7 +21,7 @@ import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable, Sequence
@@ -33,6 +33,21 @@ LONDON = ZoneInfo("Europe/London")
 TIMEFRAME_MINUTES = 15
 TIMEFRAME_LABEL = f"{TIMEFRAME_MINUTES}m"
 DATA_TIMEFRAME = f"m{TIMEFRAME_MINUTES}"
+DEFAULT_MAX_SIGNAL_AGE_SECONDS = 120
+DEFAULT_MAX_QUOTE_AGE_SECONDS = 120
+DEFAULT_MAX_ENTRY_DEVIATION_R = 0.25
+DEFAULT_RESEARCH_LOOKBACK_SECONDS = 45 * 60
+
+ACTIONABLE = "ACTIONABLE"
+EXPIRED_BY_AGE = "EXPIRED_BY_AGE"
+STALE_QUOTE = "STALE_QUOTE"
+ASK_FILL_NOT_CONFIRMED = "ASK_FILL_NOT_CONFIRMED"
+STOP_ALREADY_REACHED = "STOP_ALREADY_REACHED"
+TARGET_ALREADY_REACHED = "TARGET_ALREADY_REACHED"
+AMBIGUOUS_PRICE_PATH = "AMBIGUOUS_PRICE_PATH"
+PRICE_MOVED_TOO_FAR = "PRICE_MOVED_TOO_FAR"
+ACTIVE_POSITION_EXISTS = "ACTIVE_POSITION_EXISTS"
+DUPLICATE_SIGNAL = "DUPLICATE_SIGNAL"
 
 
 @dataclass(frozen=True)
@@ -190,6 +205,33 @@ class OriginLimitSignal:
     pivot_left: int
     pivot_right: int
     session_label: str
+    detected_time_utc: str = ""
+    published_time_utc: str = ""
+    current_bid: float = 0.0
+    current_ask: float = 0.0
+    current_spread: float = 0.0
+    distance_from_entry_points: float = 0.0
+    distance_from_entry_r: float = 0.0
+    signal_age_seconds: int = 0
+    actionability_status: str = "UNVALIDATED"
+
+
+@dataclass(frozen=True)
+class CurrentQuote:
+    instrument: str
+    observed_time_utc: str
+    bid: float
+    ask: float
+    spread: float
+    source: str
+
+
+@dataclass
+class ScannerState:
+    version: int
+    handled: dict[str, dict[str, object]]
+    positions: dict[str, dict[str, object]]
+    rejections: list[dict[str, object]]
 
 
 @dataclass(frozen=True)
@@ -410,14 +452,13 @@ def find_fresh_origin_limit_signals(
     *,
     instrument: str,
     as_of: datetime,
-    max_signal_age_minutes: int = 45,
+    max_signal_age_seconds: int = DEFAULT_MAX_SIGNAL_AGE_SECONDS,
+    ask_bars: Sequence[Bar] | None = None,
 ) -> list[OriginLimitSignal]:
     """Return recent exact-origin fills from the shared backtest/live engine."""
 
-    if max_signal_age_minutes < TIMEFRAME_MINUTES:
-        raise ValueError(
-            f"max_signal_age_minutes must be at least {TIMEFRAME_MINUTES}"
-        )
+    if max_signal_age_seconds < 1:
+        raise ValueError("max_signal_age_seconds must be positive")
     # Imported lazily to avoid a module cycle: the shared strategy engine uses
     # the detector and Bar type defined above.
     from no_wick_research import NoWickConfig, run_no_wick_backtest
@@ -428,9 +469,20 @@ def find_fresh_origin_limit_signals(
         for bar in sorted(bars, key=lambda item: item.timestamp)
         if bar.close_time <= as_of
     ]
+    finalized_ask = None
+    if ask_bars is not None:
+        finalized_ask = [
+            bar
+            for bar in sorted(ask_bars, key=lambda item: item.timestamp)
+            if bar.close_time <= as_of
+        ]
     config = NoWickConfig(instrument=instrument)
-    result = run_no_wick_backtest(finalized, config=config)
-    cutoff = as_of - timedelta(minutes=max_signal_age_minutes)
+    result = run_no_wick_backtest(
+        finalized,
+        config=config,
+        ask_bars=finalized_ask,
+    )
+    cutoff = as_of - timedelta(seconds=max_signal_age_seconds)
     profile = config.profile
     signals: list[OriginLimitSignal] = []
     for fill in result.fills:
@@ -748,6 +800,139 @@ def validate_webhook_url(url: str) -> str:
     return candidate
 
 
+def load_current_quote(path: Path, *, instrument: str) -> CurrentQuote:
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict) or raw.get("instrument") != instrument:
+        raise ValueError(f"{path} does not contain a {instrument} quote")
+    try:
+        quote = CurrentQuote(
+            instrument=instrument,
+            observed_time_utc=parse_iso_datetime(
+                str(raw["observed_time_utc"])
+            ).isoformat(),
+            bid=float(raw["bid"]),
+            ask=float(raw["ask"]),
+            spread=float(raw["spread"]),
+            source=str(raw["source"]),
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError(f"{path} contains an invalid quote: {error}") from error
+    if not all(math.isfinite(value) and value > 0 for value in (quote.bid, quote.ask)):
+        raise ValueError(f"{path} contains invalid bid/ask prices")
+    if quote.ask < quote.bid or quote.spread < 0:
+        raise ValueError(f"{path} contains a negative spread")
+    if not math.isclose(
+        quote.ask - quote.bid,
+        quote.spread,
+        rel_tol=1e-6,
+        abs_tol=INSTRUMENTS[instrument].tick_size / 2,
+    ):
+        raise ValueError(f"{path} spread does not match ask minus bid")
+    return quote
+
+
+def _bar_at(bars: Sequence[Bar], timestamp: datetime) -> Bar | None:
+    return next((bar for bar in bars if bar.timestamp == timestamp), None)
+
+
+def _price_path_status(
+    signal: OriginLimitSignal,
+    *,
+    bid_bars: Sequence[Bar],
+    ask_bars: Sequence[Bar],
+    require_ask_fill: bool,
+) -> str | None:
+    fill_open = parse_iso_datetime(signal.fill_bar_open_time_utc)
+    if signal.side == "BUY" and require_ask_fill:
+        ask_fill_bar = _bar_at(ask_bars, fill_open)
+        if ask_fill_bar is None or ask_fill_bar.low > signal.entry_reference:
+            return ASK_FILL_NOT_CONFIRMED
+
+    exit_bars = bid_bars if signal.side == "BUY" else ask_bars
+    stop_seen = target_seen = False
+    for bar in exit_bars:
+        if bar.timestamp < fill_open:
+            continue
+        if signal.side == "BUY":
+            stop_hit = bar.low <= signal.stop
+            target_hit = bar.high >= signal.target
+        else:
+            stop_hit = bar.high >= signal.stop
+            target_hit = bar.low <= signal.target
+        if stop_hit and target_hit:
+            return AMBIGUOUS_PRICE_PATH
+        stop_seen = stop_seen or stop_hit
+        target_seen = target_seen or target_hit
+        if stop_seen and target_seen:
+            return AMBIGUOUS_PRICE_PATH
+        if stop_seen:
+            return STOP_ALREADY_REACHED
+        if target_seen:
+            return TARGET_ALREADY_REACHED
+    return None
+
+
+def validate_signal_actionability(
+    signal: OriginLimitSignal,
+    *,
+    bid_bars: Sequence[Bar],
+    ask_bars: Sequence[Bar],
+    quote: CurrentQuote,
+    as_of: datetime,
+    max_signal_age_seconds: int = DEFAULT_MAX_SIGNAL_AGE_SECONDS,
+    max_quote_age_seconds: int = DEFAULT_MAX_QUOTE_AGE_SECONDS,
+    max_entry_deviation_r: float = DEFAULT_MAX_ENTRY_DEVIATION_R,
+) -> OriginLimitSignal:
+    """Fail closed unless a historical fill is still executable right now."""
+
+    if max_signal_age_seconds < 1 or max_quote_age_seconds < 1:
+        raise ValueError("signal and quote age limits must be positive")
+    if max_entry_deviation_r < 0:
+        raise ValueError("max_entry_deviation_r cannot be negative")
+    if quote.instrument != signal.instrument:
+        raise ValueError("quote instrument does not match signal")
+    as_of = as_of.astimezone(UTC)
+    fill_time = parse_iso_datetime(signal.fill_time_utc)
+    quote_time = parse_iso_datetime(quote.observed_time_utc)
+    signal_age = max(0, math.ceil((as_of - fill_time).total_seconds()))
+    quote_age = (as_of - quote_time).total_seconds()
+    current_price = quote.ask if signal.side == "BUY" else quote.bid
+    directional_distance = (
+        current_price - signal.entry_reference
+        if signal.side == "BUY"
+        else signal.entry_reference - current_price
+    )
+    distance_r = directional_distance / signal.risk_points
+    status = ACTIONABLE
+    if fill_time > as_of or signal_age > max_signal_age_seconds:
+        status = EXPIRED_BY_AGE
+    elif quote_time > as_of or quote_age > max_quote_age_seconds:
+        status = STALE_QUOTE
+    else:
+        path_status = _price_path_status(
+            signal,
+            bid_bars=bid_bars,
+            ask_bars=ask_bars,
+            require_ask_fill=True,
+        )
+        if path_status is not None:
+            status = path_status
+        elif abs(distance_r) > max_entry_deviation_r:
+            status = PRICE_MOVED_TOO_FAR
+    profile = INSTRUMENTS[signal.instrument]
+    return replace(
+        signal,
+        detected_time_utc=as_of.isoformat(),
+        current_bid=_price(quote.bid, profile),
+        current_ask=_price(quote.ask, profile),
+        current_spread=_price(quote.spread, profile),
+        distance_from_entry_points=_price(directional_distance, profile),
+        distance_from_entry_r=round(distance_r, 4),
+        signal_age_seconds=signal_age,
+        actionability_status=status,
+    )
+
+
 def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
     profile = INSTRUMENTS[signal.instrument]
     digits = profile.price_decimals
@@ -809,6 +994,40 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                         "inline": False,
                     },
                     {
+                        "name": "Current BID / ASK",
+                        "value": (
+                            f"`{signal.current_bid:.{digits}f} / "
+                            f"{signal.current_ask:.{digits}f}`"
+                        ),
+                        "inline": True,
+                    },
+                    {
+                        "name": "Spread",
+                        "value": f"`{signal.current_spread:.{digits}f}`",
+                        "inline": True,
+                    },
+                    {
+                        "name": "Entry deviation",
+                        "value": (
+                            f"`{signal.distance_from_entry_points:.{digits}f} • "
+                            f"{signal.distance_from_entry_r:.2f}R`"
+                        ),
+                        "inline": True,
+                    },
+                    {
+                        "name": "Actionability",
+                        "value": (
+                            f"`{signal.actionability_status} • "
+                            f"age {signal.signal_age_seconds}s`"
+                        ),
+                        "inline": False,
+                    },
+                    {
+                        "name": "Published (UTC)",
+                        "value": f"`{signal.published_time_utc}`",
+                        "inline": False,
+                    },
+                    {
                         "name": "Limit fill time (London)",
                         "value": f"`{signal.fill_time_london}`",
                         "inline": False,
@@ -821,7 +1040,7 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                 ],
                 "footer": {
                     "text": (
-                        f"Dukascopy bid • finalized {signal.timeframe} candles • "
+                        f"Dukascopy BID/ASK • finalized {signal.timeframe} candles • "
                         "exact origin limit • research signal, not financial advice"
                     )
                 },
@@ -856,18 +1075,44 @@ def post_discord(
         raise RuntimeError(f"Could not reach Discord: {error.reason}") from error
 
 
-def _load_state(path: Path) -> dict[str, str]:
+def _load_state(path: Path) -> ScannerState:
     if not path.exists():
-        return {}
+        return ScannerState(version=2, handled={}, positions={}, rejections=[])
     raw = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(raw, dict) or not all(
-        isinstance(key, str) and isinstance(value, str) for key, value in raw.items()
+    if not isinstance(raw, dict):
+        raise ValueError(f"{path} must contain a JSON object")
+    # Migrate the v1 signal-id -> timestamp map without reposting old IDs.
+    if "version" not in raw and all(
+        isinstance(key, str) and isinstance(value, str)
+        for key, value in raw.items()
     ):
-        raise ValueError(f"{path} must contain a JSON object of signal timestamps")
-    return raw
+        return ScannerState(
+            version=2,
+            handled={
+                key: {"status": "SENT_V1", "timestamp": timestamp}
+                for key, timestamp in raw.items()
+            },
+            positions={},
+            rejections=[],
+        )
+    if raw.get("version") != 2:
+        raise ValueError(f"{path} has an unsupported scanner state version")
+    handled = raw.get("handled")
+    positions = raw.get("positions")
+    rejections = raw.get("rejections")
+    if not isinstance(handled, dict) or not isinstance(positions, dict):
+        raise ValueError(f"{path} has invalid handled or position state")
+    if not isinstance(rejections, list):
+        raise ValueError(f"{path} has invalid rejection state")
+    return ScannerState(
+        version=2,
+        handled=handled,
+        positions=positions,
+        rejections=rejections,
+    )
 
 
-def _save_state(path: Path, state: dict[str, str]) -> None:
+def _save_state(path: Path, state: ScannerState) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(
         "w",
@@ -876,17 +1121,20 @@ def _save_state(path: Path, state: dict[str, str]) -> None:
         prefix=f".{path.name}.",
         delete=False,
     ) as handle:
-        handle.write(json.dumps(state, indent=2, sort_keys=True) + "\n")
+        handle.write(json.dumps(asdict(state), indent=2, sort_keys=True) + "\n")
         temporary = Path(handle.name)
     temporary.replace(path)
 
 
-def _latest_csv(data_dir: Path, instrument: str) -> Path:
+def _latest_csv(data_dir: Path, instrument: str, *, side: str = "bid") -> Path:
+    side = side.lower()
+    if side not in {"bid", "ask"}:
+        raise ValueError("side must be bid or ask")
     candidates = sorted(
         (
             path
             for path in data_dir.glob(
-                f"{instrument}-{DATA_TIMEFRAME}-bid-*.csv"
+                f"{instrument}-{DATA_TIMEFRAME}-{side}-*.csv"
             )
             if path.stat().st_size > 0
         ),
@@ -895,9 +1143,60 @@ def _latest_csv(data_dir: Path, instrument: str) -> Path:
     )
     if not candidates:
         raise ValueError(
-            f"No {TIMEFRAME_MINUTES}-minute bid CSV found for {instrument}"
+            f"No {TIMEFRAME_MINUTES}-minute {side} CSV found for {instrument}"
         )
     return candidates[0]
+
+
+def _record_rejection(
+    state: ScannerState,
+    signal: OriginLimitSignal,
+    *,
+    status: str,
+    at: datetime,
+) -> None:
+    record = {
+        "signal_id": signal.key,
+        "instrument": signal.instrument,
+        "side": signal.side,
+        "status": status,
+        "timestamp": at.astimezone(UTC).isoformat(),
+        "signal_age_seconds": signal.signal_age_seconds,
+        "distance_from_entry_r": signal.distance_from_entry_r,
+    }
+    state.rejections.append(record)
+    state.rejections = state.rejections[-500:]
+    state.handled[signal.key] = record
+
+
+def _update_active_position(
+    state: ScannerState,
+    *,
+    instrument: str,
+    bid_bars: Sequence[Bar],
+    ask_bars: Sequence[Bar],
+    at: datetime,
+) -> None:
+    record = state.positions.get(instrument)
+    if not isinstance(record, dict) or not isinstance(record.get("signal"), dict):
+        return
+    try:
+        signal = OriginLimitSignal(**record["signal"])
+    except TypeError as error:
+        raise ValueError(f"Invalid persisted position for {instrument}: {error}") from error
+    status = _price_path_status(
+        signal,
+        bid_bars=bid_bars,
+        ask_bars=ask_bars,
+        require_ask_fill=False,
+    )
+    if status is None:
+        record["last_evaluated_time_utc"] = at.astimezone(UTC).isoformat()
+        return
+    state.positions.pop(instrument, None)
+    handled = state.handled.setdefault(signal.key, {})
+    handled["position_status"] = status
+    handled["closed_time_utc"] = at.astimezone(UTC).isoformat()
 
 
 def scan_markets(
@@ -906,12 +1205,15 @@ def scan_markets(
     instruments: Sequence[str],
     state_path: Path,
     as_of: datetime,
-    max_signal_age_minutes: int,
+    max_signal_age_seconds: int,
     state_retention_days: int,
     webhook_url: str | None,
     dry_run: bool = False,
+    max_quote_age_seconds: int = DEFAULT_MAX_QUOTE_AGE_SECONDS,
+    max_entry_deviation_r: float = DEFAULT_MAX_ENTRY_DEVIATION_R,
+    research_lookback_seconds: int = DEFAULT_RESEARCH_LOOKBACK_SECONDS,
 ) -> tuple[int, int]:
-    """Post every unseen fresh origin-limit fill and atomically persist its ID."""
+    """Publish only fresh, executable, unique signals and persist position state."""
 
     if not dry_run:
         if not webhook_url:
@@ -921,37 +1223,104 @@ def scan_markets(
             )
         validate_webhook_url(webhook_url)
     as_of = as_of.astimezone(UTC)
+    if research_lookback_seconds < max_signal_age_seconds:
+        raise ValueError(
+            "research_lookback_seconds cannot be shorter than the actionable age"
+        )
     state = _load_state(state_path)
     retention_cutoff = as_of - timedelta(days=state_retention_days)
-    state = {
-        key: timestamp
-        for key, timestamp in state.items()
-        if parse_iso_datetime(timestamp) >= retention_cutoff
+    state.handled = {
+        key: record
+        for key, record in state.handled.items()
+        if isinstance(record, dict)
+        and isinstance(record.get("timestamp"), str)
+        and parse_iso_datetime(str(record["timestamp"])) >= retention_cutoff
     }
 
     found = posted = 0
     for instrument in instruments:
-        bars = load_bars(_latest_csv(data_dir, instrument))
+        bid_bars = load_bars(_latest_csv(data_dir, instrument, side="bid"))
+        ask_bars = load_bars(_latest_csv(data_dir, instrument, side="ask"))
+        quote = load_current_quote(
+            data_dir / f"{instrument}-quote-live.json",
+            instrument=instrument,
+        )
+        _update_active_position(
+            state,
+            instrument=instrument,
+            bid_bars=bid_bars,
+            ask_bars=ask_bars,
+            at=as_of,
+        )
         signals = find_fresh_origin_limit_signals(
-            bars,
+            bid_bars,
             instrument=instrument,
             as_of=as_of,
-            max_signal_age_minutes=max_signal_age_minutes,
+            max_signal_age_seconds=research_lookback_seconds,
+            ask_bars=ask_bars,
         )
         if not signals:
             print(f"{INSTRUMENTS[instrument].symbol}: no fresh origin-limit fill")
             continue
         for signal in signals:
             found += 1
-            if signal.key in state:
+            if signal.key in state.handled:
                 print(f"{signal.symbol}: already sent {signal.key}")
                 continue
+            validated = validate_signal_actionability(
+                signal,
+                bid_bars=bid_bars,
+                ask_bars=ask_bars,
+                quote=quote,
+                as_of=as_of,
+                max_signal_age_seconds=max_signal_age_seconds,
+                max_quote_age_seconds=max_quote_age_seconds,
+                max_entry_deviation_r=max_entry_deviation_r,
+            )
+            if instrument in state.positions:
+                validated = replace(
+                    validated,
+                    actionability_status=ACTIVE_POSITION_EXISTS,
+                )
+            if validated.actionability_status != ACTIONABLE:
+                _record_rejection(
+                    state,
+                    validated,
+                    status=validated.actionability_status,
+                    at=as_of,
+                )
+                _save_state(state_path, state)
+                print(
+                    f"{signal.symbol}: rejected {signal.key} "
+                    f"({validated.actionability_status})"
+                )
+                continue
+            publishable = replace(validated, published_time_utc=as_of.isoformat())
+            # Claim before the network call. A crash can suppress one signal, but
+            # cannot produce a duplicate Discord trade alert on retry.
+            state.handled[signal.key] = {
+                "status": "PUBLISHING",
+                "timestamp": as_of.isoformat(),
+                "signal": asdict(publishable),
+            }
+            _save_state(state_path, state)
             if dry_run:
-                print(json.dumps(asdict(signal), indent=2))
+                print(json.dumps(asdict(publishable), indent=2))
             else:
                 assert webhook_url is not None
-                post_discord(signal, webhook_url)
-            state[signal.key] = signal.fill_time_utc
+                try:
+                    post_discord(publishable, webhook_url)
+                except RuntimeError:
+                    state.handled[signal.key]["status"] = "DELIVERY_FAILED"
+                    _save_state(state_path, state)
+                    raise
+            state.handled[signal.key]["status"] = "DRY_RUN" if dry_run else "SENT"
+            state.positions[instrument] = {
+                "status": "OPEN",
+                "opened_time_utc": as_of.isoformat(),
+                "last_evaluated_time_utc": as_of.isoformat(),
+                "signal": asdict(publishable),
+            }
             _save_state(state_path, state)
             posted += 1
             print(f"{signal.symbol}: {'would send' if dry_run else 'sent'} {signal.key}")
@@ -980,8 +1349,14 @@ def command_backtest(args: argparse.Namespace) -> int:
     )
     start = parse_iso_datetime(args.start)
     end = parse_iso_datetime(args.end)
+    bid_bars = load_bars(args.csv)
+    ask_bars = load_bars(args.ask_csv) if args.ask_csv else None
     result = run_no_wick_backtest(
-        load_bars(args.csv), config=config, start=start, end=end
+        bid_bars,
+        config=config,
+        ask_bars=ask_bars,
+        start=start,
+        end=end,
     )
     results = summarize_result(result)
     summary = {
@@ -990,6 +1365,7 @@ def command_backtest(args: argparse.Namespace) -> int:
             "data_file": args.csv.name,
             "instrument": config.profile.symbol,
             "timeframe": TIMEFRAME_LABEL,
+            "ask_data_file": args.ask_csv.name if args.ask_csv else None,
         },
         "window": {
             "start_utc": start.isoformat(),
@@ -1011,6 +1387,11 @@ def command_backtest(args: argparse.Namespace) -> int:
             "pending_orders": "multiple allowed",
             "slippage_ticks_per_side": config.slippage_ticks,
             "same_bar_ambiguity": "stop first",
+            "market_sides": (
+                "BUY ask->bid; SELL bid->ask"
+                if args.ask_csv
+                else "legacy bid-only approximation"
+            ),
         },
         "results": results,
     }
@@ -1054,10 +1435,13 @@ def command_scan(args: argparse.Namespace) -> int:
         instruments=args.instruments,
         state_path=args.state,
         as_of=as_of,
-        max_signal_age_minutes=args.max_signal_age_minutes,
+        max_signal_age_seconds=args.max_signal_age_seconds,
         state_retention_days=args.state_retention_days,
         webhook_url=os.getenv("DISCORD_WEBHOOK_URL"),
         dry_run=args.dry_run,
+        max_quote_age_seconds=args.max_quote_age_seconds,
+        max_entry_deviation_r=args.max_entry_deviation_r,
+        research_lookback_seconds=args.research_lookback_seconds,
     )
     print(f"Scan complete: {found} fresh, {posted} newly handled")
     return 0
@@ -1114,7 +1498,26 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--data-dir", required=True, type=Path)
     scan.add_argument("--state", type=Path, default=Path(".signal-state/seen.json"))
     scan.add_argument("--as-of")
-    scan.add_argument("--max-signal-age-minutes", type=int, default=45)
+    scan.add_argument(
+        "--max-signal-age-seconds",
+        type=int,
+        default=DEFAULT_MAX_SIGNAL_AGE_SECONDS,
+    )
+    scan.add_argument(
+        "--max-quote-age-seconds",
+        type=int,
+        default=DEFAULT_MAX_QUOTE_AGE_SECONDS,
+    )
+    scan.add_argument(
+        "--max-entry-deviation-r",
+        type=float,
+        default=DEFAULT_MAX_ENTRY_DEVIATION_R,
+    )
+    scan.add_argument(
+        "--research-lookback-seconds",
+        type=int,
+        default=DEFAULT_RESEARCH_LOOKBACK_SECONDS,
+    )
     scan.add_argument("--state-retention-days", type=int, default=14)
     scan.add_argument(
         "--instruments",
@@ -1130,6 +1533,7 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Backtest a {TIMEFRAME_LABEL} OHLC CSV",
     )
     backtest.add_argument("--csv", required=True, type=Path)
+    backtest.add_argument("--ask-csv", type=Path)
     backtest.add_argument("--start", required=True)
     backtest.add_argument("--end", required=True)
     backtest.add_argument("--output", type=Path, default=Path("reports/latest"))

@@ -34,7 +34,8 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("limit = entryPrice", strategy)
         self.assertIn("alert_message = payload", strategy)
         self.assertIn("strategy.cancel(pendingId)", strategy)
-        self.assertIn("pyramiding = 20", strategy)
+        self.assertIn("pyramiding = 0", strategy)
+        self.assertIn("strategy.position_size == 0", strategy)
         self.assertNotIn("retraceMarginPercent", strategy)
         self.assertNotIn("Retrace window", strategy)
 
@@ -49,6 +50,10 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("actions/cache/restore@", workflow)
         self.assertIn("actions/cache/save@", workflow)
         self.assertIn("exact-origin limit fill", workflow)
+        self.assertIn("--max-signal-age-seconds 120", workflow)
+        self.assertIn("--max-quote-age-seconds 120", workflow)
+        self.assertIn("--max-entry-deviation-r 0.25", workflow)
+        self.assertIn("--research-lookback-seconds 2700", workflow)
         self.assertNotIn("--retrace-margin-percent", workflow)
         self.assertNotIn("discord.com/api/webhooks/", workflow)
 

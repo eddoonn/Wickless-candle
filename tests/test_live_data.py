@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -74,9 +75,12 @@ class LiveDataTests(unittest.TestCase):
             "closes": [0],
         }
         with patch("live_data._request_json", return_value=payload) as request:
-            candles = fetch_current_day(INSTRUMENTS["eurusd"], now=now)
+            candles = fetch_current_day(
+                INSTRUMENTS["eurusd"], now=now, side="ASK"
+            )
         query = parse_qs(urlparse(request.call_args.args[0]).query)
         self.assertEqual(query["from"], [str(int(start.timestamp() * 1000))])
+        self.assertIn("/ASK?", request.call_args.args[0])
         self.assertEqual(len(candles), 1)
 
     def test_aggregates_true_fifteen_minute_ohlc(self) -> None:
@@ -150,6 +154,11 @@ class LiveDataTests(unittest.TestCase):
                     rows = list(csv.DictReader(handle))
                 self.assertEqual(len(rows), 1)
                 self.assertFalse(output.with_suffix(".csv.tmp").exists())
+            self.assertTrue((root / "eurusd-m15-ask-live.csv").exists())
+            quote = json.loads(
+                (root / "eurusd-quote-live.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(quote["source"], "Dukascopy Jetta BID/ASK minute candles")
 
     def test_refresh_reports_partial_failure_without_hiding_market(self) -> None:
         now = datetime(2026, 7, 30, 8, 10, tzinfo=UTC)

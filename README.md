@@ -32,8 +32,8 @@ only after price trades back to the no-wick candle's opening price.
   renderer, dedupe state, statistics, and conservative backtester.
 - `no_wick_research.py` — the shared, no-lookahead engine used by both live
   Discord scanning and historical backtests.
-- `live_data.py` — account-free live Dukascopy bid candles, aggregated from 1m
-  to true 15m OHLC.
+- `live_data.py` — account-free live Dukascopy BID and ASK candles, aggregated
+  from 1m to true 15m OHLC, plus a timestamped executable quote snapshot.
 - `run_daemon.py`, `Dockerfile`, and `docker-compose.yml` — an always-on,
   candle-aligned deployment.
 - GitHub Actions for CI, fifteen-minute live scanning, and monthly trailing
@@ -57,16 +57,21 @@ or a post-close fill model. Those are deliberately explicit here:
 4. Place an exact limit at the no-wick candle's opening price.
 5. Use the latest confirmed 3-left/3-right pivot plus one tick for the stop.
 6. Target `2R`.
-7. Allow multiple independent pending orders and open positions per pair.
+7. Allow multiple pending setups but only one active position per pair.
 8. Cancel a pending limit when its signal trend changes. There is no percentage
    band and no three-candle expiry.
 9. If a historical bar has ambiguous fill/stop/target ordering, count the stop
    first.
-10. Use a deterministic fill ID and durable state so retries do not repost.
+10. Validate the current BID/ASK quote and reject a fill if its stop or target
+    already traded, its quote is stale, or price moved more than `0.25R`.
+11. Publish only signals no more than 120 seconds old.
+12. Pre-claim a deterministic fill ID and persist the active position so a
+    retry or service restart cannot repost or overlap it.
 
 The Discord message contains side, symbol, 15m timeframe, exact origin entry,
-pivot stop, 2R target, EMA and pivot settings, signal session, London fill time,
-and signal ID. It reports fills; it does not place or manage broker orders.
+pivot stop, 2R target, current BID/ASK and spread, entry displacement in R,
+signal age, publication time, actionability status, London fill time, and signal
+ID. It reports fills; it does not place or manage broker orders.
 
 ## Automatic Discord signals with GitHub Actions
 
@@ -84,9 +89,10 @@ Pine, workflow YAML, logs, Docker layers, or test fixtures.
 
 GitHub scheduled workflows can start late during platform load, and a private
 repository running every fifteen minutes can exceed the included Actions minutes
-on some plans. The scanner looks back 45 minutes and deduplicates, so normal
-delays do not miss or duplicate a signal. For timing closest to each bar close,
-use the Docker deployment below.
+on some plans. The scanner audits fills from a 45-minute research window but
+fails closed after 120 seconds: a delayed run records the signal as expired
+instead of presenting an old entry as actionable.
+Use the Docker deployment below for reliable candle-close delivery.
 
 ## Always-on Docker deployment
 
@@ -100,9 +106,9 @@ docker compose logs -f wickless-signals
 ```
 
 The daemon wakes 20 seconds after each fifteen-minute boundary, refreshes a
-two-week reconstruction window for every market concurrently, rebuilds the
-EMA, confirmed pivots and pending orders from finalized candles, and persists
-signal IDs in a named volume. It shuts
+two-week BID/ASK reconstruction window for every market concurrently, rebuilds
+the EMA, confirmed pivots and pending orders from finalized candles, and
+persists handled IDs plus active position state in a named volume. It shuts
 down cleanly on `SIGTERM`, runs as a non-root user, drops Linux capabilities,
 and has no broker credentials.
 
@@ -195,7 +201,7 @@ downloadable Actions artifact.
 The live strategy is the same trend-filtered origin-limit model used by this
 comparison: EMA(50) with a five-bar slope, confirmed 3/3 pivot stops plus one
 tick, the 09:30–13:30 New York signal window, 2R targets, multiple pending
-orders, and trend-change expiry.
+setups, one active position per pair, and trend-change expiry.
 
 Run the complete comparison across the seven FX majors:
 
@@ -212,12 +218,14 @@ and limitations, and an auditable trade log for the recommended variant.
 Comparisons include the current close-entry baseline, an unfiltered origin
 limit, EMA/range-stop variants with and without the New York window, and
 EMA/pivot-stop variants with and without the window. Multiple pending orders
-are allowed, and one tick of slippage per side is deducted.
+are allowed, only one can be active per pair, and one tick of slippage per side
+is deducted.
 
 ## Accuracy and risk notes
 
-- Dukascopy automation uses bid OHLC. Live BUY fills occur on ask, so the raw
-  backtest does not model the full spread.
+- Live validation uses Dukascopy BID/ASK: BUY limits fill on ASK and exit on
+  BID; SELL limits fill on BID and exit on ASK. Bid-only historical files remain
+  supported for legacy research and are explicitly reported as a limitation.
 - Historical 15m OHLC cannot reveal intrabar ordering. Same-bar stop/target
   touches are treated conservatively as stops.
 - A pattern match is not evidence of an edge. Backtest multiple regimes,

@@ -41,7 +41,10 @@ jobs:
           python wickless_bot.py scan
           --data-dir .runtime-data
           --state .signal-state/seen.json
-          --max-signal-age-minutes 45
+          --max-signal-age-seconds 120
+          --max-quote-age-seconds 120
+          --max-entry-deviation-r 0.25
+          --research-lookback-seconds 2700
 
       - name: Save cross-run signal state
         if: always()
