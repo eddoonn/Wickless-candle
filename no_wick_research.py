@@ -9,15 +9,14 @@ The default research setup uses:
 * finalized 15-minute bars;
 * bullish ``open == low`` / bearish ``open == high`` signals;
 * close versus EMA(50) plus a five-bar EMA slope;
-* a narrow ATR-based origin zone, actual market-side touch, and directional reclaim;
-* entry at the reclaim candle's executable market-side close;
+* entry at the signal candle's executable market-side close;
 * quality gates for body, wick, range, and close location;
-* a confirmed 3-left / 3-right local pivot stop plus one tick;
+* a signal-range stop plus one tick;
 * pair, ATR, spread, and execution-cost stop-distance validation;
 * a 2R target;
 * signals from 05:00 through 13:30 America/New_York (London plus New York);
 * multiple pending setups, but at most one active position per pair;
-* setups expire after five bars and invalidate on trend change or stop breach.
+* at most one active position per pair.
 
 Only information available at each historical bar close is used.  Same-bar
 fill/exit ambiguity is resolved against the strategy by counting the stop.
@@ -68,7 +67,7 @@ class NoWickConfig:
     use_session: bool = True
     session_start: time = time(5, 0)
     session_end: time = time(13, 30)
-    stop_mode: str = "confirmed_pivot"
+    stop_mode: str = "signal_range"
     pivot_left: int = 3
     pivot_right: int = 3
     stop_buffer_ticks: int = 1
@@ -81,7 +80,7 @@ class NoWickConfig:
     maximum_stop_atr_fraction: float = DEFAULT_MAX_STOP_ATR_FRACTION
     minimum_spread_multiple: float = DEFAULT_MIN_SPREAD_MULTIPLE
     maximum_cost_to_risk_ratio: float = DEFAULT_MAX_COST_TO_RISK_RATIO
-    entry_model: str = "zone_reclaim"
+    entry_model: str = "signal_close"
     origin_zone_atr_fraction: float = 0.14
     origin_zone_minimum_ticks: int = 2
     reclaim_buffer_ticks: int = 1
@@ -129,8 +128,10 @@ class NoWickConfig:
             raise ValueError("minimum_spread_multiple cannot be negative")
         if self.maximum_cost_to_risk_ratio < 0:
             raise ValueError("maximum_cost_to_risk_ratio cannot be negative")
-        if self.entry_model not in {"zone_reclaim", "origin_limit"}:
-            raise ValueError("entry_model must be zone_reclaim or origin_limit")
+        if self.entry_model not in {"signal_close", "zone_reclaim", "origin_limit"}:
+            raise ValueError(
+                "entry_model must be signal_close, zone_reclaim, or origin_limit"
+            )
         if self.origin_zone_atr_fraction < 0:
             raise ValueError("origin_zone_atr_fraction cannot be negative")
         if self.origin_zone_minimum_ticks < 0 or self.reclaim_buffer_ticks < 0:
@@ -409,7 +410,14 @@ def _order_from_signal(
     )
     if quality_rejection is not None:
         return None, quality_rejection
-    if config.stop_mode == "signal_range":
+    if config.stop_mode == "signal_range" and config.entry_model == "signal_close":
+        buffer_ = config.stop_buffer_ticks * config.profile.tick_size
+        stop = (
+            bar.low - buffer_
+            if pattern.signal_side == "BUY"
+            else bar.high + buffer_
+        )
+    elif config.stop_mode == "signal_range":
         candle_range = bar.high - bar.low
         stop = (
             entry - candle_range
@@ -624,8 +632,10 @@ def _fill_record(
         estimated_round_trip_cost=metrics["estimated_round_trip_cost"],
         cost_to_risk_ratio=metrics["cost_to_risk_ratio"],
         slippage_ticks_per_side=config.slippage_ticks,
-        origin_price=order.entry if config.entry_model == "origin_limit" else (
-            (order.origin_zone_low + order.origin_zone_high) / 2
+        origin_price=(
+            order.entry
+            if config.entry_model in {"origin_limit", "signal_close"}
+            else (order.origin_zone_low + order.origin_zone_high) / 2
         ),
         origin_zone_low=order.origin_zone_low,
         origin_zone_high=order.origin_zone_high,
@@ -928,7 +938,9 @@ def run_no_wick_backtest(
             atr_15m=atr_values[index],
             config=config,
             origin_price=(
-                ask_bar.open if pattern.signal_side == "BUY" else bar.open
+                (ask_bar.close if pattern.signal_side == "BUY" else bar.close)
+                if config.entry_model == "signal_close"
+                else (ask_bar.open if pattern.signal_side == "BUY" else bar.open)
             ),
         )
         if rejection == "NO_SWING":
@@ -949,6 +961,43 @@ def run_no_wick_backtest(
             rejected_wickless_quality += 1
         elif rejection is not None:
             rejected_execution_cost += 1
+        elif order is not None and config.entry_model == "signal_close":
+            if config.one_position_per_pair and (positions or filled_this_bar):
+                invalidated_setups += 1
+                continue
+            confirmation_order, risk_status, risk_metrics = _confirmed_order(
+                order,
+                bid_bar=bar,
+                ask_bar=ask_bar,
+                config=config,
+            )
+            if risk_status == "STOP_TOO_TIGHT":
+                rejected_stop_too_tight += 1
+                continue
+            if risk_status == "STOP_TOO_WIDE":
+                rejected_stop_too_wide += 1
+                continue
+            if risk_status == "INVALID_STOP":
+                rejected_invalid_stop += 1
+                continue
+            if risk_status is not None:
+                rejected_execution_cost += 1
+                continue
+            assert confirmation_order is not None
+            pending_orders_created += 1
+            filled_orders += 1
+            filled_this_bar = True
+            fills.append(
+                _fill_record(
+                    confirmation_order,
+                    bar=bar,
+                    metrics=risk_metrics,
+                    config=config,
+                    confirmation_bar_number=0,
+                )
+            )
+            positions.append((confirmation_order, bar.close_time))
+            peak_open_positions = max(peak_open_positions, len(positions))
         elif order is not None:
             pending.append(order)
             pending_orders_created += 1
@@ -1097,9 +1146,19 @@ def comparison_variants(instrument: str) -> dict[str, NoWickConfig]:
             base,
             use_session=False,
             stop_mode="signal_range",
+            entry_model="zone_reclaim",
         ),
-        "ema_range_ny": replace(base, stop_mode="signal_range"),
-        "ema_pivot_all_day": replace(base, use_session=False),
+        "ema_range_ny": replace(
+            base,
+            stop_mode="signal_range",
+            entry_model="zone_reclaim",
+        ),
+        "ema_pivot_all_day": replace(
+            base,
+            use_session=False,
+            stop_mode="confirmed_pivot",
+            entry_model="zone_reclaim",
+        ),
         "recommended_ema_pivot_ny": base,
     }
 
@@ -1225,11 +1284,11 @@ def compare_directory(
         "data": "Dukascopy bid OHLC",
         "cost_model": "one tick of slippage per side; no commission or full spread",
         "execution": {
-            "pending_orders": "multiple allowed",
-            "setup_expiry": "five finalized bars",
-            "invalidation": "trend change, missing bar, or structural stop breach",
+            "pending_orders": "not used by the signal-close live model",
+            "setup_expiry": "not applicable to immediate signal-close entries",
+            "invalidation": "quality, trend, session, risk, spread, or cost failure",
             "same_bar_ambiguity": "stop first",
-            "entry": "market-side confirmation close after origin touch and reclaim",
+            "entry": "signal candle's executable market-side close",
             "session_timezone": "America/New_York",
             "risk_integrity": {
                 "atr_period": DEFAULT_ATR_PERIOD,
@@ -1240,13 +1299,10 @@ def compare_directory(
                 "pair_minimum_stop": "5 pips FX; 50 XAU pips ($0.50)",
             },
             "signal_quality": {
-                "origin_zone_atr_fraction": 0.14,
-                "origin_zone_minimum_ticks": 2,
                 "minimum_body_ratio": 0.80,
                 "maximum_wick_ticks": 2.0,
                 "range_atr": [0.50, 2.00],
                 "close_location_fraction": 0.10,
-                "maximum_entry_displacement_atr": 0.30,
             },
         },
         "variants": {
@@ -1269,7 +1325,7 @@ def compare_directory(
                 "stop, all day."
             ),
             "recommended_ema_pivot_ny": (
-                "Full described defaults adapted to 15m and 2R."
+                "Live EMA signal-close entry with signal-range stop and 2R target."
             ),
         },
         "aggregate": aggregate,
@@ -1279,8 +1335,7 @@ def compare_directory(
             "One week is a small sample and cannot substantiate an optimization claim.",
             "Bid-only OHLC omits the live ask spread.",
             "Fifteen-minute OHLC cannot reveal intrabar fill/exit order.",
-            "Summed R assumes one unit of risk per filled order; the described "
-            "multiple-order mode can create overlapping exposure.",
+            "Summed R assumes one unit of risk per filled order across pairs.",
             "The strategy description was implemented mechanically; protected "
             "third-party source code was not accessed.",
         ],

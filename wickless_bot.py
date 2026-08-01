@@ -219,7 +219,7 @@ class Signal:
 
 @dataclass(frozen=True)
 class OriginLimitSignal:
-    """A confirmed entry from the live trend-filtered origin-reclaim strategy."""
+    """A confirmed entry from the shared trend-filtered strategy engine."""
 
     key: str
     instrument: str
@@ -609,7 +609,7 @@ def find_fresh_origin_limit_signals(
     max_signal_age_seconds: int = DEFAULT_MAX_SIGNAL_AGE_SECONDS,
     ask_bars: Sequence[Bar] | None = None,
 ) -> list[OriginLimitSignal]:
-    """Return recent origin-touch/reclaim entries from the shared strategy engine."""
+    """Return recent validated entries from the shared strategy engine."""
 
     if max_signal_age_seconds < 1:
         raise ValueError("max_signal_age_seconds must be positive")
@@ -646,12 +646,12 @@ def find_fresh_origin_limit_signals(
         signal_bar_open = parse_iso_datetime(fill.signal_time_utc)
         signal_close = signal_bar_open + timedelta(minutes=TIMEFRAME_MINUTES)
         identity = (
-            f"no-wick-origin-reclaim-v4-market-side|{instrument}|{fill.signal_time_utc}|"
+            f"no-wick-v5-signal-close|{instrument}|{fill.signal_time_utc}|"
             f"{fill.fill_bar_open_time_utc}|{fill.pattern}|{TIMEFRAME_LABEL}|"
             f"{config.ema_length}|{config.ema_slope_lookback}|"
             f"{config.pivot_left}|{config.pivot_right}|{config.reward_risk:g}|"
             f"{config.session_start.isoformat()}|{config.session_end.isoformat()}|"
-            f"{config.expiry_bars}"
+            f"{config.expiry_bars}|{config.entry_model}|{config.stop_mode}"
         )
         signals.append(
             OriginLimitSignal(
@@ -1043,7 +1043,8 @@ def _price_path_status(
     stop_seen = target_seen = False
     for bar in exit_bars:
         if bar.timestamp < fill_open or (
-            signal.entry_model == "zone_reclaim" and bar.timestamp == fill_open
+            signal.entry_model in {"zone_reclaim", "signal_close"}
+            and bar.timestamp == fill_open
         ):
             continue
         if signal.side == "BUY":
@@ -1188,7 +1189,11 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                 ),
                 "description": (
                     f"{pattern_label}; EMA({signal.ema_length}) trend confirmed "
-                    "after a market-side origin-zone touch and directional reclaim."
+                    + (
+                        "at the finalized signal close with a signal-range stop."
+                        if signal.entry_model == "signal_close"
+                        else "after a market-side origin-zone touch and directional reclaim."
+                    )
                 ),
                 "color": 0x2ECC71 if signal.side == "BUY" else 0xE74C3C,
                 "fields": [
@@ -1208,10 +1213,18 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                         "inline": True,
                     },
                     {
-                        "name": "Origin zone",
+                        "name": (
+                            "Entry model"
+                            if signal.entry_model == "signal_close"
+                            else "Origin zone"
+                        ),
                         "value": (
-                            f"`{signal.origin_zone_low:.{digits}f}–"
-                            f"{signal.origin_zone_high:.{digits}f}`"
+                            "`Finalized signal close`"
+                            if signal.entry_model == "signal_close"
+                            else (
+                                f"`{signal.origin_zone_low:.{digits}f}–"
+                                f"{signal.origin_zone_high:.{digits}f}`"
+                            )
                         ),
                         "inline": True,
                     },
@@ -1225,11 +1238,19 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                         "inline": True,
                     },
                     {
-                        "name": "Touch / reclaim",
+                        "name": (
+                            "Signal-close execution"
+                            if signal.entry_model == "signal_close"
+                            else "Touch / reclaim"
+                        ),
                         "value": (
-                            f"`bar {signal.touch_bar_number} / "
-                            f"bar {signal.confirmation_bar_number} • "
-                            f"entry {signal.entry_displacement_atr:.2f} ATR from origin`"
+                            "`Immediate at finalized close • no intrabar lookahead`"
+                            if signal.entry_model == "signal_close"
+                            else (
+                                f"`bar {signal.touch_bar_number} / "
+                                f"bar {signal.confirmation_bar_number} • "
+                                f"entry {signal.entry_displacement_atr:.2f} ATR from origin`"
+                            )
                         ),
                         "inline": False,
                     },
@@ -1242,10 +1263,18 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                         "inline": True,
                     },
                     {
-                        "name": "Pivot stop",
+                        "name": (
+                            "Signal-range stop"
+                            if signal.entry_model == "signal_close"
+                            else "Pivot stop"
+                        ),
                         "value": (
-                            f"`{signal.pivot_left}/{signal.pivot_right} "
-                            "confirmed + 1 tick`"
+                            "`Opposite signal-candle edge + 1 tick`"
+                            if signal.entry_model == "signal_close"
+                            else (
+                                f"`{signal.pivot_left}/{signal.pivot_right} "
+                                "confirmed + 1 tick`"
+                            )
                         ),
                         "inline": True,
                     },
@@ -1318,7 +1347,7 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                 "footer": {
                     "text": (
                         f"Dukascopy BID/ASK • finalized {signal.timeframe} candles • "
-                        "origin touch + reclaim • research signal, not financial advice"
+                        "finalized signal-close entry • research signal, not financial advice"
                     )
                 },
                 "timestamp": signal.fill_time_utc,
@@ -1557,7 +1586,7 @@ def scan_markets(
             ask_bars=ask_bars,
         )
         if not signals:
-            print(f"{INSTRUMENTS[instrument].symbol}: no fresh origin-reclaim entry")
+            print(f"{INSTRUMENTS[instrument].symbol}: no fresh validated entry")
             continue
         for signal in signals:
             found += 1
@@ -1677,10 +1706,18 @@ def command_backtest(args: argparse.Namespace) -> int:
                 f"{config.session_start.strftime('%H:%M')}–"
                 f"{config.session_end.strftime('%H:%M')} America/New_York"
             ),
-            "entry": "market-side close after origin-zone touch and directional reclaim",
+            "entry": (
+                "signal candle's executable market-side close"
+                if config.entry_model == "signal_close"
+                else "market-side close after origin-zone touch and directional reclaim"
+            ),
             "stop": (
-                f"latest confirmed {config.pivot_left}/{config.pivot_right} "
-                f"pivot plus {config.stop_buffer_ticks} tick"
+                f"signal-candle opposite edge plus {config.stop_buffer_ticks} tick"
+                if config.stop_mode == "signal_range"
+                else (
+                    f"latest confirmed {config.pivot_left}/{config.pivot_right} "
+                    f"pivot plus {config.stop_buffer_ticks} tick"
+                )
             ),
             "reward_risk": config.reward_risk,
             "pending_expiry": f"{config.expiry_bars} bars",

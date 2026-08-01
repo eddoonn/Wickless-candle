@@ -420,6 +420,21 @@ class SignalTests(unittest.TestCase):
         self.assertNotIn("0.25%", json.dumps(payload))
         self.assertLess(len(json.dumps(payload)), 6000)
 
+    def test_signal_close_embed_labels_the_entry_and_range_stop(self) -> None:
+        payload = discord_payload(
+            replace(
+                origin_signal(),
+                entry_model="signal_close",
+                touch_bar_number=0,
+                confirmation_bar_number=0,
+                entry_displacement_atr=0,
+            )
+        )
+        encoded = json.dumps(payload)
+        self.assertIn("finalized signal close", encoded)
+        self.assertIn("Signal-range stop", encoded)
+        self.assertNotIn("Touch / reclaim", encoded)
+
 
 class BacktestTests(unittest.TestCase):
     def test_target_hit_closes_at_two_r(self) -> None:
@@ -677,7 +692,8 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(config.maximum_stop_atr_fraction, 1.50)
         self.assertEqual(config.minimum_spread_multiple, 3.0)
         self.assertEqual(config.maximum_cost_to_risk_ratio, 0.10)
-        self.assertEqual(config.entry_model, "zone_reclaim")
+        self.assertEqual(config.entry_model, "signal_close")
+        self.assertEqual(config.stop_mode, "signal_range")
         self.assertEqual(config.origin_zone_atr_fraction, 0.14)
         self.assertEqual(config.origin_zone_minimum_ticks, 2)
         self.assertEqual(config.reclaim_buffer_ticks, 1)

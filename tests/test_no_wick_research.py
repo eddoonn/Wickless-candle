@@ -74,10 +74,53 @@ class NoWickExecutionTests(unittest.TestCase):
             "trend_filter": "none",
             "use_session": False,
             "stop_mode": "signal_range",
+            "entry_model": "zone_reclaim",
             "slippage_ticks": 0,
         }
         values.update(overrides)
         return NoWickConfig(**values)
+
+    def test_signal_close_continuation_enters_immediately_with_range_stop(self) -> None:
+        bids = [
+            bar(0, 1.1000, 1.1010, 1.1000, 1.10095),
+            bar(15, 1.10095, 1.1033, 1.10090, 1.1030),
+        ]
+        asks = [
+            bar(0, 1.1001, 1.1011, 1.1001, 1.10105),
+            bar(15, 1.10105, 1.1034, 1.10100, 1.1031),
+        ]
+        config = NoWickConfig(
+            instrument="eurusd",
+            trend_filter="none",
+            use_session=False,
+            stop_mode="signal_range",
+            entry_model="signal_close",
+            slippage_ticks=0,
+        )
+        result = run_no_wick_backtest(bids, ask_bars=asks, config=config)
+        self.assertEqual(result.filled_orders, 1)
+        self.assertEqual(result.fills[0].fill_time_utc, "2026-07-27T13:15:00+00:00")
+        self.assertAlmostEqual(result.fills[0].entry, 1.10105)
+        self.assertAlmostEqual(result.fills[0].stop, 1.09999)
+        self.assertEqual(result.fills[0].confirmation_bar_number, 0)
+        self.assertEqual(len(result.trades), 1)
+        self.assertEqual(result.trades[0].exit_reason, "TARGET")
+
+    def test_signal_close_does_not_exit_on_the_signal_bar(self) -> None:
+        bids = [bar(0, 1.1000, 1.1010, 1.1000, 1.10095)]
+        asks = [bar(0, 1.1001, 1.1011, 1.1001, 1.10105)]
+        config = NoWickConfig(
+            instrument="eurusd",
+            trend_filter="none",
+            use_session=False,
+            stop_mode="signal_range",
+            entry_model="signal_close",
+            slippage_ticks=0,
+        )
+        result = run_no_wick_backtest(bids, ask_bars=asks, config=config)
+        self.assertEqual(result.filled_orders, 1)
+        self.assertEqual(len(result.trades), 0)
+        self.assertEqual(result.open_positions, 1)
 
     def test_phase3_requires_market_side_zone_touch_and_directional_reclaim(self) -> None:
         bids = [

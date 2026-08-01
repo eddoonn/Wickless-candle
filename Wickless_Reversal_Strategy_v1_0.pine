@@ -1,7 +1,7 @@
 //@version=6
 strategy(
-     title = "No Wick EMA Origin-Reclaim Strategy 15m",
-     shorttitle = "No Wick Reclaim 15m",
+     title = "No Wick EMA Signal-Close Strategy 15m",
+     shorttitle = "No Wick Close 15m",
      overlay = true,
      initial_capital = 50000,
      default_qty_type = strategy.percent_of_equity,
@@ -19,11 +19,9 @@ strategy(
 // - finalized, directional 15-minute wickless impulse;
 // - EMA(50) direction plus five-bar slope and 05:00–13:30 New York session;
 // - 80% body, <=2-tick opening wick, 0.50–2.00 ATR range, top/bottom 10% close;
-// - symmetric 0.14 ATR origin zone with a two-tick floor;
-// - actual zone touch followed by a one-tick directional reclaim;
-// - entry on the reclaim close, no more than 0.30 ATR from the origin;
-// - confirmed 3/3 pivot stop, 0.40–1.50 ATR risk, 2R target;
-// - five-bar setup expiry, strict invalidation, and one position per pair.
+// - entry at the finalized signal close;
+// - opposite signal-candle edge plus one tick for the stop;
+// - 0.40–1.50 ATR risk, 2R target, and one position per pair.
 // Python remains the execution source of truth for BID/ASK spread and cost checks.
 
 groupRules = "Strategy"
@@ -33,15 +31,8 @@ minimumBodyRatio = input.float(0.80, "Minimum body ratio", minval = 0.0, maxval 
 minimumRangeAtr = input.float(0.50, "Minimum impulse range (ATR)", minval = 0.0, step = 0.05, group = groupRules)
 maximumRangeAtr = input.float(2.00, "Maximum impulse range (ATR)", minval = 0.1, step = 0.05, group = groupRules)
 closeLocationFraction = input.float(0.10, "Maximum close distance from impulse edge", minval = 0.0, maxval = 1.0, step = 0.05, group = groupRules)
-originZoneAtrFraction = input.float(0.14, "Origin-zone half-width (ATR)", minval = 0.0, step = 0.01, group = groupRules)
-originZoneMinimumTicks = input.int(2, "Origin-zone minimum half-width (ticks)", minval = 0, group = groupRules)
-reclaimBufferTicks = input.int(1, "Directional reclaim buffer (ticks)", minval = 0, group = groupRules)
-maximumEntryDisplacementAtr = input.float(0.30, "Maximum entry displacement (ATR)", minval = 0.0, step = 0.05, group = groupRules)
-setupExpiryBars = input.int(5, "Setup expiry (bars)", minval = 1, group = groupRules)
 emaLength = input.int(50, "EMA length", minval = 2, group = groupRules)
 emaSlopeLookback = input.int(5, "EMA slope lookback", minval = 1, group = groupRules)
-pivotLeft = input.int(3, "Pivot bars left", minval = 1, group = groupRules)
-pivotRight = input.int(3, "Pivot bars right", minval = 1, group = groupRules)
 stopBufferTicks = input.int(1, "Stop buffer (ticks)", minval = 0, group = groupRules)
 atrLength = input.int(14, "ATR length", minval = 1, group = groupRules)
 minimumStopAtr = input.float(0.40, "Minimum stop (ATR)", minval = 0.0, step = 0.05, group = groupRules)
@@ -59,11 +50,10 @@ sellColor = input.color(color.rgb(231, 76, 60), "SELL color", group = groupDispl
 
 isFifteenMinute = timeframe.isminutes and timeframe.multiplier == 15
 if barstate.isfirst and enforceFifteenMinutes and not isFifteenMinute
-    runtime.error("No Wick Origin-Reclaim Strategy requires a 15-minute chart.")
+    runtime.error("No Wick Signal-Close Strategy requires a 15-minute chart.")
 
 tick = syminfo.mintick
 stopBuffer = tick * stopBufferTicks
-reclaimBuffer = tick * reclaimBufferTicks
 emaValue = ta.ema(close, emaLength)
 atrValue = ta.atr(atrLength)
 pipSize = syminfo.type == "forex" ? tick * 10 : 0.01
@@ -74,15 +64,6 @@ upTrend = close > emaValue and emaValue > emaValue[emaSlopeLookback]
 downTrend = close < emaValue and emaValue < emaValue[emaSlopeLookback]
 trend = upTrend ? 1 : downTrend ? -1 : 0
 inSession = not na(time(timeframe.period, entrySession, "America/New_York"))
-
-pivotLow = ta.pivotlow(low, pivotLeft, pivotRight)
-pivotHigh = ta.pivothigh(high, pivotLeft, pivotRight)
-var float latestPivotLow = na
-var float latestPivotHigh = na
-if not na(pivotLow)
-    latestPivotLow := pivotLow
-if not na(pivotHigh)
-    latestPivotHigh := pivotHigh
 
 candleRange = high - low
 bodyRatio = candleRange > 0 ? math.abs(close - open) / candleRange : 0.0
@@ -99,136 +80,40 @@ bearQuality = bearishWickless and bodyRatio >= minimumBodyRatio and bearWickTick
 buySetup = bullQuality and upTrend and inSession and enableLongs
 sellSetup = bearQuality and downTrend and inSession and enableShorts
 
-var array<string> pendingIds = array.new_string()
-var array<int> pendingSides = array.new_int()
-var array<int> pendingSignalBars = array.new_int()
-var array<int> pendingTrends = array.new_int()
-var array<float> pendingOrigins = array.new_float()
-var array<float> pendingZoneLows = array.new_float()
-var array<float> pendingZoneHighs = array.new_float()
-var array<float> pendingStops = array.new_float()
-var array<float> pendingAtrs = array.new_float()
-var array<float> pendingQualityScores = array.new_float()
-var array<bool> pendingTouched = array.new_bool()
-var array<int> pendingTouchBars = array.new_int()
+if buySetup and strategy.position_size == 0
+    entryPrice = close
+    stopPrice = low - stopBuffer
+    risk = entryPrice - stopPrice
+    riskValid = risk >= minimumRisk and risk <= maximumRisk
+    if riskValid
+        targetPrice = entryPrice + rewardRisk * risk
+        entryId = "NW-B-" + str.tostring(bar_index)
+        exitId = "NW-X-" + str.tostring(bar_index)
+        payload = '{"content":"**NO WICK 15m SIGNAL CLOSE: BUY ' + syminfo.ticker + '**\\n' +
+             'Entry: `' + str.tostring(entryPrice, format.mintick) + '`\\n' +
+             'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
+             'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' + str.tostring(targetPrice, format.mintick) + '`\\n' +
+             'Body/range: ' + str.tostring(bodyRatio * 100, "#.0") + '% / ' + str.tostring(rangeAtr, "#.00") + ' ATR"}'
+        strategy.entry(entryId, strategy.long, alert_message = payload)
+        strategy.exit(exitId, from_entry = entryId, stop = stopPrice, limit = targetPrice)
 
-removeCandidate(int candidateIndex) =>
-    array.remove(pendingIds, candidateIndex)
-    array.remove(pendingSides, candidateIndex)
-    array.remove(pendingSignalBars, candidateIndex)
-    array.remove(pendingTrends, candidateIndex)
-    array.remove(pendingOrigins, candidateIndex)
-    array.remove(pendingZoneLows, candidateIndex)
-    array.remove(pendingZoneHighs, candidateIndex)
-    array.remove(pendingStops, candidateIndex)
-    array.remove(pendingAtrs, candidateIndex)
-    array.remove(pendingQualityScores, candidateIndex)
-    array.remove(pendingTouched, candidateIndex)
-    array.remove(pendingTouchBars, candidateIndex)
-
-filledThisBar = false
-if barstate.isconfirmed and array.size(pendingIds) > 0
-    pendingIndex = array.size(pendingIds) - 1
-    while pendingIndex >= 0
-        side = array.get(pendingSides, pendingIndex)
-        signalBar = array.get(pendingSignalBars, pendingIndex)
-        signalTrend = array.get(pendingTrends, pendingIndex)
-        origin = array.get(pendingOrigins, pendingIndex)
-        zoneLow = array.get(pendingZoneLows, pendingIndex)
-        zoneHigh = array.get(pendingZoneHighs, pendingIndex)
-        stopPrice = array.get(pendingStops, pendingIndex)
-        signalAtr = array.get(pendingAtrs, pendingIndex)
-        qualityScore = array.get(pendingQualityScores, pendingIndex)
-        touchedBefore = array.get(pendingTouched, pendingIndex)
-        touchBar = array.get(pendingTouchBars, pendingIndex)
-        age = bar_index - signalBar
-        expired = age > setupExpiryBars
-        trendInvalidated = trend != signalTrend
-        stopInvalidated = side == 1 ? low <= stopPrice : high >= stopPrice
-        if expired or trendInvalidated or stopInvalidated or strategy.position_size != 0 or filledThisBar
-            removeCandidate(pendingIndex)
-        else
-            touchesNow = low <= zoneHigh and high >= zoneLow
-            touched = touchedBefore or touchesNow
-            if touchesNow and not touchedBefore
-                touchBar := age
-                array.set(pendingTouchBars, pendingIndex, touchBar)
-            array.set(pendingTouched, pendingIndex, touched)
-            reclaimed = side == 1 ? close >= zoneHigh + reclaimBuffer : close <= zoneLow - reclaimBuffer
-            displacementAtr = signalAtr > 0 ? side * (close - origin) / signalAtr : 10.0
-            entryPrice = close
-            risk = side == 1 ? entryPrice - stopPrice : stopPrice - entryPrice
-            riskValid = risk >= minimumRisk and risk <= maximumRisk
-            displacementValid = displacementAtr <= maximumEntryDisplacementAtr
-            if touched and reclaimed and displacementValid and riskValid
-                targetPrice = side == 1 ? entryPrice + rewardRisk * risk : entryPrice - rewardRisk * risk
-                entryId = array.get(pendingIds, pendingIndex)
-                exitId = "NW-X-" + str.tostring(signalBar)
-                sideLabel = side == 1 ? "BUY" : "SELL"
-                payload = '{"content":"**NO WICK 15m ORIGIN RECLAIM: ' + sideLabel + ' ' + syminfo.ticker + '**\\n' +
-                     'Entry: `' + str.tostring(entryPrice, format.mintick) + '`\\n' +
-                     'Origin zone: `' + str.tostring(zoneLow, format.mintick) + '–' + str.tostring(zoneHigh, format.mintick) + '`\\n' +
-                     'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
-                     'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' + str.tostring(targetPrice, format.mintick) + '`\\n' +
-                     'Touch/reclaim bars: ' + str.tostring(touchBar) + '/' + str.tostring(age) + '\\n' +
-                     'Quality: ' + str.tostring(qualityScore, "#.0") + '/100"}'
-                strategy.entry(entryId, side == 1 ? strategy.long : strategy.short, alert_message = payload)
-                strategy.exit(exitId, from_entry = entryId, stop = stopPrice, limit = targetPrice)
-                filledThisBar := true
-                removeCandidate(pendingIndex)
-            else if touched and reclaimed
-                removeCandidate(pendingIndex)
-        pendingIndex -= 1
-
-// One confirmed entry invalidates every other candidate for this pair.
-if filledThisBar and array.size(pendingIds) > 0
-    pendingIndex = array.size(pendingIds) - 1
-    while pendingIndex >= 0
-        removeCandidate(pendingIndex)
-        pendingIndex -= 1
-
-if buySetup and strategy.position_size == 0 and not filledThisBar and not na(latestPivotLow)
-    origin = open
-    stopPrice = latestPivotLow - stopBuffer
-    riskAtOrigin = origin - stopPrice
-    if riskAtOrigin >= minimumRisk and riskAtOrigin <= maximumRisk
-        zoneHalfWidth = math.max(originZoneMinimumTicks * tick, atrValue * originZoneAtrFraction)
-        wickQuality = maximumWickTicks > 0 ? math.max(0.0, 1.0 - bullWickTicks / maximumWickTicks) : 1.0
-        qualityScore = 25.0 * (math.min(bodyRatio, 1.0) + math.max(0.0, 1.0 - bullCloseLocation) + wickQuality + 1.0)
-        array.push(pendingIds, "NW-B-" + str.tostring(bar_index))
-        array.push(pendingSides, 1)
-        array.push(pendingSignalBars, bar_index)
-        array.push(pendingTrends, 1)
-        array.push(pendingOrigins, origin)
-        array.push(pendingZoneLows, origin - zoneHalfWidth)
-        array.push(pendingZoneHighs, origin + zoneHalfWidth)
-        array.push(pendingStops, stopPrice)
-        array.push(pendingAtrs, atrValue)
-        array.push(pendingQualityScores, qualityScore)
-        array.push(pendingTouched, false)
-        array.push(pendingTouchBars, 0)
-
-if sellSetup and strategy.position_size == 0 and not filledThisBar and not na(latestPivotHigh)
-    origin = open
-    stopPrice = latestPivotHigh + stopBuffer
-    riskAtOrigin = stopPrice - origin
-    if riskAtOrigin >= minimumRisk and riskAtOrigin <= maximumRisk
-        zoneHalfWidth = math.max(originZoneMinimumTicks * tick, atrValue * originZoneAtrFraction)
-        wickQuality = maximumWickTicks > 0 ? math.max(0.0, 1.0 - bearWickTicks / maximumWickTicks) : 1.0
-        qualityScore = 25.0 * (math.min(bodyRatio, 1.0) + math.max(0.0, 1.0 - bearCloseLocation) + wickQuality + 1.0)
-        array.push(pendingIds, "NW-S-" + str.tostring(bar_index))
-        array.push(pendingSides, -1)
-        array.push(pendingSignalBars, bar_index)
-        array.push(pendingTrends, -1)
-        array.push(pendingOrigins, origin)
-        array.push(pendingZoneLows, origin - zoneHalfWidth)
-        array.push(pendingZoneHighs, origin + zoneHalfWidth)
-        array.push(pendingStops, stopPrice)
-        array.push(pendingAtrs, atrValue)
-        array.push(pendingQualityScores, qualityScore)
-        array.push(pendingTouched, false)
-        array.push(pendingTouchBars, 0)
+if sellSetup and strategy.position_size == 0
+    entryPrice = close
+    stopPrice = high + stopBuffer
+    risk = stopPrice - entryPrice
+    riskValid = risk >= minimumRisk and risk <= maximumRisk
+    if riskValid
+        targetPrice = entryPrice - rewardRisk * risk
+        entryId = "NW-S-" + str.tostring(bar_index)
+        exitId = "NW-X-" + str.tostring(bar_index)
+        payload = '{"content":"**NO WICK 15m SIGNAL CLOSE: SELL ' + syminfo.ticker + '**\\n' +
+             'Entry: `' + str.tostring(entryPrice, format.mintick) + '`\\n' +
+             'Stop: `' + str.tostring(stopPrice, format.mintick) + '`\\n' +
+             'Target (' + str.tostring(rewardRisk, "#.##") + 'R): `' + str.tostring(targetPrice, format.mintick) + '`\\n' +
+             'Body/range: ' + str.tostring(bodyRatio * 100, "#.0") + '% / ' + str.tostring(rangeAtr, "#.00") + ' ATR"}'
+        strategy.entry(entryId, strategy.short, alert_message = payload)
+        strategy.exit(exitId, from_entry = entryId, stop = stopPrice, limit = targetPrice)
 
 plot(showEma ? emaValue : na, title = "EMA trend", color = color.orange)
-plotshape(showSignals and buySetup, title = "Eligible BUY origin", style = shape.labelup, location = location.belowbar, color = buyColor, text = "BUY SETUP", textcolor = color.white, size = size.tiny)
-plotshape(showSignals and sellSetup, title = "Eligible SELL origin", style = shape.labeldown, location = location.abovebar, color = sellColor, text = "SELL SETUP", textcolor = color.white, size = size.tiny)
+plotshape(showSignals and buySetup, title = "Eligible BUY close", style = shape.labelup, location = location.belowbar, color = buyColor, text = "BUY CLOSE", textcolor = color.white, size = size.tiny)
+plotshape(showSignals and sellSetup, title = "Eligible SELL close", style = shape.labeldown, location = location.abovebar, color = sellColor, text = "SELL CLOSE", textcolor = color.white, size = size.tiny)

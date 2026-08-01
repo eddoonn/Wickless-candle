@@ -31,10 +31,10 @@ jobs:
           restore-keys: |
             wickless-signal-state-
 
-      - name: Download indicator warm-up and pending-order history
+      - name: Download indicator warm-up and risk history
         run: python live_data.py --data-dir .runtime-data
 
-      - name: Post every unseen origin-zone reclaim entry
+      - name: Post every unseen validated signal-close entry
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: >-

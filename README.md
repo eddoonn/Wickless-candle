@@ -17,10 +17,10 @@ candles with no wick **from the opening price**, which makes the core rule:
 
 `≈` allows at most two minimum ticks. A doji is not classified. Signals use
 only finalized fifteen-minute candles, so the live detector does not repaint.
-The pattern becomes a three-bar setup only when it passes the impulse-quality
-gates and agrees with the EMA trend during the New York signal window. Discord
-receives a signal only after the executable market side touches the narrow
-origin zone and a finalized candle reclaims that zone in the setup direction.
+The pattern becomes actionable only when it passes the impulse-quality gates,
+agrees with the EMA trend, and closes during the liquid London-plus-New-York
+window. Discord receives the executable signal-close entry after every spread,
+stop-distance, execution-cost, freshness, and position safeguard passes.
 
 ## What is included
 
@@ -58,34 +58,26 @@ or a post-close fill model. Those are deliberately explicit here:
    liquid London morning and New York session.
 4. Require at least an 80% body, no more than a two-tick opening wick, a
    `0.50–2.00 × ATR(14)` range, and a close in the final 10% of the impulse.
-5. Create a symmetric origin zone with half-width
-   `max(2 ticks, 0.14 × ATR(14))` around the executable market-side origin:
-   ASK open for BUY and BID open for SELL.
-6. Require an actual ASK-side zone touch for BUY or BID-side touch for SELL,
-   followed within five bars by a one-tick directional reclaim on that same
-   market side.
-7. Enter at the reclaim candle's ASK close for BUY or BID close for SELL. Reject
-   an entry more than `0.30 × ATR(14)` from the origin.
-8. Use the latest confirmed 3-left/3-right pivot plus one tick for the stop.
-9. Reject risk below the pair minimum (5 pips for FX majors; $0.50 for XAUUSD),
+5. Enter at the finalized signal candle's ASK close for BUY or BID close for
+   SELL; no intrabar price path is credited before that close.
+6. Place the stop one tick beyond the signal candle's opposite edge.
+7. Reject risk below the pair minimum (5 pips for FX majors; $0.50 for XAUUSD),
    below `0.40 × ATR(14)`, or below `3 ×` the observed spread.
-10. Reject risk above `1.50 × ATR(14)` or when estimated spread plus slippage
+8. Reject risk above `1.50 × ATR(14)` or when estimated spread plus slippage
    exceeds 10% of `1R`.
-11. Target `2R`.
-12. Allow multiple setup candidates but only one active position per pair.
-13. Invalidate a setup on trend change, missing candle, structural stop breach,
-    or after five confirmation bars.
-14. If a historical bar has ambiguous stop/target ordering, count the stop
-   first.
-15. Validate the current BID/ASK quote and reject an entry if its stop or target
+9. Target `2R`.
+10. Allow only one active position per pair.
+11. If a historical bar has ambiguous stop/target ordering, count the stop
+    first.
+12. Validate the current BID/ASK quote and reject an entry if its stop or target
     already traded, its quote is stale, or price moved more than `0.25R`.
-16. Publish only signals no more than 120 seconds old.
-17. Pre-claim a deterministic signal ID and persist the active position so a
+13. Publish only signals no more than 120 seconds old.
+14. Pre-claim a deterministic signal ID and persist the active position so a
     retry or service restart cannot repost or overlap it.
 
-The Discord message contains side, symbol, 15m timeframe, origin zone, quality
-score, touch/reclaim bars, reclaim entry, pivot stop, 2R target, current BID/ASK
-and spread, entry displacement in ATR and R,
+The Discord message contains side, symbol, 15m timeframe, quality score,
+signal-close entry, signal-range stop, 2R target, current BID/ASK and spread,
+entry displacement in R,
 stop distance in pips and ATR, estimated execution cost as a percentage of 1R,
 signal age, publication time, actionability status, London fill time, and signal
 ID. It reports validated entries; it does not place or manage broker orders.
@@ -124,7 +116,7 @@ docker compose logs -f wickless-signals
 
 The daemon wakes 20 seconds after each fifteen-minute boundary, refreshes a
 two-week BID/ASK reconstruction window for every market concurrently, rebuilds
-the EMA, confirmed pivots and pending orders from finalized candles, and
+the EMA and risk state from finalized candles, and
 persists handled IDs plus active position state in a named volume. It shuts
 down cleanly on `SIGTERM`, runs as a non-root user, drops Linux capabilities,
 and has no broker credentials.
@@ -149,8 +141,8 @@ Strategy and direct TradingView-to-Discord alerts:
 2. Review the Strategy Tester and set costs/size to match the intended market.
 3. Create an alert for **Order fills only**.
 4. Paste the rotated Discord webhook into TradingView's **Webhook URL** field.
-5. Set the alert message to `{{strategy.order.alert_message}}`; the confirmed
-   reclaim entry supplies valid Discord JSON.
+5. Set the alert message to `{{strategy.order.alert_message}}`; the finalized
+   signal-close entry supplies valid Discord JSON.
 
 TradingView saves a snapshot of the script, chart, symbol, timeframe, and
 inputs. Delete and recreate the alert after changing any of them.
@@ -203,8 +195,6 @@ python wickless_bot.py backtest \
   --end 2026-07-30T00:00:00Z \
   --ema-length 50 \
   --ema-slope-lookback 5 \
-  --pivot-left 3 \
-  --pivot-right 3 \
   --stop-buffer-ticks 1 \
   --output reports/latest/eurusd
 ```
@@ -215,11 +205,11 @@ downloadable Actions artifact.
 
 ## Reproduce the seven-pair comparison
 
-The live strategy is the same trend-filtered origin-reclaim model used by this
-comparison: EMA(50) with a five-bar slope, confirmed 3/3 pivot stops plus one
-tick, the 05:00–13:30 New York London-plus-New-York signal window,
-quality-gated 0.14 ATR market-side origin zones, touch plus reclaim, five-bar
-expiry, 2R targets, one active position per pair, and pair/ATR stop bounds.
+The live strategy is the same trend-filtered signal-close model used by this
+comparison: EMA(50) with a five-bar slope, the signal candle's opposite edge
+plus one tick for the stop, the 05:00–13:30 New York London-plus-New-York signal
+window, unchanged impulse-quality gates, 2R targets, one active position per
+pair, and pair/ATR stop bounds.
 Python is the execution source of truth for BID/ASK spread and cost-to-risk
 validation because Pine historical bars do not provide equivalent market-side
 data.
@@ -236,23 +226,21 @@ python no_wick_research.py \
 
 The output contains aggregate and per-pair CSVs, the full JSON configuration
 and limitations, and an auditable trade log for the recommended variant.
-Comparisons include the current close-entry baseline, an unfiltered origin
-limit, EMA/range-stop variants with and without the New York window, and
-EMA/pivot-stop variants with and without the window. Multiple pending orders
-are allowed, only one can be active per pair, and one tick of slippage per side
-is deducted.
+Comparisons include the current signal-close strategy and legacy origin-limit
+and origin-reclaim research variants. Only one position can be active per pair,
+and one tick of slippage per side is deducted.
 
 ## Accuracy and risk notes
 
-- Live validation uses Dukascopy BID/ASK: BUY zones touch and enter on ASK and
-  exit on BID; SELL zones touch and enter on BID and exit on ASK. Bid-only historical files remain
+- Live validation uses Dukascopy BID/ASK: BUY entries use ASK and exit on BID;
+  SELL entries use BID and exit on ASK. Bid-only historical files remain
   supported for legacy research and are explicitly reported as a limitation.
 - Historical 15m OHLC cannot reveal intrabar ordering. Same-bar stop/target
   touches are treated conservatively as stops.
 - A pattern match is not evidence of an edge. Backtest multiple regimes,
   account for costs, and validate out of sample.
-- The live scanner reconstructs three-bar setup candidates from a rolling
-  two-week history; expired candidates cannot return after a restart.
+- The live scanner reconstructs EMA and ATR state from a rolling two-week
+  history and acts only on finalized candles.
 - The two-tick wick ceiling is a signal-quality parameter and must be evaluated
   out of sample before it is changed.
 - This is research software and signal delivery, not financial advice or an
