@@ -82,7 +82,7 @@ class NoWickConfig:
     minimum_spread_multiple: float = DEFAULT_MIN_SPREAD_MULTIPLE
     maximum_cost_to_risk_ratio: float = DEFAULT_MAX_COST_TO_RISK_RATIO
     entry_model: str = "zone_reclaim"
-    origin_zone_atr_fraction: float = 0.13
+    origin_zone_atr_fraction: float = 0.14
     origin_zone_minimum_ticks: int = 2
     reclaim_buffer_ticks: int = 1
     minimum_body_ratio: float = 0.80
@@ -1240,7 +1240,7 @@ def compare_directory(
                 "pair_minimum_stop": "5 pips FX; 50 XAU pips ($0.50)",
             },
             "signal_quality": {
-                "origin_zone_atr_fraction": 0.13,
+                "origin_zone_atr_fraction": 0.14,
                 "origin_zone_minimum_ticks": 2,
                 "minimum_body_ratio": 0.80,
                 "maximum_wick_ticks": 2.0,

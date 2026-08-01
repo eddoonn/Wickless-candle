@@ -678,7 +678,7 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(config.minimum_spread_multiple, 3.0)
         self.assertEqual(config.maximum_cost_to_risk_ratio, 0.10)
         self.assertEqual(config.entry_model, "zone_reclaim")
-        self.assertEqual(config.origin_zone_atr_fraction, 0.13)
+        self.assertEqual(config.origin_zone_atr_fraction, 0.14)
         self.assertEqual(config.origin_zone_minimum_ticks, 2)
         self.assertEqual(config.reclaim_buffer_ticks, 1)
         self.assertEqual(config.minimum_body_ratio, 0.80)

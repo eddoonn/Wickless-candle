@@ -59,7 +59,7 @@ or a post-close fill model. Those are deliberately explicit here:
 4. Require at least an 80% body, no more than a two-tick opening wick, a
    `0.50–2.00 × ATR(14)` range, and a close in the final 10% of the impulse.
 5. Create a symmetric origin zone with half-width
-   `max(2 ticks, 0.13 × ATR(14))` around the executable market-side origin:
+   `max(2 ticks, 0.14 × ATR(14))` around the executable market-side origin:
    ASK open for BUY and BID open for SELL.
 6. Require an actual ASK-side zone touch for BUY or BID-side touch for SELL,
    followed within five bars by a one-tick directional reclaim on that same
@@ -218,7 +218,7 @@ downloadable Actions artifact.
 The live strategy is the same trend-filtered origin-reclaim model used by this
 comparison: EMA(50) with a five-bar slope, confirmed 3/3 pivot stops plus one
 tick, the 05:00–13:30 New York London-plus-New-York signal window,
-quality-gated 0.13 ATR market-side origin zones, touch plus reclaim, five-bar
+quality-gated 0.14 ATR market-side origin zones, touch plus reclaim, five-bar
 expiry, 2R targets, one active position per pair, and pair/ATR stop bounds.
 Python is the execution source of truth for BID/ASK spread and cost-to-risk
 validation because Pine historical bars do not provide equivalent market-side
