@@ -19,7 +19,7 @@ strategy(
 // - finalized, directional 15-minute wickless impulse;
 // - EMA(50) direction plus five-bar slope and 05:00–13:30 New York session;
 // - 80% body, <=2-tick opening wick, 0.50–2.00 ATR range, top/bottom 10% close;
-// - symmetric 0.12 ATR origin zone with a two-tick floor;
+// - symmetric 0.13 ATR origin zone with a two-tick floor;
 // - actual zone touch followed by a one-tick directional reclaim;
 // - entry on the reclaim close, no more than 0.30 ATR from the origin;
 // - confirmed 3/3 pivot stop, 0.40–1.50 ATR risk, 2R target;
@@ -33,7 +33,7 @@ minimumBodyRatio = input.float(0.80, "Minimum body ratio", minval = 0.0, maxval 
 minimumRangeAtr = input.float(0.50, "Minimum impulse range (ATR)", minval = 0.0, step = 0.05, group = groupRules)
 maximumRangeAtr = input.float(2.00, "Maximum impulse range (ATR)", minval = 0.1, step = 0.05, group = groupRules)
 closeLocationFraction = input.float(0.10, "Maximum close distance from impulse edge", minval = 0.0, maxval = 1.0, step = 0.05, group = groupRules)
-originZoneAtrFraction = input.float(0.12, "Origin-zone half-width (ATR)", minval = 0.0, step = 0.01, group = groupRules)
+originZoneAtrFraction = input.float(0.13, "Origin-zone half-width (ATR)", minval = 0.0, step = 0.01, group = groupRules)
 originZoneMinimumTicks = input.int(2, "Origin-zone minimum half-width (ticks)", minval = 0, group = groupRules)
 reclaimBufferTicks = input.int(1, "Directional reclaim buffer (ticks)", minval = 0, group = groupRules)
 maximumEntryDisplacementAtr = input.float(0.30, "Maximum entry displacement (ATR)", minval = 0.0, step = 0.05, group = groupRules)

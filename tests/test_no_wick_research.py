@@ -96,8 +96,8 @@ class NoWickExecutionTests(unittest.TestCase):
         self.assertEqual(result.filled_orders, 1)
         fill = result.fills[0]
         self.assertAlmostEqual(fill.origin_price, 1.1001)
-        self.assertAlmostEqual(fill.origin_zone_low, 1.09998)
-        self.assertAlmostEqual(fill.origin_zone_high, 1.10022)
+        self.assertAlmostEqual(fill.origin_zone_low, 1.09997)
+        self.assertAlmostEqual(fill.origin_zone_high, 1.10023)
         self.assertEqual(fill.touch_bar_number, 1)
         self.assertEqual(fill.confirmation_bar_number, 1)
         self.assertAlmostEqual(fill.entry, 1.10024)
