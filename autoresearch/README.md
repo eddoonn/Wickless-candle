@@ -57,3 +57,23 @@ appends a hash-chained line to `results.jsonl`.
 
 See `program.md` for the autonomous agent procedure.
 
+## Nightly automation
+
+The repository dispatcher runs a batch of 12 controlled experiments every day
+at **23:00 Europe/London**. It checks out the fixed framework, keeps all writes
+on the persistent `autoresearch/nightly` branch, and never updates production
+strategy files or `main`.
+
+The first run downloads and caches the fixed June and July BID/ASK datasets.
+Later runs reuse that exact cache. Each batch tests the next untried small
+single-factor or two-factor candidate, records every result in the hash-chained
+ledger, and leaves the best accepted candidate in `candidate.py`.
+
+Discord receives:
+
+- an immediate message for every new KEEP candidate;
+- one concise summary after each nightly batch; and
+- a GitHub Actions failure alert if the batch crashes.
+
+The workflow uses the existing `DISCORD_WEBHOOK_URL` repository secret. Full
+trade-by-trade output remains under `autoresearch/runs/` on the nightly branch.
