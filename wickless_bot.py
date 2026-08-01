@@ -646,10 +646,12 @@ def find_fresh_origin_limit_signals(
         signal_bar_open = parse_iso_datetime(fill.signal_time_utc)
         signal_close = signal_bar_open + timedelta(minutes=TIMEFRAME_MINUTES)
         identity = (
-            f"no-wick-origin-reclaim-v3|{instrument}|{fill.signal_time_utc}|"
+            f"no-wick-origin-reclaim-v4-market-side|{instrument}|{fill.signal_time_utc}|"
             f"{fill.fill_bar_open_time_utc}|{fill.pattern}|{TIMEFRAME_LABEL}|"
             f"{config.ema_length}|{config.ema_slope_lookback}|"
-            f"{config.pivot_left}|{config.pivot_right}|{config.reward_risk:g}"
+            f"{config.pivot_left}|{config.pivot_right}|{config.reward_risk:g}|"
+            f"{config.session_start.isoformat()}|{config.session_end.isoformat()}|"
+            f"{config.expiry_bars}"
         )
         signals.append(
             OriginLimitSignal(
@@ -676,7 +678,10 @@ def find_fresh_origin_limit_signals(
                 ema_slope_lookback=config.ema_slope_lookback,
                 pivot_left=config.pivot_left,
                 pivot_right=config.pivot_right,
-                session_label="09:30–13:30 New York",
+                session_label=(
+                    f"{config.session_start.strftime('%H:%M')}–"
+                    f"{config.session_end.strftime('%H:%M')} New York"
+                ),
                 risk_pips=round(fill.risk_pips, 2),
                 atr_15m=_price(fill.atr_15m, profile),
                 stop_distance_atr=round(fill.stop_distance_atr, 4),
@@ -1668,7 +1673,10 @@ def command_backtest(args: argparse.Namespace) -> int:
                 f"close vs EMA({config.ema_length}) + "
                 f"{config.ema_slope_lookback}-bar slope"
             ),
-            "signal_session": "09:30–13:30 America/New_York",
+            "signal_session": (
+                f"{config.session_start.strftime('%H:%M')}–"
+                f"{config.session_end.strftime('%H:%M')} America/New_York"
+            ),
             "entry": "market-side close after origin-zone touch and directional reclaim",
             "stop": (
                 f"latest confirmed {config.pivot_left}/{config.pivot_right} "

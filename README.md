@@ -54,13 +54,16 @@ or a post-close fill model. Those are deliberately explicit here:
 1. Detect the pattern at the close of a finalized 15m bar.
 2. Require a BUY candle to close above a rising EMA(50), or a SELL candle to
    close below a falling EMA(50). EMA slope uses a five-bar lookback.
-3. Accept new setups only from 09:30 through 13:30 America/New_York.
+3. Accept new setups from 05:00 through 13:30 America/New_York, covering the
+   liquid London morning and New York session.
 4. Require at least an 80% body, no more than a two-tick opening wick, a
    `0.50–2.00 × ATR(14)` range, and a close in the final 10% of the impulse.
 5. Create a symmetric origin zone with half-width
-   `max(2 ticks, 0.10 × ATR(14))` around the wickless candle's open.
+   `max(2 ticks, 0.10 × ATR(14))` around the executable market-side origin:
+   ASK open for BUY and BID open for SELL.
 6. Require an actual ASK-side zone touch for BUY or BID-side touch for SELL,
-   followed within three bars by a one-tick directional reclaim.
+   followed within five bars by a one-tick directional reclaim on that same
+   market side.
 7. Enter at the reclaim candle's ASK close for BUY or BID close for SELL. Reject
    an entry more than `0.30 × ATR(14)` from the origin.
 8. Use the latest confirmed 3-left/3-right pivot plus one tick for the stop.
@@ -71,7 +74,7 @@ or a post-close fill model. Those are deliberately explicit here:
 11. Target `2R`.
 12. Allow multiple setup candidates but only one active position per pair.
 13. Invalidate a setup on trend change, missing candle, structural stop breach,
-    or after three confirmation bars.
+    or after five confirmation bars.
 14. If a historical bar has ambiguous stop/target ordering, count the stop
    first.
 15. Validate the current BID/ASK quote and reject an entry if its stop or target
@@ -214,11 +217,12 @@ downloadable Actions artifact.
 
 The live strategy is the same trend-filtered origin-reclaim model used by this
 comparison: EMA(50) with a five-bar slope, confirmed 3/3 pivot stops plus one
-tick, the 09:30–13:30 New York signal window, quality-gated 0.10 ATR origin
-zones, touch plus reclaim, three-bar expiry, 2R targets, one active position
-per pair, and pair/ATR stop bounds. Python is the execution source of truth for BID/ASK spread and
-cost-to-risk validation because Pine historical bars do not provide equivalent
-market-side data.
+tick, the 05:00–13:30 New York London-plus-New-York signal window,
+quality-gated 0.10 ATR market-side origin zones, touch plus reclaim, five-bar
+expiry, 2R targets, one active position per pair, and pair/ATR stop bounds.
+Python is the execution source of truth for BID/ASK spread and cost-to-risk
+validation because Pine historical bars do not provide equivalent market-side
+data.
 
 Run the complete comparison across the seven FX majors:
 

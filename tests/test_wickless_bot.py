@@ -5,7 +5,7 @@ import os
 import tempfile
 import unittest
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -667,8 +667,10 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(config.stop_buffer_ticks, 1)
         self.assertEqual(config.reward_risk, 2)
         self.assertEqual(config.pending_expiry, "bars")
-        self.assertEqual(config.expiry_bars, 3)
+        self.assertEqual(config.expiry_bars, 5)
         self.assertTrue(config.use_session)
+        self.assertEqual(config.session_start, time(5, 0))
+        self.assertEqual(config.session_end, time(13, 30))
         self.assertTrue(config.one_position_per_pair)
         self.assertEqual(config.atr_period, 14)
         self.assertEqual(config.minimum_stop_atr_fraction, 0.40)

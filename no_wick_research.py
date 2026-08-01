@@ -15,9 +15,9 @@ The default research setup uses:
 * a confirmed 3-left / 3-right local pivot stop plus one tick;
 * pair, ATR, spread, and execution-cost stop-distance validation;
 * a 2R target;
-* signals from 09:30 through 13:30 America/New_York;
+* signals from 05:00 through 13:30 America/New_York (London plus New York);
 * multiple pending setups, but at most one active position per pair;
-* setups expire after three bars and invalidate on trend change or stop breach.
+* setups expire after five bars and invalidate on trend change or stop breach.
 
 Only information available at each historical bar close is used.  Same-bar
 fill/exit ambiguity is resolved against the strategy by counting the stop.
@@ -66,14 +66,14 @@ class NoWickConfig:
     ema_length: int = 50
     ema_slope_lookback: int = 5
     use_session: bool = True
-    session_start: time = time(9, 30)
+    session_start: time = time(5, 0)
     session_end: time = time(13, 30)
     stop_mode: str = "confirmed_pivot"
     pivot_left: int = 3
     pivot_right: int = 3
     stop_buffer_ticks: int = 1
     pending_expiry: str = "bars"
-    expiry_bars: int = 3
+    expiry_bars: int = 5
     slippage_ticks: float = 1.0
     one_position_per_pair: bool = True
     atr_period: int = DEFAULT_ATR_PERIOD
@@ -398,8 +398,9 @@ def _order_from_signal(
     pivot_high: float | None,
     atr_15m: float,
     config: NoWickConfig,
+    origin_price: float | None = None,
 ) -> tuple[PendingOrder | None, str | None]:
-    entry = bar.open
+    entry = bar.open if origin_price is None else origin_price
     quality_rejection, quality = _wickless_quality(
         bar,
         pattern=pattern,
@@ -524,9 +525,9 @@ def _directional_reclaim(
 ) -> bool:
     buffer_ = config.reclaim_buffer_ticks * config.profile.tick_size
     return (
-        bid_bar.close >= order.origin_zone_high + buffer_
+        ask_bar.close >= order.origin_zone_high + buffer_
         if order.side == "BUY"
-        else ask_bar.close <= order.origin_zone_low - buffer_
+        else bid_bar.close <= order.origin_zone_low - buffer_
     )
 
 
@@ -926,6 +927,9 @@ def run_no_wick_backtest(
             pivot_high=pivot_highs[index],
             atr_15m=atr_values[index],
             config=config,
+            origin_price=(
+                ask_bar.open if pattern.signal_side == "BUY" else bar.open
+            ),
         )
         if rejection == "NO_SWING":
             rejected_no_swing += 1
@@ -1222,7 +1226,7 @@ def compare_directory(
         "cost_model": "one tick of slippage per side; no commission or full spread",
         "execution": {
             "pending_orders": "multiple allowed",
-            "setup_expiry": "three finalized bars",
+            "setup_expiry": "five finalized bars",
             "invalidation": "trend change, missing bar, or structural stop breach",
             "same_bar_ambiguity": "stop first",
             "entry": "market-side confirmation close after origin touch and reclaim",
@@ -1258,7 +1262,7 @@ def compare_directory(
                 "EMA(50)+slope(5), origin touch/reclaim, range stop, all day."
             ),
             "ema_range_ny": (
-                "EMA/range variant restricted to 09:30–13:30 New York."
+                "EMA/range variant restricted to 05:00–13:30 New York."
             ),
             "ema_pivot_all_day": (
                 "EMA(50)+slope(5), origin touch/reclaim, confirmed pivot(3,3)+one-tick "

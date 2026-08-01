@@ -95,12 +95,13 @@ class NoWickExecutionTests(unittest.TestCase):
         )
         self.assertEqual(result.filled_orders, 1)
         fill = result.fills[0]
-        self.assertAlmostEqual(fill.origin_zone_low, 1.0999)
-        self.assertAlmostEqual(fill.origin_zone_high, 1.1001)
+        self.assertAlmostEqual(fill.origin_price, 1.1001)
+        self.assertAlmostEqual(fill.origin_zone_low, 1.1000)
+        self.assertAlmostEqual(fill.origin_zone_high, 1.1002)
         self.assertEqual(fill.touch_bar_number, 1)
         self.assertEqual(fill.confirmation_bar_number, 1)
         self.assertAlmostEqual(fill.entry, 1.10022)
-        self.assertAlmostEqual(fill.entry_displacement_atr, 0.22)
+        self.assertAlmostEqual(fill.entry_displacement_atr, 0.12)
 
     def test_reclaim_without_an_actual_zone_touch_does_not_enter(self) -> None:
         bids = [
@@ -168,7 +169,7 @@ class NoWickExecutionTests(unittest.TestCase):
         self.assertEqual(result.pending_orders_created, 0)
         self.assertEqual(result.rejected_wickless_quality, 1)
 
-    def test_untouched_setup_expires_after_three_bars(self) -> None:
+    def test_untouched_setup_expires_after_configured_bars(self) -> None:
         bars = [
             bar(0, 1.1000, 1.1010, 1.1000, 1.10095),
             bar(15, 1.10095, 1.1012, 1.1003, 1.1005),
@@ -182,7 +183,10 @@ class NoWickExecutionTests(unittest.TestCase):
                 close=1.1008,
             ),
         ]
-        result = run_no_wick_backtest(bars, config=self.phase3_config())
+        result = run_no_wick_backtest(
+            bars,
+            config=self.phase3_config(expiry_bars=3),
+        )
         self.assertGreaterEqual(result.expired_orders, 1)
         self.assertGreaterEqual(result.rejected_no_origin_touch, 1)
 
