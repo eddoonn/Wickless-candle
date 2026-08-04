@@ -47,13 +47,13 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertNotIn("retraceMarginPercent", strategy)
         self.assertNotIn("Retrace window", strategy)
 
-    def test_workflow_scans_on_fifteen_minute_schedule_and_uses_secret(
+    def test_workflow_scans_frequently_and_uses_secret(
         self,
     ) -> None:
         workflow = (ROOT / ".github/workflows/live-signals.yml").read_text(
             encoding="utf-8"
         )
-        self.assertIn('cron: "*/15 * * * *"', workflow)
+        self.assertIn('cron: "*/5 * * * *"', workflow)
         self.assertIn("secrets.DISCORD_WEBHOOK_URL", workflow)
         self.assertIn("actions/cache/restore@", workflow)
         self.assertIn("actions/cache/save@", workflow)
