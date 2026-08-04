@@ -1,79 +1,91 @@
 # Wickless autoresearch
 
-This directory adapts the controlled experiment loop from `eddoonn/autoresearch`
-to the Wickless strategy without allowing an experiment to modify production or
-weaken execution safeguards.
+This directory runs controlled Wickless strategy experiments without allowing the
+research loop to modify production code or weaken execution safeguards.
 
-## Boundary
+## Fixed boundary
 
 - Production is pinned to commit `12250ed9e7698e9b7e57341f09d23372cb7ba1cc`.
-- The fixed evaluator consumes observed Dukascopy M1 BID/ASK archives and builds
+- The evaluator consumes observed Dukascopy M1 BID/ASK archives and builds only
   complete 15-minute bars.
-- `candidate.py` is the only strategy surface an experiment agent may edit. It
-  is parsed as a literal and never imported or executed.
-- Reward/risk, stop mode and buffer, ATR stop floors/ceiling, spread multiple,
-  slippage, execution-cost cap, quality enforcement, and one-position-per-pair
-  remain immutable.
-- `main` is never updated by the loop. Work stays on branches named
-  `autoresearch/<run-tag>`.
+- `candidate.py` is parsed as a literal and is never imported or executed.
+- Reward/risk, stop mode and bounds, spread and cost limits, slippage, quality
+  enforcement, and one-position-per-pair remain immutable.
+- `policy.json`, the evaluator, objective order, and acceptance gates are never
+  changed by either the worker or the coach.
+- Research writes stay on `autoresearch/...` branches; the loop never updates
+  `main` or the live scanner.
 
-## Evaluation
+## Scoring
 
-The default policy uses June 2026 and July 2026. July remains the required
-consistency benchmark with at least 10 closed trades. A candidate must also be
-net profitable in each fold, retain pair breadth, stay under the drawdown and
-concentration caps, and have no ambiguous exits.
+The policy evaluates June and July 2026. A candidate must pass every hard gate.
+Passing is not enough: candidates are compared lexicographically by worst-fold
+net R, total net R, profit factor, lower drawdown, then total trades.
 
-Passing the hard gates is not enough. Candidates are compared lexicographically
-in this order:
+The coach does not create or alter that score. It changes only the order in
+which untried candidate ideas are selected.
 
-1. worst-fold net R;
-2. total net R;
-3. overall profit factor;
-4. lower overall drawdown;
-5. total trades.
+## Worker attempt log
 
-This makes profitability and regime consistency more important than raw signal
-count.
+Every non-dry experiment appends exactly one CSV record to `attempts.log`:
+
+```text
+timestamp,one-sentence description,category,score,KEPT or DISCARDED
+```
+
+The score field records the existing lexicographic objective. The file is opened
+only in append mode, flushed, and synced after every attempt. Full reports and
+the tamper-evident hash chain remain in `runs/*.json` and `results.jsonl`.
+
+The high-level categories are candle quality, trend filter, session window,
+entry geometry, and wick detection. Two-category experiments are logged with a
+`+` separator so the coach can see repeated search patterns.
+
+## Coach
+
+`coach.py` reads `attempts.log` and `playbook.md` after every 20 cumulative
+worker attempts. It counts attempted categories, identifies categories that
+produced kept improvements, reports untried categories, and checks whether the
+last ten attempts improved the incumbent.
+
+When recent attempts are still improving, it advances its checkpoint and leaves
+`playbook.md` unchanged. When the last ten attempts are flat, categories with at
+least five attempts and zero kept improvements move into `Do not try`, and two
+or three materially different underexplored categories move into `Explore next`.
+The generated playbook is always under 40 lines.
+
+`coach_state.json` stores only the last reviewed attempt count. It also detects
+an attempt log that appears to have been truncated.
+
+Run the coach manually with:
+
+```bash
+python -m autoresearch.coach --force
+```
 
 ## Run one experiment
 
-The data root must contain these directories:
-
-```text
-dukascopy_m1_bidask_2026-06/
-dukascopy_m1_bidask_2026-07/
-```
-
-Then run:
+The data root must contain the two directories named in `policy.json`, then run:
 
 ```bash
 python -m autoresearch.run_experiment --data-root /path/to/datasets
 ```
 
-Exit code `0` means keep. Exit code `3` means discard. Each non-dry run writes a
-full trade-by-trade JSON report, updates the incumbent only on a keep, and
-appends a hash-chained line to `results.jsonl`.
+Exit code `0` means keep and exit code `3` means discard. Every non-dry run
+writes its full report, updates the incumbent only on a keep, appends the
+hash-chained result ledger, and appends one worker-attempt line.
 
-See `program.md` for the autonomous agent procedure.
+## Nightly worker and coach loop
 
-## Nightly automation
+The GitHub workflow starts at **23:00 Europe/London** and normally runs 12
+experiments. The 20-attempt coach cadence is cumulative, so the coach can run
+mid-batch on a later night. After a coach pass, the very next proposal selection
+reads the rewritten playbook.
 
-The repository dispatcher runs a batch of 12 controlled experiments every day
-at **23:00 Europe/London**. It checks out the fixed framework, keeps all writes
-on the persistent `autoresearch/nightly` branch, and never updates production
-strategy files or `main`.
+The persistent `autoresearch/nightly` branch receives the candidate, result
+ledger, attempt log, coach checkpoint, playbook, and full reports. Discord gets
+an immediate message for each new keep, a nightly worker/coach summary, and a
+failure alert if the workflow crashes.
 
-The first run downloads and caches the fixed June and July BID/ASK datasets.
-Later runs reuse that exact cache. Each batch tests the next untried small
-single-factor or two-factor candidate, records every result in the hash-chained
-ledger, and leaves the best accepted candidate in `candidate.py`.
-
-Discord receives:
-
-- an immediate message for every new KEEP candidate;
-- one concise summary after each nightly batch; and
-- a GitHub Actions failure alert if the batch crashes.
-
-The workflow uses the existing `DISCORD_WEBHOOK_URL` repository secret. Full
-trade-by-trade output remains under `autoresearch/runs/` on the nightly branch.
+See `program.md` for the worker procedure and `coach_prompt.md` for the coach
+contract.

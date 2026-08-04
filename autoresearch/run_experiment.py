@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from autoresearch.attempts import format_score, idea_category, sync_attempts_from_ledger
 from autoresearch.evaluator import (
     Candidate,
     candidate_beats,
@@ -107,6 +108,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ledger", type=Path, default=HERE / "results.jsonl")
     parser.add_argument("--incumbent", type=Path, default=HERE / "incumbent.json")
     parser.add_argument("--runs", type=Path, default=HERE / "runs")
+    parser.add_argument("--attempts", type=Path, default=HERE / "attempts.log")
     parser.add_argument(
         "--commit",
         help="Explicit 40-character source commit for connector-only environments",
@@ -119,6 +121,9 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     policy = load_policy(args.policy)
     candidate = load_candidate(args.candidate)
+    if not args.dry_run:
+        existing_records, _ = _read_ledger(args.ledger)
+        sync_attempts_from_ledger(args.attempts, existing_records)
     baseline_created = not args.incumbent.exists()
     if baseline_created:
         incumbent_report = evaluate(
@@ -147,12 +152,16 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("--commit must be a lowercase 40-character Git SHA")
     run_key = f"{generated_at}|{commit}|{candidate.source_sha256}"
     run_id = hashlib.sha256(run_key.encode("utf-8")).hexdigest()[:16]
+    category = idea_category(report["candidate"]["parameters"])
+    score = format_score(report["objective"])
     record = {
         "schema_version": 1,
         "run_id": run_id,
         "generated_at_utc": generated_at,
         "commit": commit,
         "candidate": report["candidate"],
+        "category": category,
+        "score": score,
         "status": status,
         "report_sha256": report_digest(report),
         "objective": report["objective"],
@@ -164,6 +173,8 @@ def main(argv: list[str] | None = None) -> int:
         "run_id": run_id,
         "status": status,
         "candidate": candidate.name,
+        "category": category,
+        "score": score,
         "objective": report["objective"],
         "acceptance_gates": report["acceptance_gates"],
         "overall": report["overall"],
@@ -184,6 +195,8 @@ def main(argv: list[str] | None = None) -> int:
                 "report": selected_report,
             },
         )
+        records, _ = _read_ledger(args.ledger)
+        sync_attempts_from_ledger(args.attempts, records)
     print(json.dumps(output, indent=2, sort_keys=True, allow_nan=False))
     return 0 if status == "keep" else 3
 

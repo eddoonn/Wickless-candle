@@ -1,59 +1,47 @@
-# Wickless autoresearch program
+# Wickless autoresearch worker program
 
-You are running controlled strategy research inside `eddoonn/Wickless-candle`.
-Profitability and robustness are more important than trade count.
+You are the worker in a controlled strategy-research loop. Profitability and
+robustness matter more than trade count.
 
 ## Setup
 
-1. Propose a short run tag and create a fresh branch named
-   `autoresearch/<run-tag>` from `autoresearch/framework-v1`.
-2. Never commit, push, merge, or update `main`.
-3. Read `autoresearch/README.md`, `autoresearch/policy.json`, and
-   `autoresearch/candidate.py`.
-4. Confirm the data root contains the June and July 2026 Dukascopy M1 BID/ASK
-   directories named in `policy.json`.
-5. Run the unchanged baseline once if `autoresearch/incumbent.json` does not
-   exist.
+1. Work only on an `autoresearch/<run-tag>` branch created from
+   `autoresearch/framework-v1`; never update `main`.
+2. Read `README.md`, `policy.json`, `playbook.md`, the incumbent, and recent
+   `attempts.log` records before choosing an idea.
+3. Confirm the fixed June and July Dukascopy M1 BID/ASK data is available.
+4. Never change the evaluator, policy, objective, acceptance gates, tests,
+   production strategy, live scanner, or workflow while running experiments.
 
-## What you may change
+## Editable surface
 
-Edit only `autoresearch/candidate.py`. It must remain a literal `CANDIDATE`
-dictionary. Change one coherent idea per experiment and explain it in the name
-and description. Do not modify the evaluator, policy, runner, production
-strategy, live scanner, workflows, or tests.
+Edit only `candidate.py`. It must remain one literal `CANDIDATE` dictionary.
+Change one coherent idea per attempt and describe it in one sentence. Protected
+risk and execution fields are not exposed as candidate parameters.
 
-The literal parser and branch scope check enforce this boundary. Protected risk
-and execution fields are not exposed as candidate parameters.
+## Attempt loop
 
-## Experiment loop
+1. Follow `Explore next` in `playbook.md` and avoid every category listed under
+   `Do not try`.
+2. Prefer a one-parameter test before a two-category combination.
+3. Edit and commit `candidate.py`.
+4. Run `python -m autoresearch.run_experiment --data-root "$WICKLESS_DATA_ROOT"`.
+5. Commit the generated report, ledger, incumbent, and attempt log.
+6. Keep an accepted candidate; after a discard, restore the incumbent candidate
+   without erasing the discarded attempt from history.
+7. Push only the current autoresearch branch.
 
-Repeat until the human interrupts:
+After every attempt, one line must be appended to `attempts.log` in this exact
+CSV field order: timestamp, a one-sentence description of what was tried, the
+category of idea, the unchanged objective score, and `KEPT` or `DISCARDED`.
+Never edit or delete previous lines. Never summarize attempts into one line.
+`run_experiment.py` enforces this append automatically.
 
-1. Inspect the incumbent and recent `results.jsonl` records.
-2. Form one testable idea. Prefer a simple one-parameter change before a
-   combination.
-3. Edit only `autoresearch/candidate.py` and commit it on the current
-   `autoresearch/<run-tag>` branch.
-4. Run:
+## Worker/coach handoff
 
-   ```bash
-   python -m autoresearch.run_experiment --data-root "$WICKLESS_DATA_ROOT" \
-     > autoresearch/run.log 2>&1
-   ```
-
-5. Read only the JSON summary or the end of `autoresearch/run.log`.
-6. Commit the generated `results.jsonl`, `incumbent.json`, and `runs/*.json`.
-7. If status is `keep`, retain the candidate and continue from it.
-8. If status is `discard`, revert the candidate commit after committing the
-   audit output. Never erase the discarded experiment from branch history.
-9. Push only the current `autoresearch/<run-tag>` branch.
+After every 20 cumulative attempts, run the coach once. The nightly dispatcher
+does this automatically, including when attempt 20 occurs in the middle of a
+batch. The next worker selection must reread the resulting `playbook.md`.
 
 Crashes are failures. Fix a trivial implementation error once; otherwise record
-the failed idea and move on. Never weaken the policy to make a candidate pass.
-
-## Interpretation
-
-July was used to design the production strategy, so a larger July result alone
-is not sufficient. The evaluator first prioritizes the worst fold, then total
-net R. More trades matter only after profitability, profit factor, and drawdown.
-
+the failed idea and move on. Never weaken success criteria to make an idea pass.

@@ -17,6 +17,8 @@ from pprint import pformat
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from autoresearch.attempts import idea_category, parameter_categories, read_attempts
+from autoresearch.coach import playbook_guidance, run_coach_if_due
 from autoresearch.evaluator import load_candidate
 from autoresearch.run_experiment import _read_ledger, main as run_experiment
 
@@ -90,13 +92,28 @@ def tested_signatures(ledger: Path) -> set[str]:
     }
 
 
-def select_proposals(ledger: Path, batch_size: int) -> list[Proposal]:
+def select_proposals(
+    ledger: Path,
+    batch_size: int,
+    playbook: Path = HERE / "playbook.md",
+) -> list[Proposal]:
+    """Select untried proposals in the order directed by the current playbook."""
+
     tested = tested_signatures(ledger)
-    return [
-        proposal
-        for proposal in proposal_space()
-        if parameter_signature(proposal.parameters) not in tested
-    ][:batch_size]
+    priorities, blocked = playbook_guidance(playbook)
+    priority_order = {category: index for index, category in enumerate(priorities)}
+    candidates: list[tuple[int, int, Proposal]] = []
+    for original_index, proposal in enumerate(proposal_space()):
+        if parameter_signature(proposal.parameters) in tested:
+            continue
+        categories = parameter_categories(proposal.parameters)
+        if any(category in blocked for category in categories):
+            continue
+        ranks = [priority_order[category] for category in categories if category in priority_order]
+        rank = min(ranks) if ranks else len(priority_order)
+        candidates.append((rank, original_index, proposal))
+    candidates.sort(key=lambda row: (row[0], row[1]))
+    return [proposal for _, _, proposal in candidates[:batch_size]]
 
 
 def render_candidate(proposal: Proposal) -> str:
@@ -160,6 +177,15 @@ def _metric(value: float | None) -> str:
 def discord_summary(summary: dict[str, Any]) -> str:
     incumbent = summary["incumbent"]
     folds = incumbent["folds"]
+    coach_runs = summary.get("coach_runs", [])
+    if coach_runs:
+        changed = sum(bool(row["changed"]) for row in coach_runs)
+        coach_line = (
+            f"Coach: ran {len(coach_runs)} time(s), "
+            f"updated the playbook {changed} time(s)"
+        )
+    else:
+        coach_line = "Coach: interval not reached"
     return "\n".join(
         (
             f"🔬 **Wickless nightly autoresearch — {summary['london_date']}**",
@@ -167,6 +193,7 @@ def discord_summary(summary: dict[str, Any]) -> str:
                 f"Tested **{summary['tested']}** | KEEP **{summary['kept']}** | "
                 f"REJECT **{summary['rejected']}**"
             ),
+            coach_line,
             f"Best candidate: **{incumbent['name']}**",
             (
                 f"June: {folds['june_2026']['trades']} trades, "
@@ -224,6 +251,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ledger", type=Path, default=HERE / "results.jsonl")
     parser.add_argument("--incumbent", type=Path, default=HERE / "incumbent.json")
     parser.add_argument("--runs", type=Path, default=HERE / "runs")
+    parser.add_argument("--attempts", type=Path, default=HERE / "attempts.log")
+    parser.add_argument("--playbook", type=Path, default=HERE / "playbook.md")
+    parser.add_argument("--coach-state", type=Path, default=HERE / "coach_state.json")
+    parser.add_argument("--coach-interval", type=int, default=20)
     parser.add_argument("--git-commits", action="store_true")
     parser.add_argument("--no-discord", action="store_true")
     return parser
@@ -233,9 +264,33 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if not 1 <= args.batch_size <= 20:
         raise ValueError("--batch-size must be between 1 and 20")
-    selected = select_proposals(args.ledger, args.batch_size)
+
     outputs: list[dict[str, Any]] = []
-    for proposal in selected:
+    coach_outputs: list[dict[str, Any]] = []
+
+    def coach_cycle() -> None:
+        result = run_coach_if_due(
+            attempts_path=args.attempts,
+            playbook_path=args.playbook,
+            state_path=args.coach_state,
+            interval=args.coach_interval,
+        )
+        if not result.ran:
+            return
+        coach_outputs.append(result.to_dict())
+        if args.git_commits:
+            git_commit(
+                f"autoresearch: coach after {result.attempt_count} attempts",
+                [args.playbook, args.coach_state],
+            )
+
+    # Recover cleanly if a previous batch ended immediately after attempt 20.
+    coach_cycle()
+    for _ in range(args.batch_size):
+        selected = select_proposals(args.ledger, 1, args.playbook)
+        if not selected:
+            break
+        proposal = selected[0]
         write_candidate(args.candidate, proposal)
         commit = None
         if args.git_commits:
@@ -255,6 +310,8 @@ def main(argv: list[str] | None = None) -> int:
             str(args.incumbent),
             "--runs",
             str(args.runs),
+            "--attempts",
+            str(args.attempts),
         ]
         if commit:
             command.extend(("--commit", commit))
@@ -262,14 +319,16 @@ def main(argv: list[str] | None = None) -> int:
         with contextlib.redirect_stdout(captured):
             code = run_experiment(command)
         output = json.loads(captured.getvalue())
+        output["category"] = idea_category(proposal.parameters)
         outputs.append(output)
         if args.git_commits:
             git_commit(
                 f"autoresearch: record {proposal.name} {output['status']}",
-                [args.ledger, args.incumbent, args.runs],
+                [args.ledger, args.incumbent, args.runs, args.attempts],
             )
         if code == 0 and not args.no_discord:
             post_discord(keep_message(output))
+        coach_cycle()
 
     incumbent = _incumbent_summary(args.incumbent)
     incumbent_proposal = Proposal(
@@ -279,6 +338,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     write_candidate(args.candidate, incumbent_proposal)
     generated = datetime.now(UTC).replace(microsecond=0)
+    attempt_rows = read_attempts(args.attempts)
     summary = {
         "schema_version": 1,
         "generated_at_utc": generated.isoformat(),
@@ -286,7 +346,12 @@ def main(argv: list[str] | None = None) -> int:
         "tested": len(outputs),
         "kept": sum(output["status"] == "keep" for output in outputs),
         "rejected": sum(output["status"] == "discard" for output in outputs),
+        "attempts_total": len(attempt_rows),
+        "worker_attempts_total": sum(
+            row.category != "baseline" for row in attempt_rows
+        ),
         "experiments": outputs,
+        "coach_runs": coach_outputs,
         "incumbent": incumbent,
     }
     args.runs.mkdir(parents=True, exist_ok=True)

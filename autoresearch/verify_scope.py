@@ -12,6 +12,9 @@ ALLOWED_EXACT = {
     "autoresearch/candidate.py",
     "autoresearch/incumbent.json",
     "autoresearch/results.jsonl",
+    "autoresearch/attempts.log",
+    "autoresearch/playbook.md",
+    "autoresearch/coach_state.json",
 }
 ALLOWED_PREFIX = "autoresearch/runs/"
 
