@@ -3,7 +3,7 @@ name: Live Wickless 15m Discord signals
 on:
   schedule:
     # GitHub cron is UTC. The scanner itself accepts only finalized 15m candles.
-    - cron: "*/15 * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -41,7 +41,7 @@ jobs:
           python wickless_bot.py scan
           --data-dir .runtime-data
           --state .signal-state/seen.json
-          --max-signal-age-seconds 120
+          --max-signal-age-seconds 900
           --max-quote-age-seconds 120
           --max-entry-deviation-r 0.25
           --research-lookback-seconds 2700
