@@ -58,7 +58,7 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn("actions/cache/restore@", workflow)
         self.assertIn("actions/cache/save@", workflow)
         self.assertIn("validated signal-close entry", workflow)
-        self.assertIn("--max-signal-age-seconds 120", workflow)
+        self.assertIn("--max-signal-age-seconds 900", workflow)
         self.assertIn("--max-quote-age-seconds 120", workflow)
         self.assertIn("--max-entry-deviation-r 0.25", workflow)
         self.assertIn("--research-lookback-seconds 2700", workflow)
