@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from autoresearch.attempts import idea_category
 from autoresearch.evaluator import load_candidate
 from autoresearch.nightly_batch import (
     Proposal,
@@ -28,6 +29,8 @@ class ProposalTests(unittest.TestCase):
         self.assertIn('timezone: "Europe/London"', workflow)
         self.assertIn('NIGHTLY_BRANCH: autoresearch/nightly', workflow)
         self.assertIn('git push origin "$NIGHTLY_BRANCH"', workflow)
+        self.assertIn("default: \"12\"", workflow)
+        self.assertIn("--coach-interval 20", workflow)
         self.assertNotIn("git push origin main", workflow)
 
     def test_space_is_large_deterministic_and_unique(self) -> None:
@@ -57,6 +60,23 @@ class ProposalTests(unittest.TestCase):
             )
             selected = select_proposals(ledger, 2)
         self.assertEqual(selected, proposal_space()[1:3])
+
+    def test_selection_obeys_playbook_priorities_and_blocks(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ledger = root / "results.jsonl"
+            playbook = root / "playbook.md"
+            playbook.write_text(
+                "# Test playbook\n\n"
+                "## Explore next\n"
+                "- trend-filter: Explore EMA behavior.\n\n"
+                "## Do not try\n"
+                "- candle-quality: exhausted.\n",
+                encoding="utf-8",
+            )
+            selected = select_proposals(ledger, 1, playbook)
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(idea_category(selected[0].parameters), "trend-filter")
 
     def test_rendered_candidate_passes_literal_contract(self) -> None:
         proposal = Proposal(

@@ -5,6 +5,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from autoresearch.attempts import (
+    append_attempt,
+    format_score,
+    read_attempts,
+    sync_attempts_from_ledger,
+)
+from autoresearch.coach import run_coach_if_due
 from autoresearch.evaluator import (
     CandidateError,
     candidate_beats,
@@ -101,6 +108,163 @@ class LedgerTests(unittest.TestCase):
                 _read_ledger(path)
 
 
+class AttemptLogTests(unittest.TestCase):
+    def test_attempt_log_is_one_append_only_line_per_result(self) -> None:
+        objective = {
+            "worst_fold_net_r": 1.0,
+            "total_net_r": 2.0,
+            "overall_profit_factor": 1.5,
+            "negative_overall_drawdown_r": -0.5,
+            "total_trades": 12,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "attempts.log"
+            append_attempt(
+                path,
+                timestamp="2026-08-01T00:00:00+00:00",
+                description="Tested a body filter.",
+                category="candle-quality",
+                score=format_score(objective),
+                status="discard",
+            )
+            first = path.read_bytes()
+            append_attempt(
+                path,
+                timestamp="2026-08-01T00:01:00+00:00",
+                description="Tested an EMA filter.",
+                category="trend-filter",
+                score=format_score(objective),
+                status="keep",
+            )
+            self.assertTrue(path.read_bytes().startswith(first))
+            attempts = read_attempts(path)
+        self.assertEqual(len(attempts), 2)
+        self.assertEqual(attempts[0].decision, "DISCARDED")
+        self.assertEqual(attempts[1].decision, "KEPT")
+
+    def test_attempt_log_backfills_and_is_verified_against_ledger(self) -> None:
+        record = {
+            "generated_at_utc": "2026-08-01T00:00:00+00:00",
+            "candidate": {
+                "name": "grid-0001",
+                "description": "Tested a body filter.",
+                "parameters": {"minimum_body_ratio": 0.82},
+            },
+            "objective": {
+                "worst_fold_net_r": 1.0,
+                "total_net_r": 2.0,
+                "overall_profit_factor": 1.5,
+                "negative_overall_drawdown_r": -0.5,
+                "total_trades": 12,
+            },
+            "status": "discard",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "attempts.log"
+            self.assertEqual(sync_attempts_from_ledger(path, [record]), 1)
+            self.assertEqual(sync_attempts_from_ledger(path, [record]), 0)
+            path.write_text(
+                path.read_text(encoding="utf-8").replace("body filter", "EMA filter"),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "does not match"):
+                sync_attempts_from_ledger(path, [record])
+
+
+class CoachTests(unittest.TestCase):
+    @staticmethod
+    def _write_attempts(path: Path, categories: list[str], kept_index: int | None = None) -> None:
+        objective = {
+            "worst_fold_net_r": 0.0,
+            "total_net_r": 1.0,
+            "overall_profit_factor": 1.5,
+            "negative_overall_drawdown_r": -1.0,
+            "total_trades": 11,
+        }
+        for index, category in enumerate(categories):
+            append_attempt(
+                path,
+                timestamp=f"2026-08-01T00:00:{index:02d}+00:00",
+                description=f"Attempt {index} in {category}.",
+                category=category,
+                score=format_score(objective),
+                status="keep" if index == kept_index else "discard",
+            )
+
+    def test_flatline_rewrites_playbook_and_marks_exhausted_categories(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            attempts = root / "attempts.log"
+            playbook = root / "playbook.md"
+            state = root / "coach_state.json"
+            playbook.write_text(
+                (ROOT / "autoresearch" / "playbook.md").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            self._write_attempts(
+                attempts,
+                ["candle-quality"] * 10
+                + ["trend-filter"] * 5
+                + ["session-window"] * 5,
+            )
+            result = run_coach_if_due(
+                attempts_path=attempts,
+                playbook_path=playbook,
+                state_path=state,
+                interval=20,
+            )
+            rendered = playbook.read_text(encoding="utf-8")
+        self.assertTrue(result.ran)
+        self.assertTrue(result.changed)
+        self.assertFalse(result.last_ten_improved)
+        self.assertEqual(result.playbook_priorities, ["entry-geometry", "wick-detection"])
+        self.assertIn("candle-quality: 10 attempts and zero kept improvements", rendered)
+        self.assertLessEqual(len(rendered.splitlines()), 40)
+
+    def test_baseline_record_does_not_count_toward_coach_interval(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            attempts = root / "attempts.log"
+            playbook = root / "playbook.md"
+            state = root / "coach_state.json"
+            playbook.write_text(
+                (ROOT / "autoresearch" / "playbook.md").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            self._write_attempts(attempts, ["baseline"] + ["candle-quality"] * 19)
+            result = run_coach_if_due(
+                attempts_path=attempts,
+                playbook_path=playbook,
+                state_path=state,
+                interval=20,
+            )
+        self.assertFalse(result.ran)
+        self.assertEqual(result.attempt_count, 19)
+
+    def test_progress_leaves_playbook_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            attempts = root / "attempts.log"
+            playbook = root / "playbook.md"
+            state = root / "coach_state.json"
+            original = (ROOT / "autoresearch" / "playbook.md").read_text(
+                encoding="utf-8"
+            )
+            playbook.write_text(original, encoding="utf-8")
+            self._write_attempts(attempts, ["candle-quality"] * 20, kept_index=19)
+            result = run_coach_if_due(
+                attempts_path=attempts,
+                playbook_path=playbook,
+                state_path=state,
+                interval=20,
+            )
+            current = playbook.read_text(encoding="utf-8")
+        self.assertTrue(result.ran)
+        self.assertFalse(result.changed)
+        self.assertTrue(result.last_ten_improved)
+        self.assertEqual(current, original)
+
+
 class ScopeTests(unittest.TestCase):
     def test_only_candidate_and_audit_artifacts_are_allowed(self) -> None:
         self.assertEqual(
@@ -108,6 +272,9 @@ class ScopeTests(unittest.TestCase):
                 [
                     "autoresearch/candidate.py",
                     "autoresearch/results.jsonl",
+                    "autoresearch/attempts.log",
+                    "autoresearch/playbook.md",
+                    "autoresearch/coach_state.json",
                     "autoresearch/runs/abc.json",
                 ]
             ),
