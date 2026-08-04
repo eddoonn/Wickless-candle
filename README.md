@@ -176,7 +176,9 @@ one-position safeguards.
 Start with `autoresearch/README.md` and `autoresearch/program.md`. The fixed
 evaluator uses reusable Dukascopy M1 BID/ASK archives for June and July 2026,
 requires at least ten July trades, and prioritizes worst-fold profitability over
-raw frequency.
+raw frequency. Every experiment also appends one line to `attempts.log`; after
+every 20 cumulative attempts, a deterministic coach updates only the bounded
+`playbook.md` search guidance and never changes scoring or safety rules.
 
 ## Historical statistics and backtest
 
