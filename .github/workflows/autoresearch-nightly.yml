@@ -102,13 +102,14 @@ jobs:
             .runtime-data/duka-bi5
           key: wickless-autoresearch-data-v1-partial-${{ github.run_id }}
 
-      - name: Run profitability-first experiment batch
+      - name: Run worker and coach experiment loop
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: >-
           python -m autoresearch.nightly_batch
           --data-root "$DATA_ROOT"
           --batch-size "$BATCH_SIZE"
+          --coach-interval 20
           --git-commits
 
       - name: Validate code and protected scope
