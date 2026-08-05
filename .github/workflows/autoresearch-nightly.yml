@@ -6,6 +6,7 @@ on:
       - autoresearch/framework-v1
     paths:
       - autoresearch/baseline-refresh.request
+      - autoresearch/bootstrap-benchmark.request
   schedule:
     - cron: "0 23 * * *"
       timezone: "Europe/London"
@@ -16,10 +17,19 @@ on:
         required: false
         default: "12"
       refresh_baseline:
-        description: "Re-evaluate production defaults and replace the benchmark"
+        description: "Re-evaluate unmodified production defaults"
         required: false
         type: boolean
         default: false
+      bootstrap_benchmark:
+        description: "Search without an incumbent and create the strongest valid benchmark"
+        required: false
+        type: boolean
+        default: false
+      bootstrap_limit:
+        description: "Maximum bootstrap candidates; 0 evaluates the complete search space"
+        required: false
+        default: "0"
 
 permissions:
   contents: write
@@ -31,20 +41,41 @@ concurrency:
 jobs:
   research:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 360
     env:
       FRAMEWORK_BRANCH: autoresearch/framework-v1
       NIGHTLY_BRANCH: autoresearch/nightly
       DATA_ROOT: .runtime-data/autoresearch-datasets
       BI5_CACHE: .runtime-data/duka-bi5
       BATCH_SIZE: ${{ github.event.inputs.batch_size || '12' }}
-      REFRESH_BASELINE: ${{ github.event_name == 'push' || github.event.inputs.refresh_baseline == 'true' }}
+      REFRESH_INPUT: ${{ github.event.inputs.refresh_baseline || 'false' }}
+      BOOTSTRAP_INPUT: ${{ github.event.inputs.bootstrap_benchmark || 'false' }}
+      BOOTSTRAP_LIMIT: ${{ github.event.inputs.bootstrap_limit || '0' }}
     steps:
       - name: Check out the fixed framework
         uses: actions/checkout@v4
         with:
           ref: autoresearch/framework-v1
           fetch-depth: 0
+
+      - name: Resolve requested mode
+        shell: bash
+        run: |
+          mode=nightly
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            changed="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
+            if grep -qx 'autoresearch/bootstrap-benchmark.request' <<<"$changed"; then
+              mode=bootstrap
+            elif grep -qx 'autoresearch/baseline-refresh.request' <<<"$changed"; then
+              mode=refresh
+            fi
+          elif [[ "$BOOTSTRAP_INPUT" == "true" ]]; then
+            mode=bootstrap
+          elif [[ "$REFRESH_INPUT" == "true" ]]; then
+            mode=refresh
+          fi
+          echo "RUN_MODE=$mode" >> "$GITHUB_ENV"
+          echo "Resolved autoresearch mode: $mode"
 
       - name: Resume the isolated nightly branch
         shell: bash
@@ -114,7 +145,7 @@ jobs:
           key: wickless-autoresearch-data-v1-partial-${{ github.run_id }}
 
       - name: Require a valid benchmark
-        if: env.REFRESH_BASELINE != 'true'
+        if: env.RUN_MODE == 'nightly'
         shell: bash
         run: |
           python - <<'PY'
@@ -124,7 +155,7 @@ jobs:
           path = Path("autoresearch/incumbent.json")
           if not path.exists():
               raise SystemExit(
-                  "No valid benchmark exists. The production baseline must first pass all acceptance gates."
+                  "No valid benchmark exists. Run the bootstrap benchmark search first."
               )
           report = json.loads(path.read_text(encoding="utf-8"))["report"]
           gates = report.get("acceptance_gates", {})
@@ -136,8 +167,8 @@ jobs:
               raise SystemExit(f"Benchmark is invalid: {detail}")
           PY
 
-      - name: Refresh production baseline benchmark
-        if: env.REFRESH_BASELINE == 'true'
+      - name: Refresh unmodified production defaults
+        if: env.RUN_MODE == 'refresh'
         shell: bash
         run: |
           cat > autoresearch/candidate.py <<'PY'
@@ -159,16 +190,32 @@ jobs:
             --runs autoresearch/runs \
             --attempts autoresearch/attempts.log \
             | tee /tmp/baseline-refresh.json
-          git add -- \
+          git add -A -- \
             autoresearch/candidate.py \
             autoresearch/incumbent.json \
             autoresearch/results.jsonl \
             autoresearch/attempts.log \
             autoresearch/runs
-          git commit -m "autoresearch: refresh production baseline"
+          git commit -m "autoresearch: refresh production defaults"
+
+      - name: Bootstrap the first valid benchmark
+        if: env.RUN_MODE == 'bootstrap'
+        shell: bash
+        run: |
+          rm -f autoresearch/incumbent.json
+          python -m autoresearch.bootstrap_benchmark \
+            --data-root "$DATA_ROOT" \
+            --policy autoresearch/policy.json \
+            --ledger autoresearch/results.jsonl \
+            --attempts autoresearch/attempts.log \
+            --incumbent autoresearch/incumbent.json \
+            --runs autoresearch/runs \
+            --max-candidates "$BOOTSTRAP_LIMIT"
+          git add -A -- autoresearch
+          git commit -m "autoresearch: bootstrap benchmark search"
 
       - name: Run worker and coach experiment loop
-        if: env.REFRESH_BASELINE != 'true'
+        if: env.RUN_MODE == 'nightly'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: >-
@@ -177,6 +224,23 @@ jobs:
           --batch-size "$BATCH_SIZE"
           --coach-interval 20
           --git-commits
+
+      - name: Restore neutral candidate surface
+        shell: bash
+        run: |
+          cat > autoresearch/candidate.py <<'PY'
+          """The only strategy file an autoresearch agent may edit."""
+
+          CANDIDATE = {
+              "name": "production-baseline",
+              "description": "Wickless-candle production defaults at 12250ed.",
+              "parameters": {},
+          }
+          PY
+          git add -- autoresearch/candidate.py
+          if ! git diff --cached --quiet; then
+            git commit -m "autoresearch: reset candidate surface"
+          fi
 
       - name: Validate code and protected scope
         shell: bash
@@ -191,8 +255,60 @@ jobs:
       - name: Publish audit history to the nightly branch only
         run: git push origin "$NIGHTLY_BRANCH"
 
-      - name: Notify Discord of refreshed benchmark
-        if: env.REFRESH_BASELINE == 'true'
+      - name: Notify Discord of bootstrap result
+        if: env.RUN_MODE == 'bootstrap'
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          summary = json.load(open("autoresearch/runs/bootstrap-summary.json", encoding="utf-8"))
+          selected = summary.get("selected")
+          if selected is None:
+              message = (
+                  "⚠️ **Wickless bootstrap completed without a valid benchmark**\n"
+                  f"Tested: {summary['tested']} | Passing all gates: 0\n"
+                  "Nightly research remains paused."
+              )
+          else:
+              june = selected["folds"]["june_2026"]
+              july = selected["folds"]["july_2026"]
+              overall = selected["overall"]
+              message = "\n".join(
+                  (
+                      "✅ **Wickless bootstrap benchmark created**",
+                      f"Source: **{selected['source_candidate']}**",
+                      f"Tested: {summary['tested']} | Passing all gates: {summary['passing']}",
+                      f"June: {june['trades']} trades, {june['net_r']:+.2f}R",
+                      f"July: {july['trades']} trades, {july['net_r']:+.2f}R",
+                      (
+                          f"Overall: {overall['trades']} trades, "
+                          f"{overall['net_r']:+.2f}R, "
+                          f"drawdown {overall['maximum_drawdown_r']:.2f}R"
+                      ),
+                      "This is now the production-baseline benchmark for nightly comparisons.",
+                  )
+              )
+          request = urllib.request.Request(
+              os.environ["DISCORD_WEBHOOK_URL"],
+              data=json.dumps({"content": message}).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          try:
+              urllib.request.urlopen(request, timeout=20).read()
+          except (urllib.error.HTTPError, urllib.error.URLError) as error:
+              print(f"Discord bootstrap notification failed: {error}")
+          PY
+
+      - name: Notify Discord of refreshed defaults
+        if: env.RUN_MODE == 'refresh'
         continue-on-error: true
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -210,16 +326,11 @@ jobs:
           overall = result["overall"]
           message = "\n".join(
               (
-                  "📌 **Wickless benchmark refreshed**",
-                  "Benchmark: **production-baseline**",
+                  "📌 **Wickless production defaults re-evaluated**",
                   f"June: {june['trades']} trades, {june['net_r']:+.2f}R",
                   f"July: {july['trades']} trades, {july['net_r']:+.2f}R",
-                  (
-                      f"Overall: {overall['trades']} trades, "
-                      f"{overall['net_r']:+.2f}R, "
-                      f"drawdown {overall['maximum_drawdown_r']:.2f}R"
-                  ),
-                  "The benchmark passed the 10-trade minimum in both June and July.",
+                  f"Overall: {overall['trades']} trades, {overall['net_r']:+.2f}R",
+                  f"Gate result: {'PASS' if result['acceptance_gates']['passed'] else 'FAIL'}",
               )
           )
           request = urllib.request.Request(
@@ -231,7 +342,7 @@ jobs:
           try:
               urllib.request.urlopen(request, timeout=20).read()
           except (urllib.error.HTTPError, urllib.error.URLError) as error:
-              print(f"Discord benchmark notification failed: {error}")
+              print(f"Discord defaults notification failed: {error}")
           PY
 
       - name: Alert Discord if the batch fails
@@ -250,7 +361,7 @@ jobs:
 
           webhook = os.environ.get("DISCORD_WEBHOOK_URL")
           if webhook:
-              message = "❌ **Wickless nightly autoresearch failed**\n" + os.environ["RUN_URL"]
+              message = "❌ **Wickless autoresearch failed**\n" + os.environ["RUN_URL"]
               request = urllib.request.Request(
                   webhook,
                   data=json.dumps({"content": message}).encode(),
