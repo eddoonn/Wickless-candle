@@ -1,0 +1,108 @@
+name: One-time Phase 1 validation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ops/phase1-validation.request
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wickless-phase1-validation
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run complete validation and persist result
+        shell: bash
+        run: |
+          set +e
+          mkdir -p .runtime-output ops
+          : > .runtime-output/phase1-validation.log
+
+          python -m compileall -q \
+            wickless_bot.py no_wick_research.py live_data.py live_scan.py \
+            run_daemon.py production_session.py time_display.py \
+            autoresearch scripts tests \
+            >> .runtime-output/phase1-validation.log 2>&1
+          compile_status=$?
+
+          test_status=99
+          if [[ $compile_status -eq 0 ]]; then
+            python -m unittest discover -s tests -v \
+              >> .runtime-output/phase1-validation.log 2>&1
+            test_status=$?
+          fi
+
+          health_status=99
+          if [[ $compile_status -eq 0 && $test_status -eq 0 ]]; then
+            python scripts/system_health.py \
+              --output .runtime-output/system-health.json \
+              >> .runtime-output/phase1-validation.log 2>&1
+            health_status=$?
+          fi
+
+          COMPILE_STATUS=$compile_status \
+          TEST_STATUS=$test_status \
+          HEALTH_STATUS=$health_status \
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          log = Path('.runtime-output/phase1-validation.log')
+          lines = log.read_text(encoding='utf-8', errors='replace').splitlines()
+          health_path = Path('.runtime-output/system-health.json')
+          health = (
+              json.loads(health_path.read_text(encoding='utf-8'))
+              if health_path.exists()
+              else None
+          )
+          compile_status = int(os.environ['COMPILE_STATUS'])
+          test_status = int(os.environ['TEST_STATUS'])
+          health_status = int(os.environ['HEALTH_STATUS'])
+          result = {
+              'schema_version': 1,
+              'generated_at_utc': datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+              'commit': os.environ['GITHUB_SHA'],
+              'passed': compile_status == test_status == health_status == 0,
+              'compile_status': compile_status,
+              'test_status': test_status,
+              'health_status': health_status,
+              'health': health,
+              'log_tail': lines[-120:],
+          }
+          Path('ops/phase1-validation-result.json').write_text(
+              json.dumps(result, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          PY
+
+          git config user.name "wickless-validation[bot]"
+          git config user.email "wickless-validation[bot]@users.noreply.github.com"
+          git add -- ops/phase1-validation-result.json
+          git commit -m "maintenance: record phase 1 validation result"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && break
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 3))
+          done
+
+          if [[ $compile_status -ne 0 || $test_status -ne 0 || $health_status -ne 0 ]]; then
+            exit 1
+          fi
