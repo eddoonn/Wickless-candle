@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-08-05T11:05:44+00:00",
+  "generated_at_london": "2026-08-05T12:05:44+01:00",
+  "display_timezone": "Europe/London",
+  "source": {
+    "evaluator": "autoresearch.evaluator.evaluate",
+    "reference_branch": "autoresearch/nightly",
+    "reference_path": "autoresearch/incumbent.json",
+    "source_run_id": "9b4cf71471d2fdfa",
+    "production_baseline_sha": "12250ed9e7698e9b7e57341f09d23372cb7ba1cc",
+    "dataset": "fixed June and July 2026 Dukascopy M1 BID/ASK archives"
+  },
+  "strategy_parameters": {},
+  "files": {
+    "summary": "summary.json",
+    "trades": "trades.csv"
+  },
+  "verification": {
+    "total_trades": 15,
+    "june_trades": 2,
+    "july_trades": 13,
+    "total_net_r": 11.613768,
+    "acceptance_gates_passed": false,
+    "failed_gates": [
+      "june_2026_minimum_trades"
+    ]
+  }
+}
