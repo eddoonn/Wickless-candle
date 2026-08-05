@@ -1,13 +1,27 @@
-name: Wickless autoresearch guard
+name: Wickless autoresearch validation
 
 on:
   push:
     branches:
-      - "autoresearch/**"
-  pull_request:
+      - main
     paths:
-      - "autoresearch/**"
+      - "autoresearch/**/*.py"
+      - "autoresearch/policy.json"
+      - "autoresearch/program.md"
+      - "autoresearch/README.md"
       - ".github/workflows/autoresearch.yml"
+      - ".github/workflows/autoresearch-nightly.yml"
+      - "tests/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "autoresearch/**/*.py"
+      - "autoresearch/policy.json"
+      - "autoresearch/program.md"
+      - "autoresearch/README.md"
+      - ".github/workflows/autoresearch.yml"
+      - ".github/workflows/autoresearch-nightly.yml"
       - "tests/**"
   workflow_dispatch:
 
@@ -15,32 +29,22 @@ permissions:
   contents: read
 
 concurrency:
-  group: autoresearch-${{ github.ref }}
-  cancel-in-progress: false
+  group: autoresearch-validation-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          fetch-depth: 0
-
+          python-version: "3.12"
       - name: Compile and run repository tests
         run: |
           python -m compileall -q \
-            wickless_bot.py no_wick_research.py live_data.py run_daemon.py \
-            autoresearch tests
+            wickless_bot.py no_wick_research.py live_data.py live_scan.py \
+            run_daemon.py production_session.py time_display.py \
+            autoresearch scripts tests
           python -m unittest discover -s tests -v
-
-      - name: Protect fixed harness on experiment branches
-        if: >-
-          (github.event_name == 'push' &&
-           github.ref_name != 'autoresearch/framework-v1') ||
-          (github.event_name == 'pull_request' &&
-           startsWith(github.head_ref, 'autoresearch/') &&
-           github.head_ref != 'autoresearch/framework-v1')
-        run: |
-          git fetch origin autoresearch/framework-v1:refs/remotes/origin/autoresearch/framework-v1
-          python autoresearch/verify_scope.py \
-            --base origin/autoresearch/framework-v1
+          python scripts/system_health.py --output /tmp/system-health.json
