@@ -114,7 +114,17 @@ jobs:
               )
           PY
 
+      - name: Upload complete dual-time backtest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-backtest-${{ github.run_id }}
+          path: reports/production-backtest
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Publish refreshed report to main
+        id: publish
+        continue-on-error: true
         shell: bash
         run: |
           git config user.name "wickless-backtest[bot]"
@@ -128,7 +138,18 @@ jobs:
           git pull --rebase origin main
           git push origin HEAD:main
 
+      - name: Record repository publication failure
+        if: always() && steps.publish.outcome == 'failure'
+        shell: bash
+        run: |
+          {
+            echo
+            echo "> [!WARNING]"
+            echo "> The report artifact was preserved, but the best-effort push to main failed."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Send backtest result to Discord
+        if: always() && hashFiles('reports/production-backtest/latest/summary.json') != ''
         continue-on-error: true
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
