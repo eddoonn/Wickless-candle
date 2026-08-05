@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "profile": "phase2-constrained-surrogate-v1",
+  "minimum_observations": 8,
+  "exploration_fraction": 0.2,
+  "neighbour_count": 12,
+  "kernel_bandwidth": 0.35,
+  "uncertainty_weight": 0.5,
+  "diversity_weight": 0.35
+}
