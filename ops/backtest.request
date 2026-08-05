@@ -1,3 +1,4 @@
-requested_at_utc=2026-08-05T11:10:00Z
-requested_at_london=2026-08-05T12:10:00+01:00
-reason=verify_artifact_first_publication_and_dual_time_discord_delivery
+requested_at_utc=2026-08-05T12:24:00Z
+requested_at_london=2026-08-05T13:24:00+01:00
+reason=refresh_production_report_with_locked_london_new_york_union
+production_release_sha=9ddd1b44aee10467247fda4627bc472ed1ff4132
