@@ -1,5 +1,0 @@
-requested_at_utc=2026-08-05T19:51:00+00:00
-requested_at_london=2026-08-05T20:51:00+01:00
-mode=validate
-reason=phase1_walk_forward_validation_contract
-policy=autoresearch/walk_forward_policy.json
