@@ -42,14 +42,21 @@ The nightly workflow:
 4. Automatically refreshes the production reference when its release stamp is absent or stale.
 5. Plans a diversified batch across candle quality, trend, entry model, and wick detection.
 6. Evaluates every candidate with unchanged risk, cost, execution, and acceptance gates.
-7. Records a behavior fingerprint, distinguishing changed experiments from exact no-effect reproductions.
-8. Runs the coach at its fixed interval.
-9. Restores the neutral candidate file.
-10. Runs compilation, the complete test suite, health auditing, and protected-scope verification.
-11. Uploads a durable artifact before attempting branch publication or Discord delivery.
-12. Pushes only `autoresearch/nightly`, then posts a benchmark-versus-best-changed-test Discord summary.
+7. Records separate behavior and realized-outcome fingerprints.
+8. Classifies each test as `No effect`, `Funnel only`, or `Trade changed`.
+9. Runs the coach at its fixed interval.
+10. Restores the neutral candidate file.
+11. Runs compilation, the complete test suite, health auditing, and protected-scope verification.
+12. Uploads a durable artifact before attempting branch publication or Discord delivery.
+13. Pushes only `autoresearch/nightly`, then posts a benchmark-versus-best-trade-changing-test Discord summary.
 
-Exact ties are not described as a best test. They are counted as `No effect`, and the nightly summary selects the strongest experiment only from candidates whose behavior changed.
+Effect meanings are strict:
+
+- `No effect`: candidate identity changed, but signal-funnel counters and realized trades were identical.
+- `Funnel only`: at least one rejection or eligibility counter changed, but the realized trades and metrics stayed identical.
+- `Trade changed`: the realized trade set or resulting metrics changed.
+
+Only `Trade changed` candidates can be presented as the best test. Exact benchmark reproductions and funnel-only changes remain visible in the audit but cannot masquerade as improvements.
 
 ## Acceptance gates
 
@@ -85,11 +92,11 @@ Report-only commits do not retrigger the workflow.
 
 ## Health auditing
 
-`Wickless system health` runs after relevant pushes and every morning at 07:15 London time.
+`Wickless system health` runs after relevant pushes, on production pull requests, and every morning at 07:15 London time.
 
 It verifies:
 
-- production and reference release identities agree;
+- production, policy, and reference release identities agree;
 - both production sessions are present;
 - no locked session parameter can enter regular or bootstrap search;
 - the editable candidate surface is neutral;
@@ -97,7 +104,7 @@ It verifies:
 - live scans are single-flight;
 - checked-in reports and incumbents are release-current, reported as warnings when refresh is pending.
 
-Critical invariant failures fail the workflow and send a best-effort Discord alert. JSON health records are retained as Actions artifacts for 30 days.
+Critical invariant failures fail the workflow and send a best-effort Discord alert outside pull requests. JSON health records are retained as Actions artifacts for 30 days.
 
 ## Discord delivery
 
