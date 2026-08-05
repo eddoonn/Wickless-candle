@@ -53,17 +53,42 @@ class RepositoryContractTests(unittest.TestCase):
         workflow = (ROOT / ".github/workflows/live-signals.yml").read_text(
             encoding="utf-8"
         )
+        renderer = (ROOT / "live_scan.py").read_text(encoding="utf-8")
         self.assertIn('cron: "*/5 * * * *"', workflow)
         self.assertIn("secrets.DISCORD_WEBHOOK_URL", workflow)
         self.assertIn("actions/cache/restore@", workflow)
         self.assertIn("actions/cache/save@", workflow)
         self.assertIn("validated signal-close entry", workflow)
+        self.assertIn("python live_scan.py scan", workflow)
         self.assertIn("--max-signal-age-seconds 900", workflow)
         self.assertIn("--max-quote-age-seconds 120", workflow)
         self.assertIn("--max-entry-deviation-r 0.25", workflow)
         self.assertIn("--research-lookback-seconds 2700", workflow)
+        self.assertIn('"Signal close time"', renderer)
+        self.assertIn('"Entry time"', renderer)
+        self.assertIn('"Detected time"', renderer)
+        self.assertIn('"Published time"', renderer)
+        self.assertIn("UTC and Europe/London", renderer)
         self.assertNotIn("--retrace-margin-percent", workflow)
         self.assertNotIn("discord.com/api/webhooks/", workflow)
+
+    def test_production_backtest_workflow_publishes_dual_time_reports(self) -> None:
+        workflow = (ROOT / ".github/workflows/production-backtest.yml").read_text(
+            encoding="utf-8"
+        )
+        runner = (ROOT / "scripts/rerun_production_backtest.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("ops/backtest.request", workflow)
+        self.assertIn("rerun_production_backtest.py", workflow)
+        self.assertIn("reports/production-backtest/latest", workflow)
+        self.assertIn("generated_at_utc", workflow)
+        self.assertIn("generated_at_london", workflow)
+        self.assertIn("git push origin HEAD:main", workflow)
+        self.assertIn("signal_time_london", runner)
+        self.assertIn("entry_time_london", runner)
+        self.assertIn("exit_time_london", runner)
+        self.assertIn("Europe/London", runner)
 
     def test_no_discord_webhook_token_is_committed(self) -> None:
         pattern = re.compile(
