@@ -22,7 +22,7 @@ The two clocks use independent IANA time zones. Candidate parameters cannot shor
 - Every run uploads a seven-day diagnostic artifact containing the scanner log and paired UTC/London metadata.
 - A failed run sends a best-effort Discord failure alert with the Actions URL.
 
-A separate weekday `Wickless scanner health heartbeat` is scheduled for 18:45 London time. It evaluates scanner coverage against that intended checkpoint rather than the delayed time at which GitHub eventually starts the heartbeat. It reports `HEALTHY`, `DEGRADED`, or `UNHEALTHY`, includes scheduling delay and the latest live-run URL, and checks both checkpoint coverage and the preceding 24-hour cadence. When no successful or active scan exists within 20 minutes of the current check, the heartbeat dispatches one recovery run of `live-signals.yml`, waits for completion, and reports the recovery result. A successful recovery remains `DEGRADED` when cadence or checkpoint warnings remain; failed recovery is `UNHEALTHY`. The heartbeat is operational only and never implies that a trade signal existed.
+A separate weekday `Wickless scanner health heartbeat` targets 18:45 London time. It evaluates the intended checkpoint rather than the possibly delayed Actions start time, reports `HEALTHY`, `DEGRADED`, or `UNHEALTHY`, and can dispatch one recovery scan when the live scanner is genuinely stale. The heartbeat is operational only; it never implies that a trade signal existed.
 
 ## Nightly autoresearch
 
@@ -32,22 +32,53 @@ Repository model:
 
 - `main` is the only branch. Production code and audit state are separated by a strict changed-file allowlist.
 - Every nightly run records its starting commit, restores the neutral candidate, and rejects production-code changes.
+- Production reporting keeps its reviewed June/July policy. Autoresearch uses the separate `autoresearch/walk_forward_policy.json` Phase 1 policy.
+
+### Phase 1 validation
+
+Every candidate is evaluated on 12 chronological monthly folds from August 2025 through July 2026. One cached seven-pair BID/ASK dataset covers May 2025 through July 2026, allowing each fold to record a 90-day historical context window without repeatedly downloading or parsing separate monthly sources.
+
+The deterministic Wickless engine does not fit a statistical model in the context window. The walk-forward metadata records:
+
+- a 90-day historical context window;
+- a two-day purge gap before each test month;
+- the monthly out-of-sample test window;
+- a one-day post-test embargo.
+
+The original June and July minimums remain 10 trades each. Phase 1 also requires:
+
+- at least 60 trades across all 12 folds;
+- overall profit factor of at least 1.5;
+- overall maximum drawdown no greater than 4R;
+- maximum pair share no greater than 0.60;
+- at least three distinct pairs;
+- no ambiguous exits;
+- profitable performance in at least 58% of monthly folds;
+- no single profitable fold contributing more than 35% of positive fold profit;
+- worst rolling three-fold result no lower than -2R;
+- at least 80% deterministic moving-block-bootstrap probability that mean monthly R is positive;
+- a 90% bootstrap lower bound for mean monthly R of at least -0.25R;
+- at least half of the tested one-step parameter neighbours passing the base gates, with non-negative median total R.
+
+The bootstrap uses deterministic circular moving blocks of three monthly folds. Every report also records a sign-test diagnostic, monthly dispersion, an annualized fold Sharpe diagnostic, and a Bonferroni-style multiple-testing warning based on the append-only experiment history. The multiple-testing value is diagnostic only and can never weaken a promotion gate.
+
+Parameter-neighbourhood checks run only after a candidate passes all base gates, which avoids multiplying computation for clearly invalid candidates. Production-reference candidates remain comparison points and do not require artificial parameter neighbours.
 
 The nightly workflow:
 
 1. Checks out `main` and records the immutable starting commit.
 2. Runs experiments in the Actions worktree while enforcing the audit-file allowlist.
-3. Restores or builds the fixed June/July seven-pair BID/ASK datasets.
-4. Automatically refreshes the production reference when its release stamp is absent or stale.
+3. Restores or builds the fixed 15-month seven-pair BID/ASK dataset.
+4. Automatically refreshes the production reference when its release or Phase 1 validation-profile stamp is absent or stale.
 5. Plans a diversified batch across candle quality, trend, entry model, and wick detection.
-6. Evaluates every candidate with unchanged risk, cost, execution, and acceptance gates.
+6. Evaluates every candidate with unchanged risk, cost, execution, session, and acceptance rules.
 7. Records separate behavior and realized-outcome fingerprints.
 8. Classifies each test as `No effect`, `Funnel only`, or `Trade changed`.
-9. Runs the coach at its fixed interval.
+9. Runs the bounded coach at its fixed interval.
 10. Restores the neutral candidate file.
-11. Runs compilation, the complete test suite, health auditing, and protected-scope verification.
-12. Uploads a durable artifact before attempting branch publication or Discord delivery.
-13. Commits one validated audit-state update to `main`, then posts a benchmark-versus-best-trade-changing-test Discord summary.
+11. Runs compilation, the complete test suite, health auditing, and changed-file scope verification.
+12. Uploads a durable artifact before attempting publication or Discord delivery.
+13. Commits one validated audit-state update to `main`, then posts the benchmark-versus-best-trade-changing-test summary.
 
 Effect meanings are strict:
 
@@ -57,31 +88,17 @@ Effect meanings are strict:
 
 Only `Trade changed` candidates can be presented as the best test. Exact benchmark reproductions and funnel-only changes remain visible in the audit but cannot masquerade as improvements.
 
-## Acceptance gates
-
-Candidate gates remain unchanged:
-
-- At least 10 June trades.
-- At least 10 July trades.
-- At least 11 overall trades.
-- Overall profit factor at least 1.5.
-- Overall maximum drawdown no greater than 4R.
-- Maximum pair share no greater than 0.60.
-- At least three distinct pairs.
-- No ambiguous exits.
-- Objective improvement when promotion is considered.
-
-A production reference is a comparison point, not a promoted candidate. It may fail current gates; every new candidate must still pass them.
+A production reference is a comparison point, not a promoted candidate. It may fail current gates; every new candidate must pass all Phase 1 gates and improve the unchanged lexicographic objective.
 
 ## Production backtests
 
-`Production Wickless backtest` runs manually, from `ops/backtest.request`, and automatically after changes to production sessions, strategy/evaluator logic, policy, the Pine strategy, or the backtest runner.
+`Production Wickless backtest` runs manually, from `ops/backtest.request`, and automatically after changes to production sessions, strategy/evaluator logic, the production policy, the Pine strategy, or the backtest runner.
 
 The workflow:
 
 - retries dataset creation;
 - runs compilation, all tests, and the system-health audit;
-- evaluates the fixed June/July BID/ASK data;
+- evaluates the reviewed June/July BID/ASK data;
 - uploads the full report before publication;
 - records the production release and session label;
 - retries report publication to `main`;
@@ -95,13 +112,16 @@ Report-only commits do not retrigger the workflow.
 
 It verifies:
 
-- production, policy, and reference release identities agree;
+- production, production-policy, Phase 1 policy, and reference release identities agree;
 - both production sessions are present;
 - no locked session parameter can enter regular or bootstrap search;
 - the editable candidate surface is neutral;
 - nightly research is active rather than paused;
+- Phase 1 contains 12 chronological folds, unchanged June/July gates, purge and embargo metadata, consistency gates, and the shared dataset contract;
+- the incumbent carries the current Phase 1 profile stamp, reported as a warning while an automatic refresh is pending;
 - live scans are single-flight;
-- checked-in reports and incumbents are release-current, reported as warnings when refresh is pending.
+- scanner heartbeat recovery remains checkpoint-aware and cannot write repository contents;
+- checked-in production reports remain release-current.
 
 Critical invariant failures fail the workflow and send a best-effort Discord alert outside pull requests. JSON health records are retained as Actions artifacts for 30 days.
 
@@ -121,10 +141,10 @@ A Discord `403 Forbidden` means the repository secret `DISCORD_WEBHOOK_URL` is i
 Actions can still be dispatched manually for exceptional cases:
 
 - Nightly batch size: 1–20.
-- Force production-reference refresh.
-- Run a complete or limited bootstrap search.
-- Run production backtest.
-- Run scanner heartbeat.
+- Force the Phase 1 production-reference refresh.
+- Run a complete or limited Phase 1 bootstrap search.
+- Run the reviewed production backtest.
+- Run scanner heartbeat and recovery validation.
 - Run system-health validation.
 
 Routine operation does not require these controls.
