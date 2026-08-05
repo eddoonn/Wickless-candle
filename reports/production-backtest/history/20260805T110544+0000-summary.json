@@ -1,0 +1,118 @@
+{
+  "acceptance_gates": {
+    "checks": {
+      "july_2026_minimum_trades": true,
+      "july_2026_positive_net_r": true,
+      "june_2026_minimum_trades": false,
+      "june_2026_positive_net_r": true,
+      "maximum_ambiguous_exits": true,
+      "maximum_overall_drawdown_r": true,
+      "maximum_pair_trade_share": true,
+      "minimum_distinct_pairs": true,
+      "minimum_overall_profit_factor": true,
+      "minimum_total_trades": true
+    },
+    "passed": false
+  },
+  "display_timezone": "Europe/London",
+  "folds": {
+    "july_2026": {
+      "metrics": {
+        "distinct_pairs": 5,
+        "expectancy_r": 1.0522082307692309,
+        "losses": 4,
+        "maximum_drawdown_r": 2.0563219999999998,
+        "maximum_pair_trade_share": 0.5384615384615384,
+        "net_r": 13.678707,
+        "profit_factor": 4.335728147574076,
+        "trades": 13,
+        "trades_by_pair": {
+          "EURUSD": 7,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 2
+        },
+        "win_rate": 0.6923076923076923,
+        "wins": 9
+      },
+      "minimum_trades": 10,
+      "window": {
+        "end_london_exclusive": "2026-08-01T01:00:00+01:00",
+        "end_utc_exclusive": "2026-08-01T00:00:00+00:00",
+        "start_london": "2026-07-01T01:00:00+01:00",
+        "start_utc": "2026-07-01T00:00:00+00:00"
+      }
+    },
+    "june_2026": {
+      "metrics": {
+        "distinct_pairs": 2,
+        "expectancy_r": -1.0324695,
+        "losses": 2,
+        "maximum_drawdown_r": 2.064939,
+        "maximum_pair_trade_share": 0.5,
+        "net_r": -2.064939,
+        "profit_factor": 0.0,
+        "trades": 2,
+        "trades_by_pair": {
+          "EURUSD": 1,
+          "USDJPY": 1
+        },
+        "win_rate": 0.0,
+        "wins": 0
+      },
+      "minimum_trades": 10,
+      "window": {
+        "end_london_exclusive": "2026-07-01T01:00:00+01:00",
+        "end_utc_exclusive": "2026-07-01T00:00:00+00:00",
+        "start_london": "2026-06-01T01:00:00+01:00",
+        "start_utc": "2026-06-01T00:00:00+00:00"
+      }
+    }
+  },
+  "generated_at_london": "2026-08-05T12:05:44+01:00",
+  "generated_at_utc": "2026-08-05T11:05:44+00:00",
+  "objective": {
+    "negative_overall_drawdown_r": -2.141029,
+    "overall_profit_factor": 2.883638020924143,
+    "total_net_r": 11.613768,
+    "total_trades": 15,
+    "worst_fold_net_r": -2.064939
+  },
+  "overall": {
+    "ambiguous_exits": 0,
+    "distinct_pairs": 5,
+    "expectancy_r": 0.7742512,
+    "losses": 6,
+    "maximum_drawdown_r": 2.141029,
+    "maximum_pair_trade_share": 0.5333333333333333,
+    "net_r": 11.613768,
+    "profit_factor": 2.883638020924143,
+    "trades": 15,
+    "trades_by_pair": {
+      "EURUSD": 8,
+      "GBPUSD": 2,
+      "USDCAD": 1,
+      "USDCHF": 1,
+      "USDJPY": 3
+    },
+    "win_rate": 0.6,
+    "wins": 9
+  },
+  "schema_version": 1,
+  "source_run_id": "9b4cf71471d2fdfa",
+  "strategy": {
+    "name": "production-baseline",
+    "parameters": {},
+    "production_baseline_sha": "12250ed9e7698e9b7e57341f09d23372cb7ba1cc"
+  },
+  "universe": [
+    "EURUSD",
+    "GBPUSD",
+    "USDJPY",
+    "USDCHF",
+    "USDCAD",
+    "AUDUSD",
+    "NZDUSD"
+  ]
+}
