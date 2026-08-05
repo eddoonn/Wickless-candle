@@ -66,7 +66,7 @@ jobs:
           python -m compileall -q \
             wickless_bot.py no_wick_research.py time_display.py \
             autoresearch scripts tests
-          python -m unittest tests.test_session_comparison -v
+          python -m unittest discover -s tests -p 'test_session_comparison.py' -v
 
       - name: Compare current, London, union and all-hours sessions
         run: >-
