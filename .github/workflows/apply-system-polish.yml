@@ -25,11 +25,16 @@ jobs:
           ref: agent/system-polish-main
           fetch-depth: 0
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Copy approved framework paths
         shell: bash
         run: |
           git config user.name "wickless-maintenance[bot]"
           git config user.email "wickless-maintenance[bot]@users.noreply.github.com"
+          git pull --ff-only origin agent/system-polish-main
           git fetch origin autoresearch/framework-v1
           paths=(
             .github/workflows/autoresearch-nightly.yml
@@ -88,5 +93,8 @@ jobs:
             tests/test_bootstrap_benchmark.py \
             tests/test_nightly_batch.py \
             tests/test_reference_benchmark.py
-          git commit -m "Polish Wickless research and automation"
+          if ! git diff --cached --quiet; then
+            git commit -m "Polish Wickless research and automation"
+          fi
+          git pull --rebase origin agent/system-polish-main
           git push origin HEAD:agent/system-polish-main
