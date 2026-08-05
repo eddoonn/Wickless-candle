@@ -98,16 +98,25 @@ jobs:
           done
 
       - name: Validate polished production tree
+        id: validate
         shell: bash
         run: |
-          python -m compileall -q \
-            wickless_bot.py no_wick_research.py live_data.py live_scan.py \
-            run_daemon.py production_session.py time_display.py \
-            autoresearch scripts tests
-          python -m unittest discover -s tests -v
-          python scripts/system_health.py --output /tmp/system-health.json
+          set -o pipefail
+          mkdir -p /tmp/system-polish
+          {
+            echo "## compile"
+            python -m compileall -q \
+              wickless_bot.py no_wick_research.py live_data.py live_scan.py \
+              run_daemon.py production_session.py time_display.py \
+              autoresearch scripts tests
+            echo "## tests"
+            python -m unittest discover -s tests -v
+            echo "## health"
+            python scripts/system_health.py --output /tmp/system-polish/system-health.json
+          } 2>&1 | tee /tmp/system-polish/validation.log
 
       - name: Commit and push tested feature branch
+        if: success()
         shell: bash
         run: |
           git add -- \
@@ -136,3 +145,28 @@ jobs:
           fi
           git pull --rebase origin agent/system-polish-main
           git push origin HEAD:agent/system-polish-main
+
+      - name: Publish failed validation diagnostics
+        if: failure() && steps.validate.outcome == 'failure'
+        shell: bash
+        run: |
+          git reset --hard HEAD
+          git clean -fd
+          mkdir -p reports/maintenance/latest
+          cp /tmp/system-polish/validation.log reports/maintenance/latest/system-polish-validation.log
+          if [[ -s /tmp/system-polish/system-health.json ]]; then
+            cp /tmp/system-polish/system-health.json reports/maintenance/latest/system-health.json
+          fi
+          git add -- reports/maintenance/latest
+          git commit -m "maintenance: publish system polish validation failure"
+          git pull --rebase origin agent/system-polish-main
+          git push origin HEAD:agent/system-polish-main
+
+      - name: Upload validation artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-polish-validation-${{ github.run_id }}
+          path: /tmp/system-polish
+          if-no-files-found: warn
+          retention-days: 30
