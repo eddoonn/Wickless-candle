@@ -1,9 +1,9 @@
 {
-  "generated_at_utc": "2026-08-05T21:14:53+00:00",
+  "generated_at_utc": "2026-08-05T21:16:16+00:00",
   "jobs": [
     {
       "conclusion": "failure",
-      "id": 92447452438,
+      "id": 92447765792,
       "name": "integrate",
       "status": "completed",
       "steps": [
@@ -23,17 +23,17 @@
           "status": "completed"
         },
         {
-          "conclusion": "failure",
+          "conclusion": "success",
           "name": "Apply Phase 3 and Phase 4 integration",
           "status": "completed"
         },
         {
-          "conclusion": "skipped",
+          "conclusion": "success",
           "name": "Compile repository",
           "status": "completed"
         },
         {
-          "conclusion": "skipped",
+          "conclusion": "failure",
           "name": "Run complete unit suite",
           "status": "completed"
         },
@@ -72,9 +72,9 @@
   ],
   "run": {
     "conclusion": "failure",
-    "head_sha": "46bc4a0fdf621b27fff1516f5c246f573703a7db",
-    "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31047774648",
-    "id": 31047774648,
+    "head_sha": "33d463dd54bfb86968bbb3810a26a2696cd38bd6",
+    "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31047872438",
+    "id": 31047872438,
     "status": "completed"
   },
   "schema_version": 1
