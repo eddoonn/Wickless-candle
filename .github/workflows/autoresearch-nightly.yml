@@ -1,6 +1,11 @@
 name: Nightly Wickless autoresearch
 
 on:
+  push:
+    branches:
+      - autoresearch/framework-v1
+    paths:
+      - autoresearch/baseline-refresh.request
   schedule:
     - cron: "0 23 * * *"
       timezone: "Europe/London"
@@ -10,6 +15,11 @@ on:
         description: "Number of controlled experiments (1-20)"
         required: false
         default: "12"
+      refresh_baseline:
+        description: "Re-evaluate production defaults and replace the benchmark"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -28,6 +38,7 @@ jobs:
       DATA_ROOT: .runtime-data/autoresearch-datasets
       BI5_CACHE: .runtime-data/duka-bi5
       BATCH_SIZE: ${{ github.event.inputs.batch_size || '12' }}
+      REFRESH_BASELINE: ${{ github.event_name == 'push' || github.event.inputs.refresh_baseline == 'true' }}
     steps:
       - name: Check out the fixed framework
         uses: actions/checkout@v4
@@ -102,7 +113,39 @@ jobs:
             .runtime-data/duka-bi5
           key: wickless-autoresearch-data-v1-partial-${{ github.run_id }}
 
+      - name: Refresh production baseline benchmark
+        if: env.REFRESH_BASELINE == 'true'
+        shell: bash
+        run: |
+          cat > autoresearch/candidate.py <<'PY'
+          """The only strategy file an autoresearch agent may edit."""
+
+          CANDIDATE = {
+              "name": "production-baseline",
+              "description": "Wickless-candle production defaults at 12250ed.",
+              "parameters": {},
+          }
+          PY
+          rm -f autoresearch/incumbent.json
+          python -m autoresearch.run_experiment \
+            --data-root "$DATA_ROOT" \
+            --candidate autoresearch/candidate.py \
+            --policy autoresearch/policy.json \
+            --ledger autoresearch/results.jsonl \
+            --incumbent autoresearch/incumbent.json \
+            --runs autoresearch/runs \
+            --attempts autoresearch/attempts.log \
+            | tee /tmp/baseline-refresh.json
+          git add -- \
+            autoresearch/candidate.py \
+            autoresearch/incumbent.json \
+            autoresearch/results.jsonl \
+            autoresearch/attempts.log \
+            autoresearch/runs
+          git commit -m "autoresearch: refresh production baseline"
+
       - name: Run worker and coach experiment loop
+        if: env.REFRESH_BASELINE != 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: >-
@@ -124,6 +167,44 @@ jobs:
 
       - name: Publish audit history to the nightly branch only
         run: git push origin "$NIGHTLY_BRANCH"
+
+      - name: Notify Discord of refreshed benchmark
+        if: env.REFRESH_BASELINE == 'true'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          result = json.load(open("/tmp/baseline-refresh.json", encoding="utf-8"))
+          june = result["folds"]["june_2026"]
+          july = result["folds"]["july_2026"]
+          overall = result["overall"]
+          message = "\n".join(
+              (
+                  "📌 **Wickless benchmark refreshed**",
+                  "Benchmark: **production-baseline**",
+                  f"June: {june['trades']} trades, {june['net_r']:+.2f}R",
+                  f"July: {july['trades']} trades, {july['net_r']:+.2f}R",
+                  (
+                      f"Overall: {overall['trades']} trades, "
+                      f"{overall['net_r']:+.2f}R, "
+                      f"drawdown {overall['maximum_drawdown_r']:.2f}R"
+                  ),
+                  "Future candidates require at least 10 trades in June and July.",
+              )
+          )
+          request = urllib.request.Request(
+              os.environ["DISCORD_WEBHOOK_URL"],
+              data=json.dumps({"content": message}).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          urllib.request.urlopen(request, timeout=20).read()
+          PY
 
       - name: Alert Discord if the batch fails
         if: failure()
