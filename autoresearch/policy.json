@@ -8,7 +8,7 @@
       "directory": "dukascopy_m1_bidask_2026-06",
       "start_utc": "2026-06-01T00:00:00+00:00",
       "end_utc_exclusive": "2026-07-01T00:00:00+00:00",
-      "minimum_trades": 0
+      "minimum_trades": 10
     },
     {
       "name": "july_2026",
