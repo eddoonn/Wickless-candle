@@ -38,7 +38,7 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: >-
-          python wickless_bot.py scan
+          python live_scan.py scan
           --data-dir .runtime-data
           --state .signal-state/seen.json
           --max-signal-age-seconds 900
