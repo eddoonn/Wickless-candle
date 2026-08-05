@@ -93,6 +93,19 @@ if old_scan not in text:
     raise SystemExit("Expected naive repository text scan was not found")
 text = text.replace(old_scan, new_scan, 1)
 
+old_staging = '''        "tests",
+        "ops",
+        "reports/maintenance/latest",
+    )
+'''
+new_staging = '''        "tests",
+        "ops",
+    )
+'''
+if old_staging not in text:
+    raise SystemExit("Expected obsolete diagnostic staging path was not found")
+text = text.replace(old_staging, new_staging, 1)
+
 old_cleanup = '''        "scripts/single_branch_migration.py",
         "reports/maintenance/latest/single-branch-migration.json",
 '''
