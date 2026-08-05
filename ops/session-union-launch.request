@@ -1,5 +1,0 @@
-Apply the locked production session union.
-Requested UTC: 2026-08-05T11:52:00+00:00
-London session: 08:00-17:00 Europe/London
-New York session: 05:00-13:30 America/New_York
-Scope: production, reference baseline, bootstrap, and all future candidate tests.
