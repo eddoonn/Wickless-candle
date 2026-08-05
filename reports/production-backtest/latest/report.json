@@ -264,8 +264,8 @@
       }
     }
   },
-  "generated_at_london": "2026-08-05T14:59:42+01:00",
-  "generated_at_utc": "2026-08-05T13:59:42+00:00",
+  "generated_at_london": "2026-08-05T15:00:05+01:00",
+  "generated_at_utc": "2026-08-05T14:00:05+00:00",
   "objective": {
     "negative_overall_drawdown_r": -5.222238,
     "overall_profit_factor": 1.7292928119866589,
