@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
 from autoresearch.bootstrap_benchmark import bootstrap_proposal_space
 from autoresearch.evaluator import load_candidate, load_policy
 from autoresearch.nightly_batch import LOCKED_SESSION_PARAMETERS, proposal_space
+from autoresearch.phase1_validation import policy_profile_sha256
 from autoresearch.reference_benchmark import PRODUCTION_BASELINE_SHA
 from production_session import PRODUCTION_RELEASE_SHA, SESSION_LABEL
 
@@ -47,7 +48,12 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
         if LOCKED_SESSION_PARAMETERS.intersection(row.parameters)
     ]
     policy = load_policy(root / "autoresearch" / "policy.json")
+    phase1_policy = load_policy(root / "autoresearch" / "walk_forward_policy.json")
     policy_release = policy["production_baseline_sha"]
+    phase1_release = phase1_policy["production_baseline_sha"]
+    phase1_profile = policy_profile_sha256(phase1_policy)
+    phase1_folds = phase1_policy["folds"]
+    phase1_by_name = {row["name"]: row for row in phase1_folds}
     candidate = load_candidate(root / "autoresearch" / "candidate.py")
     live_workflow = (root / ".github/workflows/live-signals.yml").read_text(
         encoding="utf-8"
@@ -72,6 +78,11 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
             "policy_release_identity",
             policy_release == PRODUCTION_RELEASE_SHA,
             f"policy={policy_release} production={PRODUCTION_RELEASE_SHA}",
+        ),
+        _check(
+            "phase1_policy_release_identity",
+            phase1_release == PRODUCTION_RELEASE_SHA,
+            f"phase1={phase1_release} production={PRODUCTION_RELEASE_SHA}",
         ),
         _check(
             "production_session_label",
@@ -102,6 +113,31 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
             and 'git push origin "$NIGHTLY_BRANCH"' not in nightly_workflow
             and 'git push origin HEAD:"$MAIN_BRANCH"' in nightly_workflow,
             "autoresearch code and durable audit state use main only",
+        ),
+        _check(
+            "phase1_walk_forward_validation",
+            len(phase1_folds) == 12
+            and [row["start_utc"] for row in phase1_folds]
+            == sorted(row["start_utc"] for row in phase1_folds)
+            and len({row["directory"] for row in phase1_folds}) == 1
+            and phase1_by_name["june_2026"]["minimum_trades"] == 10
+            and phase1_by_name["july_2026"]["minimum_trades"] == 10
+            and phase1_policy["phase1_validation"]["purge_days"] >= 1
+            and phase1_policy["phase1_validation"]["embargo_days"] >= 1
+            and phase1_policy["acceptance"]["minimum_profitable_fold_ratio"] >= 0.58
+            and phase1_policy["acceptance"]["minimum_neighbourhood_pass_rate"] >= 0.5,
+            (
+                f"folds={len(phase1_folds)} profile="
+                f"{phase1_policy['phase1_validation']['profile']}"
+            ),
+        ),
+        _check(
+            "phase1_workflow_dataset",
+            "autoresearch/walk_forward_policy.json" in nightly_workflow
+            and "dukascopy_m1_bidask_2025-05_2026-07" in nightly_workflow
+            and "--start 2025-05-01 --end 2026-07-31" in nightly_workflow
+            and "wickless-autoresearch-data-v2-walk-forward" in nightly_workflow,
+            "nightly uses one cached 15-month BID/ASK source for 12 test folds",
         ),
         _check(
             "single_flight_live_scans",
@@ -149,11 +185,26 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
     if incumbent_path.exists():
         incumbent = json.loads(incumbent_path.read_text(encoding="utf-8"))
         incumbent_release = incumbent.get("production_release_sha")
+        incumbent_profile = (
+            incumbent.get("validation_profile_sha256")
+            or incumbent.get("report", {}).get("validation", {}).get("profile_sha256")
+        )
         checks.append(
             _check(
                 "incumbent_release",
                 incumbent_release == PRODUCTION_RELEASE_SHA,
                 f"incumbent={incumbent_release or 'unstamped'} production={PRODUCTION_RELEASE_SHA}",
+                warning=True,
+            )
+        )
+        checks.append(
+            _check(
+                "incumbent_phase1_profile",
+                incumbent_profile == phase1_profile,
+                (
+                    f"incumbent={incumbent_profile or 'legacy'} "
+                    f"required={phase1_profile}"
+                ),
                 warning=True,
             )
         )
@@ -166,17 +217,26 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
                 warning=True,
             )
         )
+        checks.append(
+            _check(
+                "incumbent_phase1_profile",
+                False,
+                "Phase 1 reference is created automatically by the nightly workflow",
+                warning=True,
+            )
+        )
 
     failures = [check for check in checks if check.status == "fail"]
     warnings = [check for check in checks if check.status == "warning"]
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at_utc": datetime.now(UTC).replace(microsecond=0).isoformat(),
         "healthy": not failures,
         "failures": len(failures),
         "warnings": len(warnings),
         "regular_proposals": len(regular),
         "bootstrap_proposals": len(bootstrap),
+        "phase1_validation_profile_sha256": phase1_profile,
         "checks": [asdict(check) for check in checks],
     }
 
