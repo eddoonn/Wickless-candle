@@ -54,6 +54,8 @@ class RepositoryContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         renderer = (ROOT / "live_scan.py").read_text(encoding="utf-8")
+        daemon = (ROOT / "run_daemon.py").read_text(encoding="utf-8")
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         self.assertIn('cron: "*/5 * * * *"', workflow)
         self.assertIn("secrets.DISCORD_WEBHOOK_URL", workflow)
         self.assertIn("actions/cache/restore@", workflow)
@@ -69,6 +71,9 @@ class RepositoryContractTests(unittest.TestCase):
         self.assertIn('"Detected time"', renderer)
         self.assertIn('"Published time"', renderer)
         self.assertIn("UTC and Europe/London", renderer)
+        self.assertIn("dual_timezone_discord_payload", daemon)
+        self.assertIn("live_scan.py", dockerfile)
+        self.assertIn("time_display.py", dockerfile)
         self.assertNotIn("--retrace-margin-percent", workflow)
         self.assertNotIn("discord.com/api/webhooks/", workflow)
 
