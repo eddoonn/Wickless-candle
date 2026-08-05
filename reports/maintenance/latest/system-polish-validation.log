@@ -135,11 +135,11 @@ test_usdcad_bullish_wickless_is_buy_at_two_r (test_wickless_bot.WicklessDetectio
 Regression: a green USDCAD wickless marker maps to a 2R BUY. ... ok
 
 ----------------------------------------------------------------------
-Ran 129 tests in 0.203s
+Ran 129 tests in 0.232s
 
 OK
 {
-  "generated_at_utc": "2026-08-05T13:08:19+00:00",
+  "generated_at_utc": "2026-08-05T13:09:39+00:00",
   "passing": 2,
   "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
   "schema_version": 2,
