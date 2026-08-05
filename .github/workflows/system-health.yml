@@ -5,27 +5,35 @@ on:
     branches:
       - main
     paths:
+      - wickless_bot.py
       - production_session.py
       - live_scan.py
       - autoresearch/**
+      - wickless_ml/**
       - scripts/**
       - tests/**
       - .github/workflows/live-signals.yml
       - .github/workflows/autoresearch-nightly.yml
       - .github/workflows/scanner-health.yml
+      - .github/workflows/ml-learning.yml
+      - .github/workflows/ml-live-monitor.yml
       - .github/workflows/system-health.yml
   pull_request:
     branches:
       - main
     paths:
+      - wickless_bot.py
       - production_session.py
       - live_scan.py
       - autoresearch/**
+      - wickless_ml/**
       - scripts/**
       - tests/**
       - .github/workflows/live-signals.yml
       - .github/workflows/autoresearch-nightly.yml
       - .github/workflows/scanner-health.yml
+      - .github/workflows/ml-learning.yml
+      - .github/workflows/ml-live-monitor.yml
       - .github/workflows/system-health.yml
   schedule:
     - cron: "15 7 * * *"
@@ -55,7 +63,7 @@ jobs:
           python -m compileall -q \
             wickless_bot.py no_wick_research.py live_data.py live_scan.py \
             run_daemon.py production_session.py time_display.py \
-            autoresearch scripts tests
+            autoresearch wickless_ml scripts tests
           python -m unittest discover -s tests -v
 
       - name: Audit production and automation invariants
