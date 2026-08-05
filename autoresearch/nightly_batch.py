@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo
 
 from autoresearch.attempts import idea_category, parameter_categories, read_attempts
 from autoresearch.coach import playbook_guidance, run_coach_if_due
-from autoresearch.evaluator import load_candidate
+from autoresearch.evaluator import load_candidate, load_policy, objective_tuple
 from autoresearch.run_experiment import _read_ledger, main as run_experiment
 
 
@@ -174,9 +174,70 @@ def _metric(value: float | None) -> str:
     return f"{value:+.2f}R"
 
 
+def select_best_experiment(
+    outputs: list[dict[str, Any]], policy: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Return the strongest experiment using the evaluator's objective order."""
+
+    if not outputs:
+        return None
+    return max(outputs, key=lambda output: objective_tuple(output, policy))
+
+
+def _name(result: dict[str, Any]) -> str:
+    return str(result.get("name") or result.get("candidate") or "unknown")
+
+
+def _result_lines(label: str, result: dict[str, Any]) -> tuple[str, str, str, str]:
+    folds = result["folds"]
+    overall = result["overall"]
+    return (
+        f"**{label} — {_name(result)}**",
+        (
+            f"June: {folds['june_2026']['trades']} trades, "
+            f"{_metric(folds['june_2026']['net_r'])}"
+        ),
+        (
+            f"July: {folds['july_2026']['trades']} trades, "
+            f"{_metric(folds['july_2026']['net_r'])}"
+        ),
+        (
+            f"Overall: {overall['trades']} trades, "
+            f"{_metric(overall['net_r'])}, "
+            f"drawdown {overall['maximum_drawdown_r']:.2f}R"
+        ),
+    )
+
+
+def _delta_line(benchmark: dict[str, Any], best: dict[str, Any]) -> str:
+    benchmark_folds = benchmark["folds"]
+    best_folds = best["folds"]
+    return (
+        "Δ vs benchmark: "
+        f"June {_metric(best_folds['june_2026']['net_r'] - benchmark_folds['june_2026']['net_r'])} | "
+        f"July {_metric(best_folds['july_2026']['net_r'] - benchmark_folds['july_2026']['net_r'])} | "
+        f"Overall {_metric(best['overall']['net_r'] - benchmark['overall']['net_r'])} | "
+        f"Drawdown {_metric(best['overall']['maximum_drawdown_r'] - benchmark['overall']['maximum_drawdown_r'])}"
+    )
+
+
+def _decision_line(best: dict[str, Any]) -> str:
+    status = str(best.get("status", "unknown")).upper()
+    if status == "KEEP":
+        return "Decision: **KEPT**"
+    failed = [
+        name.replace("_", " ")
+        for name, passed in best.get("acceptance_gates", {}).get("checks", {}).items()
+        if not passed
+    ]
+    if failed:
+        return f"Decision: **{status}** — failed: {', '.join(failed)}"
+    return f"Decision: **{status}** — did not beat the benchmark objective"
+
+
 def discord_summary(summary: dict[str, Any]) -> str:
-    incumbent = summary["incumbent"]
-    folds = incumbent["folds"]
+    benchmark = summary.get("benchmark", summary["incumbent"])
+    best = summary.get("best_experiment")
     coach_runs = summary.get("coach_runs", [])
     if coach_runs:
         changed = sum(bool(row["changed"]) for row in coach_runs)
@@ -186,31 +247,28 @@ def discord_summary(summary: dict[str, Any]) -> str:
         )
     else:
         coach_line = "Coach: interval not reached"
-    return "\n".join(
+
+    lines = [
+        f"🔬 **Wickless nightly autoresearch — {summary['london_date']}**",
         (
-            f"🔬 **Wickless nightly autoresearch — {summary['london_date']}**",
+            f"Tested **{summary['tested']}** | KEEP **{summary['kept']}** | "
+            f"REJECT **{summary['rejected']}**"
+        ),
+        coach_line,
+        *_result_lines("Benchmark", benchmark),
+    ]
+    if best is None:
+        lines.append("**Best tonight — no experiment completed**")
+    else:
+        lines.extend(
             (
-                f"Tested **{summary['tested']}** | KEEP **{summary['kept']}** | "
-                f"REJECT **{summary['rejected']}**"
-            ),
-            coach_line,
-            f"Best candidate: **{incumbent['name']}**",
-            (
-                f"June: {folds['june_2026']['trades']} trades, "
-                f"{_metric(folds['june_2026']['net_r'])}"
-            ),
-            (
-                f"July: {folds['july_2026']['trades']} trades, "
-                f"{_metric(folds['july_2026']['net_r'])}"
-            ),
-            (
-                f"Overall: {incumbent['overall']['trades']} trades, "
-                f"{_metric(incumbent['overall']['net_r'])}, "
-                f"drawdown {incumbent['overall']['maximum_drawdown_r']:.2f}R"
-            ),
-            f"Results: {REPOSITORY_URL}/tree/{NIGHTLY_BRANCH}",
+                *_result_lines("Best tonight", best),
+                _delta_line(benchmark, best),
+                _decision_line(best),
+            )
         )
-    )
+    lines.append(f"Results: {REPOSITORY_URL}/tree/{NIGHTLY_BRANCH}")
+    return "\n".join(lines)
 
 
 def keep_message(output: dict[str, Any]) -> str:
@@ -265,6 +323,8 @@ def main(argv: list[str] | None = None) -> int:
     if not 1 <= args.batch_size <= 20:
         raise ValueError("--batch-size must be between 1 and 20")
 
+    policy = load_policy(args.policy)
+    benchmark = _incumbent_summary(args.incumbent) if args.incumbent.exists() else None
     outputs: list[dict[str, Any]] = []
     coach_outputs: list[dict[str, Any]] = []
 
@@ -331,6 +391,9 @@ def main(argv: list[str] | None = None) -> int:
         coach_cycle()
 
     incumbent = _incumbent_summary(args.incumbent)
+    if benchmark is None:
+        benchmark = incumbent
+    best_experiment = select_best_experiment(outputs, policy)
     incumbent_proposal = Proposal(
         name=incumbent["name"],
         description=incumbent["description"],
@@ -352,6 +415,8 @@ def main(argv: list[str] | None = None) -> int:
         ),
         "experiments": outputs,
         "coach_runs": coach_outputs,
+        "benchmark": benchmark,
+        "best_experiment": best_experiment,
         "incumbent": incumbent,
     }
     args.runs.mkdir(parents=True, exist_ok=True)
