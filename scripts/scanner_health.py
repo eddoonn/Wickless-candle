@@ -355,19 +355,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if report["needs_recovery"]:
         before_ids = {int(row["id"]) for row in runs}
-        active = report.get("latest_active")
-        active_id = int(active["id"]) if active else None
-        if active_id is None:
-            dispatch_workflow(args.repository, token, args.workflow, args.ref)
-            recovery_mode = "dispatched"
-        else:
-            recovery_mode = "waited for active scan"
+        dispatch_workflow(args.repository, token, args.workflow, args.ref)
+        recovery_mode = "dispatched"
         recovery = wait_for_recovery(
             args.repository,
             token,
             args.workflow,
             before_ids=before_ids,
-            existing_active_id=active_id,
+            existing_active_id=None,
             timeout_seconds=args.recovery_timeout_seconds,
         )
         refreshed_now = datetime.now(UTC)
