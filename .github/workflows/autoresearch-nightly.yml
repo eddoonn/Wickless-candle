@@ -170,6 +170,7 @@ jobs:
 
       - name: Notify Discord of refreshed benchmark
         if: env.REFRESH_BASELINE == 'true'
+        continue-on-error: true
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         shell: bash
@@ -177,6 +178,7 @@ jobs:
           python - <<'PY'
           import json
           import os
+          import urllib.error
           import urllib.request
 
           result = json.load(open("/tmp/baseline-refresh.json", encoding="utf-8"))
@@ -203,18 +205,28 @@ jobs:
               headers={"Content-Type": "application/json"},
               method="POST",
           )
-          urllib.request.urlopen(request, timeout=20).read()
+          try:
+              urllib.request.urlopen(request, timeout=20).read()
+          except urllib.error.HTTPError as error:
+              print(f"Discord benchmark notification failed: HTTP {error.code}")
+          except urllib.error.URLError as error:
+              print(f"Discord benchmark notification failed: {error.reason}")
           PY
 
       - name: Alert Discord if the batch fails
         if: failure()
+        continue-on-error: true
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         shell: bash
         run: |
           python - <<'PY'
-          import json, os, urllib.request
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
           webhook = os.environ.get("DISCORD_WEBHOOK_URL")
           if webhook:
               message = "❌ **Wickless nightly autoresearch failed**\n" + os.environ["RUN_URL"]
@@ -224,5 +236,10 @@ jobs:
                   headers={"Content-Type": "application/json"},
                   method="POST",
               )
-              urllib.request.urlopen(request, timeout=20).read()
+              try:
+                  urllib.request.urlopen(request, timeout=20).read()
+              except urllib.error.HTTPError as error:
+                  print(f"Discord failure alert failed: HTTP {error.code}")
+              except urllib.error.URLError as error:
+                  print(f"Discord failure alert failed: {error.reason}")
           PY
