@@ -20,12 +20,18 @@ from autoresearch.evaluator import (
     report_digest,
     validate_parameters,
 )
-from autoresearch.nightly_batch import Proposal, parameter_signature, proposal_space
+from autoresearch.nightly_batch import (
+    LOCKED_SESSION_PARAMETERS,
+    Proposal,
+    parameter_signature,
+    proposal_space,
+)
 from autoresearch.run_experiment import (
     _append_ledger,
     _read_ledger,
     _write_json_atomic,
 )
+from production_session import PRODUCTION_RELEASE_SHA
 
 UTC = timezone.utc
 HERE = Path(__file__).resolve().parent
@@ -47,7 +53,7 @@ def _candidate(name: str, description: str, parameters: dict[str, Any]) -> Candi
 
 
 def frequency_proposals() -> list[Proposal]:
-    """Return focused combinations intended to lift monthly trade frequency."""
+    """Return fixed-session combinations intended to lift monthly trade frequency."""
 
     rows: list[Proposal] = []
     values = itertools.product(
@@ -55,24 +61,37 @@ def frequency_proposals() -> list[Proposal]:
         (0.40, 0.44),
         (2.20, 3.00),
         (0.12, 0.16, 0.20),
-        (("00:00", "16:00"), ("00:00", "23:45"), ("04:00", "16:00")),
         ("ema_slope", "none"),
+        (0.5, 1.0),
+        (1.25, 1.75),
     )
-    for index, (body, minimum_range, maximum_range, close, session, trend) in enumerate(values, 1):
-        start, end = session
+    for index, (
+        body,
+        minimum_range,
+        maximum_range,
+        close,
+        trend,
+        tolerance,
+        maximum_wick,
+    ) in enumerate(values, 1):
         parameters = {
             "minimum_body_ratio": body,
             "minimum_range_atr": minimum_range,
             "maximum_range_atr": maximum_range,
             "close_location_fraction": close,
-            "session_start": start,
-            "session_end": end,
             "trend_filter": trend,
+            "tolerance_ticks": tolerance,
+            "maximum_wick_ticks": maximum_wick,
         }
+        if LOCKED_SESSION_PARAMETERS.intersection(parameters):
+            raise RuntimeError("Locked production session reached bootstrap proposals")
         rows.append(
             Proposal(
                 name=f"bootstrap-{index:04d}",
-                description="Frequency-focused bootstrap search candidate.",
+                description=(
+                    "Frequency-focused bootstrap candidate using the fixed London "
+                    "and New York production session union."
+                ),
                 parameters=parameters,
             )
         )
@@ -185,16 +204,18 @@ def main(argv: list[str] | None = None) -> int:
             flush=True,
         )
 
-    _write_json_atomic(args.results, {"schema_version": 1, "results": compact_results})
+    _write_json_atomic(args.results, {"schema_version": 2, "results": compact_results})
     winner = best_report
     generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
     if winner is None:
         summary = {
-            "schema_version": 1,
+            "schema_version": 2,
             "generated_at_utc": generated_at,
+            "production_release_sha": PRODUCTION_RELEASE_SHA,
             "tested": len(compact_results),
             "passing": 0,
             "selected": None,
+            "session_policy": "fixed London-or-New-York production union",
         }
         _write_json_atomic(args.summary, summary)
         print(json.dumps(summary, indent=2, sort_keys=True))
@@ -219,14 +240,16 @@ def main(argv: list[str] | None = None) -> int:
     args.runs.mkdir(parents=True, exist_ok=True)
     _write_json_atomic(args.runs / f"{run_id}.json", baseline_report)
     record = {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_id": run_id,
         "generated_at_utc": generated_at,
         "commit": "bootstrap-search",
+        "production_release_sha": PRODUCTION_RELEASE_SHA,
         "candidate": baseline_report["candidate"],
         "category": "baseline",
         "score": format_score(baseline_report["objective"]),
         "status": "keep",
+        "effect": "baseline",
         "report_sha256": report_digest(baseline_report),
         "objective": baseline_report["objective"],
         "acceptance_gates": baseline_report["acceptance_gates"],
@@ -238,9 +261,10 @@ def main(argv: list[str] | None = None) -> int:
     _write_json_atomic(
         args.incumbent,
         {
-            "schema_version": 1,
+            "schema_version": 2,
             "updated_at_utc": generated_at,
             "source_run_id": run_id,
+            "production_release_sha": PRODUCTION_RELEASE_SHA,
             "bootstrap_source": selected_source["name"],
             "report": baseline_report,
         },
@@ -248,10 +272,12 @@ def main(argv: list[str] | None = None) -> int:
     records, _ = _read_ledger(args.ledger)
     sync_attempts_from_ledger(args.attempts, records)
     summary = {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at_utc": generated_at,
+        "production_release_sha": PRODUCTION_RELEASE_SHA,
         "tested": len(compact_results),
         "passing": passing_count,
+        "session_policy": "fixed London-or-New-York production union",
         "selected": {
             "source_candidate": selected_source["name"],
             "parameters": baseline_report["candidate"]["parameters"],

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from autoresearch.attempts import format_score, sync_attempts_from_ledger
+from autoresearch.behavior import behavior_digest
 from autoresearch.evaluator import Candidate, evaluate, load_policy, report_digest
 from autoresearch.run_experiment import (
     _append_ledger,
@@ -43,6 +44,8 @@ def _load_usable_incumbent(path: Path) -> dict[str, Any] | None:
         return None
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
+        if payload.get("production_release_sha") != PRODUCTION_RELEASE_SHA:
+            return None
         report = payload["report"]
         candidate = report["candidate"]
         if not isinstance(candidate["name"], str) or not candidate["name"]:
@@ -67,7 +70,7 @@ def ensure_reference_benchmark(
     attempts_path: Path,
     force: bool = False,
 ) -> tuple[dict[str, Any], bool]:
-    """Return an incumbent, creating production defaults as a reference when needed.
+    """Return a release-current incumbent, creating a reference when needed.
 
     Acceptance gates continue to apply to every experiment. The reference benchmark
     is allowed to miss a newer candidate gate because it is the comparison point,
@@ -89,14 +92,17 @@ def ensure_reference_benchmark(
     runs_path.mkdir(parents=True, exist_ok=True)
     _write_json_atomic(runs_path / f"{run_id}.json", report)
     record = {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_id": run_id,
         "generated_at_utc": generated_at,
         "commit": commit,
+        "production_release_sha": PRODUCTION_RELEASE_SHA,
         "candidate": report["candidate"],
         "category": "baseline",
         "score": format_score(report["objective"]),
         "status": "keep",
+        "effect": "baseline",
+        "behavior_sha256": behavior_digest(report),
         "benchmark_role": "production-reference",
         "report_sha256": report_digest(report),
         "objective": report["objective"],
@@ -108,9 +114,10 @@ def ensure_reference_benchmark(
     }
     _append_ledger(ledger_path, record)
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "updated_at_utc": generated_at,
         "source_run_id": run_id,
+        "production_release_sha": PRODUCTION_RELEASE_SHA,
         "benchmark_role": "production-reference",
         "report": report,
     }
@@ -146,6 +153,7 @@ def main(argv: list[str] | None = None) -> int:
     report = payload["report"]
     output = {
         "created": created,
+        "production_release_sha": payload["production_release_sha"],
         "benchmark_role": payload.get("benchmark_role", "promoted-incumbent"),
         "candidate": report["candidate"]["name"],
         "acceptance_gates": report["acceptance_gates"],

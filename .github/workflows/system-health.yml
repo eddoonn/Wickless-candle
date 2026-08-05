@@ -1,0 +1,131 @@
+name: Wickless system health
+
+on:
+  push:
+    branches:
+      - main
+      - autoresearch/framework-v1
+    paths:
+      - production_session.py
+      - live_scan.py
+      - autoresearch/**
+      - scripts/**
+      - tests/**
+      - .github/workflows/live-signals.yml
+      - .github/workflows/autoresearch-nightly.yml
+      - .github/workflows/scanner-health.yml
+      - .github/workflows/system-health.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - production_session.py
+      - live_scan.py
+      - autoresearch/**
+      - scripts/**
+      - tests/**
+      - .github/workflows/live-signals.yml
+      - .github/workflows/autoresearch-nightly.yml
+      - .github/workflows/scanner-health.yml
+      - .github/workflows/system-health.yml
+  schedule:
+    - cron: "15 7 * * *"
+      timezone: "Europe/London"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wickless-system-health-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile and test repository contracts
+        run: |
+          python -m compileall -q \
+            wickless_bot.py no_wick_research.py live_data.py live_scan.py \
+            run_daemon.py production_session.py time_display.py \
+            autoresearch scripts tests
+          python -m unittest discover -s tests -v
+
+      - name: Audit production and automation invariants
+        run: |
+          mkdir -p .runtime-output
+          python scripts/system_health.py --output .runtime-output/system-health.json
+
+      - name: Write health summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -s .runtime-output/system-health.json ]]; then
+            python - <<'PY'
+          import json
+          import os
+
+          report = json.load(open(".runtime-output/system-health.json", encoding="utf-8"))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+              handle.write("# Wickless system health\n\n")
+              handle.write(f"Healthy: **{report['healthy']}**  \n")
+              handle.write(f"Failures: **{report['failures']}**  \n")
+              handle.write(f"Warnings: **{report['warnings']}**  \n\n")
+              for check in report["checks"]:
+                  handle.write(
+                      f"- **{check['status'].upper()}** `{check['name']}` — "
+                      f"{check['detail']}\n"
+                  )
+          PY
+          fi
+
+      - name: Upload health audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-health-${{ github.run_id }}
+          path: .runtime-output/system-health.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Alert Discord if system health fails
+        if: failure() && github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+          if not webhook:
+              raise SystemExit(0)
+          message = "❌ **Wickless system health failed**\n" + os.environ["RUN_URL"]
+          request = urllib.request.Request(
+              webhook,
+              data=json.dumps(
+                  {"content": message, "allowed_mentions": {"parse": []}}
+              ).encode("utf-8"),
+              headers={
+                  "Content-Type": "application/json",
+                  "User-Agent": "wickless-system-health/1",
+              },
+              method="POST",
+          )
+          try:
+              urllib.request.urlopen(request, timeout=20).read()
+          except (urllib.error.HTTPError, urllib.error.URLError) as error:
+              print(f"Discord health alert failed: {error}")
+          PY

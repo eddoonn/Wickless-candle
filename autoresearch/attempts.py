@@ -24,18 +24,19 @@ CATEGORY_DIRECTIONS: dict[str, str] = {
         "Test candle body, range, and close-location filters as one coherent quality idea."
     ),
     "trend-filter": (
-        "Test EMA horizon or slope confirmation without changing execution or risk rules."
+        "Test EMA horizon, slope confirmation, or disabling the trend filter."
     ),
-    "session-window": (
-        "Test materially different session boundaries rather than small repeats of one window."
-    ),
-    "entry-geometry": (
-        "Test how far price may displace from the origin before an entry becomes invalid."
+    "entry-model": (
+        "Test coherent reclaim or origin-limit entry geometry without changing risk rules."
     ),
     "wick-detection": (
         "Test wick and rounding tolerance while preserving the opening-side wickless rule."
     ),
 }
+
+# Historical rows remain readable, but locked production sessions are no longer
+# an active research category and cannot be selected by the coach.
+LEGACY_CATEGORIES = frozenset({"session-window"})
 
 PARAMETER_CATEGORIES = {
     "minimum_body_ratio": "candle-quality",
@@ -44,9 +45,14 @@ PARAMETER_CATEGORIES = {
     "close_location_fraction": "candle-quality",
     "ema_length": "trend-filter",
     "ema_slope_lookback": "trend-filter",
-    "session_start": "session-window",
-    "session_end": "session-window",
-    "maximum_entry_displacement_atr": "entry-geometry",
+    "trend_filter": "trend-filter",
+    "entry_model": "entry-model",
+    "expiry_bars": "entry-model",
+    "origin_zone_atr_fraction": "entry-model",
+    "origin_zone_minimum_ticks": "entry-model",
+    "reclaim_buffer_ticks": "entry-model",
+    "maximum_entry_displacement_atr": "entry-model",
+    "invalidate_on_trend_change": "entry-model",
     "tolerance_ticks": "wick-detection",
     "maximum_wick_ticks": "wick-detection",
 }
@@ -63,6 +69,13 @@ class Attempt:
     @property
     def kept(self) -> bool:
         return self.decision == "KEPT"
+
+
+def _category_is_valid(category: str) -> bool:
+    if category in {"baseline", "uncategorized"}:
+        return True
+    allowed = set(CATEGORY_DIRECTIONS) | set(LEGACY_CATEGORIES)
+    return all(part in allowed for part in category.split("+"))
 
 
 def parameter_categories(parameters: dict[str, Any]) -> tuple[str, ...]:
@@ -134,9 +147,7 @@ def append_attempt(
     if decision is None:
         raise ValueError(f"Unsupported attempt status: {status}")
     datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-    if category not in {"baseline", "uncategorized"} and any(
-        part not in CATEGORY_DIRECTIONS for part in category.split("+")
-    ):
+    if not _category_is_valid(category):
         raise ValueError(f"Unsupported attempt category: {category}")
     parse_score(score)
     attempt = Attempt(
@@ -176,9 +187,7 @@ def read_attempts(path: Path) -> list[Attempt]:
                 )
             timestamp, description, category, score, decision = row
             datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-            if category not in {"baseline", "uncategorized"} and any(
-                part not in CATEGORY_DIRECTIONS for part in category.split("+")
-            ):
+            if not _category_is_valid(category):
                 raise ValueError(
                     f"attempts.log line {line_number} has invalid category {category}"
                 )
@@ -236,4 +245,3 @@ def sync_attempts_from_ledger(
             status="keep" if attempt.kept else "discard",
         )
     return len(expected) - len(existing)
-

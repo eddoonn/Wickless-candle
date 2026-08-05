@@ -110,7 +110,7 @@ def load_policy(path: Path = DEFAULT_POLICY) -> dict[str, Any]:
     if policy.get("schema_version") != 1:
         raise ValueError("Unsupported autoresearch policy schema")
     if policy.get("production_baseline_sha") != (
-        "12250ed9e7698e9b7e57341f09d23372cb7ba1cc"
+        "9ddd1b44aee10467247fda4627bc472ed1ff4132"
     ):
         raise ValueError("Policy is not pinned to the reviewed production baseline")
     return policy
