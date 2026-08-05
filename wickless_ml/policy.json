@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "profile": "wickless-meta-label-learning-v1",
+  "training": {
+    "minimum_total_samples": 60,
+    "minimum_training_samples": 35,
+    "minimum_calibration_samples": 10,
+    "minimum_holdout_samples": 10,
+    "l2_penalty": 0.08,
+    "iterations": 900,
+    "learning_rate": 0.08,
+    "minimum_filter_coverage": 0.25,
+    "maximum_filter_coverage": 0.8,
+    "minimum_filtered_holdout_trades": 10,
+    "maximum_expected_calibration_error": 0.18,
+    "minimum_expectancy_improvement_r": 0.0,
+    "maximum_ood_score": 3.5
+  },
+  "deployment": {
+    "automatic_canary_enabled": true,
+    "automatic_active_enabled": true,
+    "canary_percent": 20,
+    "minimum_shadow_outcomes": 50,
+    "minimum_canary_outcomes": 30,
+    "minimum_live_filter_coverage": 0.2,
+    "maximum_live_filter_coverage": 0.85,
+    "maximum_live_expected_calibration_error": 0.15,
+    "maximum_live_ood_rate": 0.25,
+    "minimum_live_expectancy_improvement_r": 0.0,
+    "rollback_window": 30,
+    "rollback_maximum_expected_calibration_error": 0.22,
+    "rollback_maximum_ood_rate": 0.35
+  }
+}
