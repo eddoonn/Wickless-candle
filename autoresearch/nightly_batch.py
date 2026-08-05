@@ -24,7 +24,12 @@ from autoresearch.attempts import idea_category, parameter_categories, read_atte
 from autoresearch.behavior import behavior_digest
 from autoresearch.coach import playbook_guidance, run_coach_if_due
 from autoresearch.evaluator import load_candidate, load_policy, objective_tuple
-from autoresearch.run_experiment import _read_ledger, main as run_experiment
+from autoresearch.phase2_optimizer import CandidatePoint, select_with_surrogate
+from autoresearch.run_experiment import (
+    _read_ledger,
+    _write_json_atomic,
+    main as run_experiment,
+)
 
 
 UTC = timezone.utc
@@ -40,6 +45,12 @@ class Proposal:
     name: str
     description: str
     parameters: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class BatchPlan:
+    proposals: list[Proposal]
+    optimizer: dict[str, Any]
 
 
 # Values intentionally exclude the reviewed defaults. London and New York clocks
@@ -246,6 +257,100 @@ def select_proposals(
     return selected
 
 
+def _eligible_candidate_points(
+    ledger: Path,
+    playbook: Path,
+) -> list[tuple[Proposal, CandidatePoint]]:
+    tested = tested_signatures(ledger)
+    priorities, blocked = playbook_guidance(playbook)
+    priority_order = {category: index for index, category in enumerate(priorities)}
+    eligible: list[tuple[Proposal, CandidatePoint]] = []
+    for original_index, proposal in enumerate(proposal_space()):
+        if parameter_signature(proposal.parameters) in tested:
+            continue
+        categories = parameter_categories(proposal.parameters)
+        if any(category in blocked for category in categories):
+            continue
+        ranks = [priority_order[category] for category in categories if category in priority_order]
+        priority_rank = min(ranks) if ranks else len(priority_order)
+        eligible.append(
+            (
+                proposal,
+                CandidatePoint(
+                    name=proposal.name,
+                    parameters=proposal.parameters,
+                    category=idea_category(proposal.parameters),
+                    priority_rank=priority_rank,
+                    original_index=original_index,
+                ),
+            )
+        )
+    return eligible
+
+
+def plan_proposals(
+    ledger: Path,
+    batch_size: int,
+    playbook: Path,
+    *,
+    policy: dict[str, Any],
+    incumbent_objective: dict[str, Any] | None,
+    optimizer_policy: dict[str, Any] | None,
+) -> BatchPlan:
+    """Use Phase 2 when trained; otherwise preserve diversified selection."""
+
+    fallback = select_proposals(ledger, batch_size, playbook)
+    records, _ = _read_ledger(ledger)
+    eligible = _eligible_candidate_points(ledger, playbook)
+    scored = []
+    diagnostics: dict[str, Any]
+    if incumbent_objective is None:
+        diagnostics = {
+            "schema_version": 1,
+            "model_version": "phase2-constrained-kernel-v1",
+            "mode": "diversified-fallback",
+            "observations": 0,
+            "candidate_pool": len(eligible),
+            "reason": "incumbent objective is unavailable",
+            "exploit_count": 0,
+            "explore_count": len(fallback),
+            "selected": [],
+        }
+    else:
+        scored, diagnostics = select_with_surrogate(
+            [point for _, point in eligible],
+            records,
+            incumbent_objective,
+            policy,
+            batch_size,
+            optimizer_policy,
+        )
+    if scored:
+        proposals_by_name = {proposal.name: proposal for proposal, _ in eligible}
+        planned = [proposals_by_name[row.candidate.name] for row in scored]
+    else:
+        planned = fallback
+    diagnostics = dict(diagnostics)
+    diagnostics["planned_candidates"] = [
+        {
+            "name": proposal.name,
+            "parameters": proposal.parameters,
+            "selection": (
+                next(
+                    (
+                        row.selection
+                        for row in scored
+                        if row.candidate.name == proposal.name
+                    ),
+                    "diversified",
+                )
+            ),
+        }
+        for proposal in planned
+    ]
+    return BatchPlan(proposals=planned, optimizer=diagnostics)
+
+
 def render_candidate(proposal: Proposal) -> str:
     payload = {
         "name": proposal.name,
@@ -429,6 +534,20 @@ def discord_summary(summary: dict[str, Any]) -> str:
     coverage = ", ".join(
         f"{name} {count}" for name, count in summary.get("category_counts", {}).items()
     ) or "none"
+    optimizer = summary.get("optimizer", {})
+    optimizer_mode = optimizer.get("mode", "unknown")
+    if optimizer_mode == "constrained-surrogate":
+        optimizer_line = (
+            f"Optimizer: Phase 2 | exploit {optimizer.get('exploit_count', 0)} | "
+            f"explore {optimizer.get('explore_count', 0)} | "
+            f"observations {optimizer.get('observations', 0)}"
+        )
+    else:
+        optimizer_line = (
+            f"Optimizer: diversified fallback | observations "
+            f"{optimizer.get('observations', 0)}/"
+            f"{optimizer.get('minimum_observations', 'n/a')}"
+        )
     lines = [
         f"🔬 **Wickless nightly autoresearch — {summary['london_date']}**",
         (
@@ -437,6 +556,7 @@ def discord_summary(summary: dict[str, Any]) -> str:
             f"No effect **{summary['no_effect']}** | KEEP **{summary['kept']}**"
         ),
         f"Coverage: {coverage}",
+        optimizer_line,
         coach_line,
         *_result_lines("Benchmark", benchmark),
     ]
@@ -493,6 +613,8 @@ def _incumbent_summary(path: Path) -> dict[str, Any]:
             name: value["metrics"] for name, value in report["folds"].items()
         },
         "acceptance_gates": report["acceptance_gates"],
+        "objective": report["objective"],
+        "validation": report.get("validation"),
     }
 
 
@@ -507,6 +629,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--runs", type=Path, default=HERE / "runs")
     parser.add_argument("--attempts", type=Path, default=HERE / "attempts.log")
     parser.add_argument("--playbook", type=Path, default=HERE / "playbook.md")
+    parser.add_argument(
+        "--optimizer-policy",
+        type=Path,
+        default=HERE / "optimizer_policy.json",
+    )
+    parser.add_argument(
+        "--optimizer-state",
+        type=Path,
+        default=HERE / "runs" / "optimizer-state.json",
+    )
     parser.add_argument("--coach-state", type=Path, default=HERE / "coach_state.json")
     parser.add_argument("--coach-interval", type=int, default=20)
     parser.add_argument("--git-commits", action="store_true")
@@ -541,7 +673,17 @@ def main(argv: list[str] | None = None) -> int:
             )
 
     coach_cycle()
-    planned = select_proposals(args.ledger, args.batch_size, args.playbook)
+    optimizer_policy = json.loads(args.optimizer_policy.read_text(encoding="utf-8"))
+    plan = plan_proposals(
+        args.ledger,
+        args.batch_size,
+        args.playbook,
+        policy=policy,
+        incumbent_objective=(benchmark["objective"] if benchmark else None),
+        optimizer_policy=optimizer_policy,
+    )
+    planned = plan.proposals
+    optimizer_diagnostics = plan.optimizer
     for proposal in planned:
         write_candidate(args.candidate, proposal)
         commit = None
@@ -609,6 +751,22 @@ def main(argv: list[str] | None = None) -> int:
         output["effect"] == "funnel-only" for output in outputs
     )
     no_effect = sum(output["effect"] == "no-effect" for output in outputs)
+    optimizer_state = {
+        **optimizer_diagnostics,
+        "generated_at_utc": generated.isoformat(),
+        "generated_at_london": generated.astimezone(LONDON).isoformat(),
+        "outcomes": [
+            {
+                "candidate": output["candidate"],
+                "status": output["status"],
+                "effect": output["effect"],
+                "acceptance_passed": output["acceptance_gates"]["passed"],
+                "objective": output["objective"],
+            }
+            for output in outputs
+        ],
+    }
+    _write_json_atomic(args.optimizer_state, optimizer_state)
     summary = {
         "schema_version": 2,
         "generated_at_utc": generated.isoformat(),
@@ -628,6 +786,7 @@ def main(argv: list[str] | None = None) -> int:
         ),
         "experiments": outputs,
         "coach_runs": coach_outputs,
+        "optimizer": optimizer_state,
         "benchmark": benchmark,
         "best_experiment": best_experiment,
         "incumbent": incumbent,

@@ -63,12 +63,13 @@ class CandidateScore:
         return payload
 
 
-def phase2_settings(policy: dict[str, Any]) -> dict[str, Any] | None:
-    value = policy.get("phase2_optimization")
+def phase2_settings(value: dict[str, Any] | None) -> dict[str, Any] | None:
     if value is None:
         return None
     if not isinstance(value, dict):
-        raise ValueError("phase2_optimization must be an object")
+        raise ValueError("Phase 2 optimizer policy must be an object")
+    if value.get("schema_version") != 1:
+        raise ValueError("Unsupported Phase 2 optimizer policy schema")
     required = {
         "profile",
         "minimum_observations",
@@ -80,7 +81,7 @@ def phase2_settings(policy: dict[str, Any]) -> dict[str, Any] | None:
     }
     missing = sorted(required - set(value))
     if missing:
-        raise ValueError("phase2_optimization is missing: " + ", ".join(missing))
+        raise ValueError("Phase 2 optimizer policy is missing: " + ", ".join(missing))
     exploration = float(value["exploration_fraction"])
     if not 0.20 <= exploration <= 0.50:
         raise ValueError("Phase 2 exploration_fraction must be between 0.20 and 0.50")
@@ -319,10 +320,11 @@ def select_with_surrogate(
     incumbent_objective: dict[str, Any],
     policy: dict[str, Any],
     batch_size: int,
+    optimizer_policy: dict[str, Any] | None = None,
 ) -> tuple[list[CandidateScore], dict[str, Any]]:
     """Select an exploitation/exploration batch from the bounded proposal pool."""
 
-    settings = phase2_settings(policy)
+    settings = phase2_settings(optimizer_policy)
     profile_sha = policy_profile_sha256(policy)
     if settings is None:
         return [], {
@@ -332,7 +334,7 @@ def select_with_surrogate(
             "profile_sha256": profile_sha,
             "observations": 0,
             "candidate_pool": len(candidates),
-            "reason": "phase2_optimization is not configured",
+            "reason": "Phase 2 optimizer policy is not configured",
         }
     observations = comparable_observations(records, policy)
     minimum = int(settings["minimum_observations"])

@@ -20,6 +20,7 @@ from autoresearch.bootstrap_benchmark import bootstrap_proposal_space
 from autoresearch.evaluator import load_candidate, load_policy
 from autoresearch.nightly_batch import LOCKED_SESSION_PARAMETERS, proposal_space
 from autoresearch.phase1_validation import policy_profile_sha256
+from autoresearch.phase2_optimizer import MODEL_VERSION, phase2_settings
 from autoresearch.reference_benchmark import PRODUCTION_BASELINE_SHA
 from production_session import PRODUCTION_RELEASE_SHA, SESSION_LABEL
 
@@ -49,6 +50,16 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
     ]
     policy = load_policy(root / "autoresearch" / "policy.json")
     phase1_policy = load_policy(root / "autoresearch" / "walk_forward_policy.json")
+    optimizer_policy = json.loads(
+        (root / "autoresearch" / "optimizer_policy.json").read_text(encoding="utf-8")
+    )
+    optimizer_settings = phase2_settings(optimizer_policy)
+    optimizer_source = (root / "autoresearch" / "phase2_optimizer.py").read_text(
+        encoding="utf-8"
+    )
+    nightly_source = (root / "autoresearch" / "nightly_batch.py").read_text(
+        encoding="utf-8"
+    )
     policy_release = policy["production_baseline_sha"]
     phase1_release = phase1_policy["production_baseline_sha"]
     phase1_profile = policy_profile_sha256(phase1_policy)
@@ -129,6 +140,21 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
             (
                 f"folds={len(phase1_folds)} profile="
                 f"{phase1_policy['phase1_validation']['profile']}"
+            ),
+        ),
+        _check(
+            "phase2_constrained_optimizer",
+            optimizer_settings is not None
+            and optimizer_settings["profile"] == "phase2-constrained-surrogate-v1"
+            and float(optimizer_settings["exploration_fraction"]) >= 0.20
+            and int(optimizer_settings["minimum_observations"]) >= 4
+            and "validation_profile_sha256" in optimizer_source
+            and "select_with_surrogate" in nightly_source
+            and "optimizer-state.json" in nightly_source
+            and "candidate_beats" not in optimizer_source,
+            (
+                f"model={MODEL_VERSION} exploration="
+                f"{optimizer_settings['exploration_fraction'] if optimizer_settings else 'invalid'}"
             ),
         ),
         _check(
@@ -237,6 +263,8 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
         "regular_proposals": len(regular),
         "bootstrap_proposals": len(bootstrap),
         "phase1_validation_profile_sha256": phase1_profile,
+        "phase2_model_version": MODEL_VERSION,
+        "phase2_optimizer_profile": (optimizer_settings or {}).get("profile"),
         "checks": [asdict(check) for check in checks],
     }
 

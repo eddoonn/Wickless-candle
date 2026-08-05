@@ -17,6 +17,6 @@ The original June and July minimums remain fixed at 10 trades each. Candidates m
 
 ## Attempt loop
 
-Temporarily edit only the literal `candidate.py`, evaluate it with the Phase 1 walk-forward policy, append the report and ledgers, and keep only candidates that pass every gate and beat the incumbent. Neighbourhood backtests run only after the main candidate passes its base gates. After the batch, restore the neutral production candidate. The workflow verifies the changed-file allowlist before committing one audit update to `main`.
+Temporarily edit only the literal `candidate.py`, evaluate it with the Phase 1 walk-forward policy, append the report and ledgers, and keep only candidates that pass every gate and beat the incumbent. Phase 2 ranks the bounded untested proposal pool with an exact-profile constrained surrogate, reserves at least 20% of each trained batch for uncertainty-led exploration, and falls back to deterministic diversification until enough comparable observations exist. The optimiser may choose tests but can never promote a candidate or change a gate. Neighbourhood backtests run only after the main candidate passes its base gates. After the batch, restore the neutral production candidate. The workflow verifies the changed-file allowlist before committing one audit update to `main`.
 
 After every 20 cumulative attempts, run the bounded coach. Never weaken success criteria or protected execution rules.
