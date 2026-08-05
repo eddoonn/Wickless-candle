@@ -51,6 +51,7 @@ jobs:
       REFRESH_INPUT: ${{ github.event.inputs.refresh_baseline || 'false' }}
       BOOTSTRAP_INPUT: ${{ github.event.inputs.bootstrap_benchmark || 'false' }}
       BOOTSTRAP_LIMIT: ${{ github.event.inputs.bootstrap_limit || '0' }}
+      BENCHMARK_READY: "false"
     steps:
       - name: Check out the fixed framework
         uses: actions/checkout@v4
@@ -91,12 +92,61 @@ jobs:
             git checkout -b "$NIGHTLY_BRANCH" "origin/$FRAMEWORK_BRANCH"
           fi
 
+      - name: Require a valid benchmark
+        if: env.RUN_MODE == 'nightly'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path("autoresearch/incumbent.json")
+          ready = False
+          reason = "No valid benchmark exists. Run the bootstrap benchmark search first."
+          if path.exists():
+              try:
+                  report = json.loads(path.read_text(encoding="utf-8"))["report"]
+                  gates = report.get("acceptance_gates", {})
+                  failed = [
+                      name
+                      for name, passed in gates.get("checks", {}).items()
+                      if not passed
+                  ]
+                  ready = bool(gates.get("passed", False))
+                  if ready:
+                      reason = "Valid benchmark found; nightly research will run."
+                  else:
+                      detail = ", ".join(failed) or "unknown gate failure"
+                      reason = f"Benchmark is invalid: {detail}"
+              except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+                  reason = f"Benchmark file is unreadable: {error}"
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
+              handle.write(f"BENCHMARK_READY={'true' if ready else 'false'}\n")
+          print(reason)
+          if not ready:
+              print("Nightly research is paused; this workflow will finish successfully.")
+          PY
+
+      - name: Report paused nightly research
+        if: env.RUN_MODE == 'nightly' && env.BENCHMARK_READY != 'true'
+        shell: bash
+        run: |
+          {
+            echo "### Nightly autoresearch paused"
+            echo
+            echo "No benchmark currently passes every acceptance gate, including at least 10 trades in June and 10 in July."
+            echo "The workflow skipped candidate testing without weakening the policy."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Require Discord notifications
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: test -n "$DISCORD_WEBHOOK_URL"
 
       - name: Restore fixed BID ASK research data
+        if: env.RUN_MODE != 'nightly' || env.BENCHMARK_READY == 'true'
         id: dataset-cache
         uses: actions/cache/restore@v4
         with:
@@ -108,6 +158,7 @@ jobs:
             wickless-autoresearch-data-v1-partial-
 
       - name: Build missing June and July BID ASK datasets
+        if: env.RUN_MODE != 'nightly' || env.BENCHMARK_READY == 'true'
         shell: bash
         run: |
           pairs=(EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD)
@@ -127,7 +178,7 @@ jobs:
           test "$(find "$july" -name '*.csv.gz' | wc -l)" -eq 7
 
       - name: Save complete research data
-        if: success() && steps.dataset-cache.outputs.cache-hit != 'true'
+        if: (env.RUN_MODE != 'nightly' || env.BENCHMARK_READY == 'true') && success() && steps.dataset-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
@@ -136,36 +187,13 @@ jobs:
           key: wickless-autoresearch-data-v1-complete
 
       - name: Save partial download for automatic retry
-        if: failure() && steps.dataset-cache.outputs.cache-hit != 'true'
+        if: failure() && steps.dataset-cache.outcome == 'success' && steps.dataset-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
             .runtime-data/autoresearch-datasets
             .runtime-data/duka-bi5
           key: wickless-autoresearch-data-v1-partial-${{ github.run_id }}
-
-      - name: Require a valid benchmark
-        if: env.RUN_MODE == 'nightly'
-        shell: bash
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          path = Path("autoresearch/incumbent.json")
-          if not path.exists():
-              raise SystemExit(
-                  "No valid benchmark exists. Run the bootstrap benchmark search first."
-              )
-          report = json.loads(path.read_text(encoding="utf-8"))["report"]
-          gates = report.get("acceptance_gates", {})
-          failed = [
-              name for name, passed in gates.get("checks", {}).items() if not passed
-          ]
-          if not gates.get("passed", False):
-              detail = ", ".join(failed) or "unknown gate failure"
-              raise SystemExit(f"Benchmark is invalid: {detail}")
-          PY
 
       - name: Refresh unmodified production defaults
         if: env.RUN_MODE == 'refresh'
@@ -202,7 +230,6 @@ jobs:
         if: env.RUN_MODE == 'bootstrap'
         shell: bash
         run: |
-          rm -f autoresearch/incumbent.json
           python -m autoresearch.bootstrap_benchmark \
             --data-root "$DATA_ROOT" \
             --policy autoresearch/policy.json \
@@ -215,7 +242,7 @@ jobs:
           git commit -m "autoresearch: bootstrap benchmark search"
 
       - name: Run worker and coach experiment loop
-        if: env.RUN_MODE == 'nightly'
+        if: env.RUN_MODE == 'nightly' && env.BENCHMARK_READY == 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: >-
@@ -295,8 +322,11 @@ jobs:
                       "This is now the production-baseline benchmark for nightly comparisons.",
                   )
               )
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+          if not webhook:
+              raise SystemExit(0)
           request = urllib.request.Request(
-              os.environ["DISCORD_WEBHOOK_URL"],
+              webhook,
               data=json.dumps({"content": message}).encode("utf-8"),
               headers={"Content-Type": "application/json"},
               method="POST",
@@ -333,8 +363,11 @@ jobs:
                   f"Gate result: {'PASS' if result['acceptance_gates']['passed'] else 'FAIL'}",
               )
           )
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+          if not webhook:
+              raise SystemExit(0)
           request = urllib.request.Request(
-              os.environ["DISCORD_WEBHOOK_URL"],
+              webhook,
               data=json.dumps({"content": message}).encode("utf-8"),
               headers={"Content-Type": "application/json"},
               method="POST",
