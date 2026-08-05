@@ -178,11 +178,11 @@ unset DISCORD_WEBHOOK_URL
 
 ## Constrained autoresearch
 
-The repository includes an isolated research loop under `autoresearch/`, adapted
-from `eddoonn/autoresearch`. Experiments run only on `autoresearch/...` branches;
-they cannot update `main`, and the editable candidate surface cannot change the
-strategy's reward/risk, stop bounds, spread/cost limits, slippage, or
-one-position safeguards.
+The repository includes a constrained research loop under `autoresearch/`, adapted
+from `eddoonn/autoresearch`. The repository uses only `main`; each nightly run
+records its starting commit and may publish only allowlisted audit files. The
+editable candidate surface cannot change reward/risk, stop bounds, spread/cost
+limits, slippage, or one-position safeguards.
 
 Start with `autoresearch/README.md` and `autoresearch/program.md`. The fixed
 evaluator uses reusable Dukascopy M1 BID/ASK archives for June and July 2026,
@@ -258,7 +258,7 @@ without modifying production parameters or candidate gates:
 - a 24-hour diagnostic.
 
 The complete reports are stored only as research audit output under
-`autoresearch/nightly/autoresearch/runs/session-comparison/`. The August 5, 2026
+`autoresearch/runs/session-comparison/` on `main`. The August 5, 2026
 comparison found that London-inclusive windows increased trades but did not pass
 the existing June-frequency and drawdown gates, so they were not promoted to
 production.

@@ -123,14 +123,16 @@ class NotificationTests(unittest.TestCase):
 
 
 class GuardTests(unittest.TestCase):
-    def test_protected_scope_guard_only_targets_autoresearch_experiments(self) -> None:
+    def test_autoresearch_validation_targets_main_only(self) -> None:
         workflow = (ROOT / ".github/workflows/autoresearch.yml").read_text(
             encoding="utf-8"
         )
-        self.assertIn("github.event_name == 'pull_request'", workflow)
-        self.assertIn("startsWith(github.head_ref, 'autoresearch/')", workflow)
-        self.assertIn("github.head_ref != 'autoresearch/framework-v1'", workflow)
-        self.assertNotIn("github.head_ref != 'autoresearch/framework-v1'\n        run:", workflow)
+        self.assertIn("pull_request:", workflow)
+        self.assertIn("      - main", workflow)
+        self.assertNotIn("startsWith(github.head_ref", workflow)
+        self.assertNotIn("FRAMEWORK_BRANCH:", workflow)
+        self.assertNotIn("NIGHTLY_BRANCH:", workflow)
+        self.assertNotIn("ref: autoresearch/framework-v1", workflow)
 
 
 class HealthTests(unittest.TestCase):
@@ -141,6 +143,7 @@ class HealthTests(unittest.TestCase):
         checks = {row["name"]: row for row in report["checks"]}
         self.assertEqual(checks["locked_sessions_absent_from_search"]["status"], "pass")
         self.assertEqual(checks["single_flight_live_scans"]["status"], "pass")
+        self.assertEqual(checks["single_main_branch_automation"]["status"], "pass")
 
 
 if __name__ == "__main__":

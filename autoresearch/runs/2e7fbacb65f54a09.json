@@ -1,0 +1,300 @@
+{
+  "acceptance_gates": {
+    "checks": {
+      "july_2026_minimum_trades": false,
+      "july_2026_positive_net_r": true,
+      "june_2026_minimum_trades": false,
+      "june_2026_positive_net_r": true,
+      "maximum_ambiguous_exits": true,
+      "maximum_overall_drawdown_r": true,
+      "maximum_pair_trade_share": false,
+      "minimum_distinct_pairs": false,
+      "minimum_overall_profit_factor": true,
+      "minimum_total_trades": false
+    },
+    "passed": false
+  },
+  "candidate": {
+    "description": "Controlled test of entry_model=zone_reclaim, expiry_bars=3, origin_zone_atr_fraction=0.1, reclaim_buffer_ticks=2, invalidate_on_trend_change=False against production defaults.",
+    "name": "grid-0706",
+    "parameters": {
+      "entry_model": "zone_reclaim",
+      "expiry_bars": 3,
+      "invalidate_on_trend_change": false,
+      "origin_zone_atr_fraction": 0.1,
+      "reclaim_buffer_ticks": 2
+    },
+    "source_sha256": "503adc7b71d6c5595c069bd8824380a0a707ec21fbc954162e75dd78dca23b36"
+  },
+  "folds": {
+    "july_2026": {
+      "counters": {
+        "ambiguous_exits": 0,
+        "eligible_signals": 590,
+        "expired_orders": 35,
+        "filled_orders": 1,
+        "invalidated_setups": 6,
+        "pending_orders_created": 51,
+        "rejected_entry_displacement": 9,
+        "rejected_execution_cost": 0,
+        "rejected_no_directional_reclaim": 2,
+        "rejected_no_origin_touch": 33,
+        "rejected_stop_too_tight": 22,
+        "rejected_stop_too_wide": 15,
+        "rejected_wickless_quality": 502
+      },
+      "data_qa": [
+        {
+          "complete_m15_bars": 2285,
+          "first_bar_utc": "2026-06-29T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 103,
+          "last_bar_utc": "2026-07-31T20:45:00+00:00",
+          "pair": "EURUSD",
+          "source_file": "EURUSD_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
+          "source_sha256": "9137e018c0db0ed2213107a1ccca6a1ab3417cf44e95c3173d5eb8845c52dd52"
+        },
+        {
+          "complete_m15_bars": 2309,
+          "first_bar_utc": "2026-06-29T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 79,
+          "last_bar_utc": "2026-07-31T20:45:00+00:00",
+          "pair": "GBPUSD",
+          "source_file": "GBPUSD_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
+          "source_sha256": "6ac69b7490150788c93f962fab7dbfb6ca0aa2fd3532718456ecbfd42939aee7"
+        },
+        {
+          "complete_m15_bars": 2313,
+          "first_bar_utc": "2026-06-29T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 75,
+          "last_bar_utc": "2026-07-31T20:45:00+00:00",
+          "pair": "USDJPY",
+          "source_file": "USDJPY_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
+          "source_sha256": "c5f149719b3449a18e8bab9db6ae62c81689f2a3ca95468ab5479ea06510fc04"
+        },
+        {
+          "complete_m15_bars": 2249,
+          "first_bar_utc": "2026-06-29T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 139,
+          "last_bar_utc": "2026-07-31T20:45:00+00:00",
+          "pair": "USDCHF",
+          "source_file": "USDCHF_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
+          "source_sha256": "5db1652a4b52c3b1c66acd4fe7e8254d04886ee3b2591706d8b10b4d27e8ce3a"
+        },
+        {
+          "complete_m15_bars": 2241,
+          "first_bar_utc": "2026-06-29T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 147,
+          "last_bar_utc": "2026-07-31T20:45:00+00:00",
+          "pair": "USDCAD",
+          "source_file": "USDCAD_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
+          "source_sha256": "bbf1b6f63c2dcd26df2c365bdc1f81570660667fbcee7b84075b1f1b99558830"
+        },
+        {
+          "complete_m15_bars": 2277,
+          "first_bar_utc": "2026-06-29T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 111,
+          "last_bar_utc": "2026-07-31T20:45:00+00:00",
+          "pair": "AUDUSD",
+          "source_file": "AUDUSD_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
+          "source_sha256": "d047f88d2be42b4e2e625b47e5bc955db03e25040b62945d0fda54df37df15c8"
+        },
+        {
+          "complete_m15_bars": 2268,
+          "first_bar_utc": "2026-06-29T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 120,
+          "last_bar_utc": "2026-07-31T20:45:00+00:00",
+          "pair": "NZDUSD",
+          "source_file": "NZDUSD_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
+          "source_sha256": "6ec8c265b93385072dbab861d3f1640196f7a2776dee746abbb4cfde0a1412da"
+        }
+      ],
+      "metrics": {
+        "distinct_pairs": 1,
+        "expectancy_r": 1.976471,
+        "losses": 0,
+        "maximum_drawdown_r": 0.0,
+        "maximum_pair_trade_share": 1.0,
+        "net_r": 1.976471,
+        "profit_factor": null,
+        "trades": 1,
+        "trades_by_pair": {
+          "USDJPY": 1
+        },
+        "win_rate": 1.0,
+        "wins": 1
+      },
+      "minimum_trades": 10,
+      "window": {
+        "end_utc_exclusive": "2026-08-01T00:00:00+00:00",
+        "start_utc": "2026-07-01T00:00:00+00:00"
+      }
+    },
+    "june_2026": {
+      "counters": {
+        "ambiguous_exits": 0,
+        "eligible_signals": 510,
+        "expired_orders": 25,
+        "filled_orders": 0,
+        "invalidated_setups": 0,
+        "pending_orders_created": 27,
+        "rejected_entry_displacement": 1,
+        "rejected_execution_cost": 1,
+        "rejected_no_directional_reclaim": 1,
+        "rejected_no_origin_touch": 24,
+        "rejected_stop_too_tight": 21,
+        "rejected_stop_too_wide": 9,
+        "rejected_wickless_quality": 453
+      },
+      "data_qa": [
+        {
+          "complete_m15_bars": 2285,
+          "first_bar_utc": "2026-05-27T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 115,
+          "last_bar_utc": "2026-06-30T23:45:00+00:00",
+          "pair": "EURUSD",
+          "source_file": "EURUSD_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
+          "source_sha256": "f6efc4ae8a33db835774ed6513e51d452f64e0041537b206b8a4d1cb9e581212"
+        },
+        {
+          "complete_m15_bars": 2312,
+          "first_bar_utc": "2026-05-27T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 88,
+          "last_bar_utc": "2026-06-30T23:45:00+00:00",
+          "pair": "GBPUSD",
+          "source_file": "GBPUSD_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
+          "source_sha256": "d53cf18af6de8d7a9960abf031110c9a3bba0e5cdc33337a7327c9ff1c9c4da9"
+        },
+        {
+          "complete_m15_bars": 2281,
+          "first_bar_utc": "2026-05-27T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 119,
+          "last_bar_utc": "2026-06-30T23:45:00+00:00",
+          "pair": "USDJPY",
+          "source_file": "USDJPY_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
+          "source_sha256": "2e3deb55dd0198e29c32f159405f0c2ba529a4d3c76cfc44be098dfb3306efe4"
+        },
+        {
+          "complete_m15_bars": 2297,
+          "first_bar_utc": "2026-05-27T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 103,
+          "last_bar_utc": "2026-06-30T23:45:00+00:00",
+          "pair": "USDCHF",
+          "source_file": "USDCHF_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
+          "source_sha256": "f2f2c2e422ba7bb05d6ab71de7bdd2f78f8dd7858dd2638b19c666743a147209"
+        },
+        {
+          "complete_m15_bars": 2313,
+          "first_bar_utc": "2026-05-27T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 87,
+          "last_bar_utc": "2026-06-30T23:45:00+00:00",
+          "pair": "USDCAD",
+          "source_file": "USDCAD_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
+          "source_sha256": "9a599665c0e261230fba817479d1d0913f0e2797915575218ff81043b710b64d"
+        },
+        {
+          "complete_m15_bars": 2315,
+          "first_bar_utc": "2026-05-27T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 85,
+          "last_bar_utc": "2026-06-30T23:45:00+00:00",
+          "pair": "AUDUSD",
+          "source_file": "AUDUSD_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
+          "source_sha256": "a872ed62ccc606bae090767f25777ddabfee9a2a62b99df08b5482f3637afeac"
+        },
+        {
+          "complete_m15_bars": 2266,
+          "first_bar_utc": "2026-05-27T00:00:00+00:00",
+          "incomplete_m15_buckets_rejected": 134,
+          "last_bar_utc": "2026-06-30T23:45:00+00:00",
+          "pair": "NZDUSD",
+          "source_file": "NZDUSD_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
+          "source_sha256": "cac726c6888f6191b5d2ca47106a63bf353a6ac9dcff082809598b00656efc9b"
+        }
+      ],
+      "metrics": {
+        "distinct_pairs": 0,
+        "expectancy_r": null,
+        "losses": 0,
+        "maximum_drawdown_r": 0.0,
+        "maximum_pair_trade_share": 1.0,
+        "net_r": 0,
+        "profit_factor": null,
+        "trades": 0,
+        "trades_by_pair": {},
+        "win_rate": null,
+        "wins": 0
+      },
+      "minimum_trades": 10,
+      "window": {
+        "end_utc_exclusive": "2026-07-01T00:00:00+00:00",
+        "start_utc": "2026-06-01T00:00:00+00:00"
+      }
+    }
+  },
+  "objective": {
+    "negative_overall_drawdown_r": -0.0,
+    "overall_profit_factor": 1000000000000.0,
+    "total_net_r": 1.976471,
+    "total_trades": 1,
+    "worst_fold_net_r": 0
+  },
+  "overall": {
+    "ambiguous_exits": 0,
+    "distinct_pairs": 1,
+    "expectancy_r": 1.976471,
+    "losses": 0,
+    "maximum_drawdown_r": 0.0,
+    "maximum_pair_trade_share": 1.0,
+    "net_r": 1.976471,
+    "profit_factor": null,
+    "trades": 1,
+    "trades_by_pair": {
+      "USDJPY": 1
+    },
+    "win_rate": 1.0,
+    "wins": 1
+  },
+  "production_baseline_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+  "safety": {
+    "atr_period": 14,
+    "enforce_quality": true,
+    "maximum_cost_to_risk_ratio": 0.1,
+    "maximum_stop_atr_fraction": 1.5,
+    "minimum_spread_multiple": 3.0,
+    "minimum_stop_atr_fraction": 0.4,
+    "one_position_per_pair": true,
+    "pending_expiry": "bars",
+    "reward_risk": 2.0,
+    "slippage_ticks": 1.0,
+    "stop_buffer_ticks": 1,
+    "stop_mode": "signal_range"
+  },
+  "schema_version": 1,
+  "trades": [
+    {
+      "body_ratio": 0.9722222222224853,
+      "close_location": 0.027777777777514615,
+      "cost_to_risk_ratio": 0.08235294117640937,
+      "entry": 162.071,
+      "entry_displacement_atr": 0.1256906077348516,
+      "entry_time_utc": "2026-07-13T11:00:00+00:00",
+      "exit": 162.241,
+      "exit_reason": "TARGET",
+      "exit_time_utc": "2026-07-13T14:00:00+00:00",
+      "fold": "july_2026",
+      "gross_r": 2.0,
+      "instrument": "usdjpy",
+      "net_r_after_costs": 1.976471,
+      "order_id": "usdjpy-978-bullish_wickless-signal_range",
+      "pair": "USDJPY",
+      "pattern": "BULLISH_WICKLESS",
+      "range_atr": 0.6961325966850783,
+      "risk_pips": 8.500000000000796,
+      "side": "BUY",
+      "signal_time_utc": "2026-07-13T10:15:00+00:00",
+      "spread_pips": 0.49999999999954525,
+      "stop": 161.986,
+      "stop_distance_atr": 0.82182320441993,
+      "target": 162.241
+    }
+  ]
+}

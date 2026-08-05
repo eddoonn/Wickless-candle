@@ -25,39 +25,41 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ProposalTests(unittest.TestCase):
-    def test_workflow_runs_at_eleven_pm_london_and_pushes_only_nightly(self) -> None:
+    def test_workflow_runs_at_eleven_pm_london_and_publishes_scoped_state_to_main(self) -> None:
         workflow = (ROOT / ".github/workflows/autoresearch-nightly.yml").read_text(
             encoding="utf-8"
         )
         self.assertIn('cron: "0 23 * * *"', workflow)
         self.assertIn('timezone: "Europe/London"', workflow)
-        self.assertIn('NIGHTLY_BRANCH: autoresearch/nightly', workflow)
-        self.assertIn('git push origin "$NIGHTLY_BRANCH"', workflow)
-        self.assertIn("default: \"12\"", workflow)
+        self.assertIn('MAIN_BRANCH: main', workflow)
+        self.assertIn('git push origin HEAD:"$MAIN_BRANCH"', workflow)
+        self.assertIn('default: "12"', workflow)
         self.assertIn("--coach-interval 20", workflow)
         self.assertIn("refresh_baseline:", workflow)
         self.assertIn("bootstrap_benchmark:", workflow)
-        self.assertIn("autoresearch/baseline-refresh.request", workflow)
-        self.assertIn("autoresearch/bootstrap-benchmark.request", workflow)
-        self.assertIn("autoresearch/nightly-run.request", workflow)
         self.assertIn("Ensure production reference benchmark", workflow)
-        self.assertIn("python -m autoresearch.reference_benchmark", workflow)
-        self.assertIn("Refresh production reference benchmark", workflow)
         self.assertIn("Bootstrap the strongest valid benchmark", workflow)
-        self.assertIn('--max-candidates "$BOOTSTRAP_LIMIT"', workflow)
         self.assertIn("Run worker and coach experiment loop", workflow)
         self.assertIn("--no-discord", workflow)
-        self.assertIn("Notify Discord of nightly benchmark and best test", workflow)
-        self.assertIn("autoresearch.notifications nightly", workflow)
+        self.assertNotIn("--git-commits", workflow)
+        self.assertIn("Validate code, health, and changed-file scope", workflow)
+        self.assertIn("Publish audit history to main", workflow)
         self.assertLess(
-            workflow.index("Publish audit history to the nightly branch only"),
+            workflow.index("Upload durable autoresearch audit artifact"),
+            workflow.index("Publish audit history to main"),
+        )
+        self.assertLess(
+            workflow.index("Publish audit history to main"),
             workflow.index("Notify Discord of nightly benchmark and best test"),
         )
-        self.assertNotIn("BENCHMARK_READY", workflow)
-        self.assertNotIn("Nightly research is paused", workflow)
-        self.assertNotIn("git push origin main", workflow)
+        self.assertIn("autoresearch/nightly-run.request", workflow)
+        self.assertNotIn("FRAMEWORK_BRANCH:", workflow)
+        self.assertNotIn("NIGHTLY_BRANCH:", workflow)
+        self.assertNotIn("ref: autoresearch/framework-v1", workflow)
+        self.assertNotIn('git push origin "$NIGHTLY_BRANCH"', workflow)
 
         policy = json.loads((ROOT / "autoresearch/policy.json").read_text(encoding="utf-8"))
+        self.assertEqual(policy["repository_branch"], "main")
         folds = {fold["name"]: fold for fold in policy["folds"]}
         self.assertEqual(folds["june_2026"]["minimum_trades"], 10)
         self.assertEqual(folds["july_2026"]["minimum_trades"], 10)

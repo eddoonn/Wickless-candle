@@ -31,7 +31,7 @@ UTC = timezone.utc
 LONDON = ZoneInfo("Europe/London")
 HERE = Path(__file__).resolve().parent
 REPOSITORY_URL = "https://github.com/eddoonn/Wickless-candle"
-NIGHTLY_BRANCH = "autoresearch/nightly"
+RESULTS_BRANCH = "main"
 LOCKED_SESSION_PARAMETERS = frozenset({"use_session", "session_start", "session_end"})
 
 
@@ -458,7 +458,7 @@ def discord_summary(summary: dict[str, Any]) -> str:
                 _decision_line(best),
             )
         )
-    lines.append(f"Results: {REPOSITORY_URL}/tree/{NIGHTLY_BRANCH}")
+    lines.append(f"Results: {REPOSITORY_URL}/tree/{RESULTS_BRANCH}")
     message = "\n".join(lines)
     if len(message) > 2000:
         raise RuntimeError("Discord summary exceeds 2,000 characters")

@@ -1,6 +1,6 @@
 # Wickless automation
 
-This repository is designed to operate without routine manual intervention while preserving strict separation between production code and research audit history.
+This repository is designed to operate without routine manual intervention while using one durable branch, `main`, and strict file-scope separation between production code and research audit history.
 
 ## Production sessions
 
@@ -26,18 +26,17 @@ A separate weekday `Wickless scanner health heartbeat` runs at 18:45 London time
 
 ## Nightly autoresearch
 
-`Nightly Wickless autoresearch` runs at 23:00 London time and writes audit history only to `autoresearch/nightly`.
+`Nightly Wickless autoresearch` runs at 23:00 London time and writes validated audit history to protected paths on `main`.
 
-Branch roles:
+Repository model:
 
-- `main`: production code and user-facing workflows.
-- `autoresearch/framework-v1`: fixed evaluator, planner, tests, policy, and automation framework.
-- `autoresearch/nightly`: append-only experiment results and generated audit artifacts.
+- `main` is the only branch. Production code and audit state are separated by a strict changed-file allowlist.
+- Every nightly run records its starting commit, restores the neutral candidate, and rejects production-code changes.
 
 The nightly workflow:
 
-1. Checks out the fixed framework.
-2. Resumes the isolated nightly branch and merges the framework forward.
+1. Checks out `main` and records the immutable starting commit.
+2. Runs experiments in the Actions worktree while enforcing the audit-file allowlist.
 3. Restores or builds the fixed June/July seven-pair BID/ASK datasets.
 4. Automatically refreshes the production reference when its release stamp is absent or stale.
 5. Plans a diversified batch across candle quality, trend, entry model, and wick detection.
@@ -48,7 +47,7 @@ The nightly workflow:
 10. Restores the neutral candidate file.
 11. Runs compilation, the complete test suite, health auditing, and protected-scope verification.
 12. Uploads a durable artifact before attempting branch publication or Discord delivery.
-13. Pushes only `autoresearch/nightly`, then posts a benchmark-versus-best-trade-changing-test Discord summary.
+13. Commits one validated audit-state update to `main`, then posts a benchmark-versus-best-trade-changing-test Discord summary.
 
 Effect meanings are strict:
 
@@ -108,7 +107,7 @@ Critical invariant failures fail the workflow and send a best-effort Discord ale
 
 ## Discord delivery
 
-GitHub branches and uploaded artifacts are the source of truth. Discord is a delivery channel.
+The `main` branch and uploaded artifacts are the source of truth. Discord is a delivery channel.
 
 - Research results are committed and artifacts uploaded before notifications.
 - Notifications use bounded retries and disable mentions.

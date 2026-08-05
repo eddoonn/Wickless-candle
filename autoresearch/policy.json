@@ -1,7 +1,6 @@
 {
   "schema_version": 1,
   "production_baseline_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
-  "framework_branch": "autoresearch/framework-v1",
   "folds": [
     {
       "name": "june_2026",
@@ -34,5 +33,6 @@
     "overall_profit_factor",
     "negative_overall_drawdown_r",
     "total_trades"
-  ]
+  ],
+  "repository_branch": "main"
 }

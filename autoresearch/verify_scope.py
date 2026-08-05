@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reject experiment branches that modify the fixed research harness."""
+"""Reject research worktrees that modify the fixed research harness."""
 
 from __future__ import annotations
 

@@ -89,6 +89,15 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
             "nightly worker remains active",
         ),
         _check(
+            "single_main_branch_automation",
+            "FRAMEWORK_BRANCH:" not in nightly_workflow
+            and "NIGHTLY_BRANCH:" not in nightly_workflow
+            and "ref: autoresearch/framework-v1" not in nightly_workflow
+            and 'git push origin "$NIGHTLY_BRANCH"' not in nightly_workflow
+            and 'git push origin HEAD:"$MAIN_BRANCH"' in nightly_workflow,
+            "autoresearch code and durable audit state use main only",
+        ),
+        _check(
             "single_flight_live_scans",
             "cancel-in-progress: true" in live_workflow,
             "live scan concurrency cancels overlapping work",
@@ -134,7 +143,7 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
             _check(
                 "incumbent_release",
                 False,
-                "incumbent is created automatically on the nightly audit branch",
+                "incumbent is created automatically on main by the nightly workflow",
                 warning=True,
             )
         )

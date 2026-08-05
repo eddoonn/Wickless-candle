@@ -1,0 +1,1285 @@
+{
+  "attempts_total": 14,
+  "benchmark": {
+    "acceptance_gates": {
+      "checks": {
+        "july_2026_minimum_trades": true,
+        "july_2026_positive_net_r": true,
+        "june_2026_minimum_trades": false,
+        "june_2026_positive_net_r": true,
+        "maximum_ambiguous_exits": true,
+        "maximum_overall_drawdown_r": false,
+        "maximum_pair_trade_share": true,
+        "minimum_distinct_pairs": true,
+        "minimum_overall_profit_factor": true,
+        "minimum_total_trades": true
+      },
+      "passed": false
+    },
+    "description": "Immutable Wickless production defaults with the London-New York session union at 9ddd1b44.",
+    "folds": {
+      "july_2026": {
+        "distinct_pairs": 5,
+        "expectancy_r": 0.6615620625,
+        "losses": 7,
+        "maximum_drawdown_r": 3.0908049999999996,
+        "maximum_pair_trade_share": 0.5,
+        "net_r": 10.584993,
+        "profit_factor": 2.4712863373911302,
+        "trades": 16,
+        "trades_by_pair": {
+          "EURUSD": 8,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 4
+        },
+        "win_rate": 0.5625,
+        "wins": 9
+      },
+      "june_2026": {
+        "distinct_pairs": 2,
+        "expectancy_r": -1.0289723333333334,
+        "losses": 3,
+        "maximum_drawdown_r": 3.0869169999999997,
+        "maximum_pair_trade_share": 0.6666666666666666,
+        "net_r": -3.086917,
+        "profit_factor": 0.0,
+        "trades": 3,
+        "trades_by_pair": {
+          "EURUSD": 1,
+          "USDJPY": 2
+        },
+        "win_rate": 0.0,
+        "wins": 0
+      }
+    },
+    "name": "production-baseline",
+    "overall": {
+      "ambiguous_exits": 0,
+      "distinct_pairs": 5,
+      "expectancy_r": 0.3946355789473684,
+      "losses": 10,
+      "maximum_drawdown_r": 5.222238,
+      "maximum_pair_trade_share": 0.47368421052631576,
+      "net_r": 7.498075999999999,
+      "profit_factor": 1.7292928119866589,
+      "trades": 19,
+      "trades_by_pair": {
+        "EURUSD": 9,
+        "GBPUSD": 2,
+        "USDCAD": 1,
+        "USDCHF": 1,
+        "USDJPY": 6
+      },
+      "win_rate": 0.47368421052631576,
+      "wins": 9
+    },
+    "parameters": {}
+  },
+  "best_experiment": {
+    "acceptance_gates": {
+      "checks": {
+        "july_2026_minimum_trades": true,
+        "july_2026_positive_net_r": true,
+        "june_2026_minimum_trades": false,
+        "june_2026_positive_net_r": true,
+        "maximum_ambiguous_exits": true,
+        "maximum_overall_drawdown_r": false,
+        "maximum_pair_trade_share": true,
+        "minimum_distinct_pairs": true,
+        "minimum_overall_profit_factor": true,
+        "minimum_total_trades": true
+      },
+      "passed": false
+    },
+    "candidate": "grid-0001",
+    "category": "candle-quality",
+    "folds": {
+      "july_2026": {
+        "distinct_pairs": 5,
+        "expectancy_r": 0.6615620625,
+        "losses": 7,
+        "maximum_drawdown_r": 3.0908049999999996,
+        "maximum_pair_trade_share": 0.5,
+        "net_r": 10.584993,
+        "profit_factor": 2.4712863373911302,
+        "trades": 16,
+        "trades_by_pair": {
+          "EURUSD": 8,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 4
+        },
+        "win_rate": 0.5625,
+        "wins": 9
+      },
+      "june_2026": {
+        "distinct_pairs": 2,
+        "expectancy_r": -1.0289723333333334,
+        "losses": 3,
+        "maximum_drawdown_r": 3.0869169999999997,
+        "maximum_pair_trade_share": 0.6666666666666666,
+        "net_r": -3.086917,
+        "profit_factor": 0.0,
+        "trades": 3,
+        "trades_by_pair": {
+          "EURUSD": 1,
+          "USDJPY": 2
+        },
+        "win_rate": 0.0,
+        "wins": 0
+      }
+    },
+    "objective": {
+      "negative_overall_drawdown_r": -5.222238,
+      "overall_profit_factor": 1.7292928119866589,
+      "total_net_r": 7.498075999999999,
+      "total_trades": 19,
+      "worst_fold_net_r": -3.086917
+    },
+    "overall": {
+      "ambiguous_exits": 0,
+      "distinct_pairs": 5,
+      "expectancy_r": 0.3946355789473684,
+      "losses": 10,
+      "maximum_drawdown_r": 5.222238,
+      "maximum_pair_trade_share": 0.47368421052631576,
+      "net_r": 7.498075999999999,
+      "profit_factor": 1.7292928119866589,
+      "trades": 19,
+      "trades_by_pair": {
+        "EURUSD": 9,
+        "GBPUSD": 2,
+        "USDCAD": 1,
+        "USDCHF": 1,
+        "USDJPY": 6
+      },
+      "win_rate": 0.47368421052631576,
+      "wins": 9
+    },
+    "run_id": "a2ca0aea7b213f87",
+    "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+    "status": "discard"
+  },
+  "coach_runs": [],
+  "experiments": [
+    {
+      "acceptance_gates": {
+        "checks": {
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": true,
+          "minimum_total_trades": true
+        },
+        "passed": false
+      },
+      "candidate": "grid-0001",
+      "category": "candle-quality",
+      "folds": {
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -5.222238,
+        "overall_profit_factor": 1.7292928119866589,
+        "total_net_r": 7.498075999999999,
+        "total_trades": 19,
+        "worst_fold_net_r": -3.086917
+      },
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "maximum_pair_trade_share": 0.47368421052631576,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 6
+        },
+        "win_rate": 0.47368421052631576,
+        "wins": 9
+      },
+      "run_id": "a2ca0aea7b213f87",
+      "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+      "status": "discard"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": true,
+          "minimum_total_trades": true
+        },
+        "passed": false
+      },
+      "candidate": "grid-0002",
+      "category": "candle-quality",
+      "folds": {
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -5.222238,
+        "overall_profit_factor": 1.7292928119866589,
+        "total_net_r": 7.498075999999999,
+        "total_trades": 19,
+        "worst_fold_net_r": -3.086917
+      },
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "maximum_pair_trade_share": 0.47368421052631576,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 6
+        },
+        "win_rate": 0.47368421052631576,
+        "wins": 9
+      },
+      "run_id": "0c6dee8639877760",
+      "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+      "status": "discard"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": true,
+          "minimum_total_trades": true
+        },
+        "passed": false
+      },
+      "candidate": "grid-0003",
+      "category": "candle-quality",
+      "folds": {
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -5.222238,
+        "overall_profit_factor": 1.7292928119866589,
+        "total_net_r": 7.498075999999999,
+        "total_trades": 19,
+        "worst_fold_net_r": -3.086917
+      },
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "maximum_pair_trade_share": 0.47368421052631576,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 6
+        },
+        "win_rate": 0.47368421052631576,
+        "wins": 9
+      },
+      "run_id": "062c65d1cd4fcb70",
+      "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+      "status": "discard"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": true,
+          "minimum_total_trades": true
+        },
+        "passed": false
+      },
+      "candidate": "grid-0004",
+      "category": "candle-quality",
+      "folds": {
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -5.222238,
+        "overall_profit_factor": 1.7292928119866589,
+        "total_net_r": 7.498075999999999,
+        "total_trades": 19,
+        "worst_fold_net_r": -3.086917
+      },
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "maximum_pair_trade_share": 0.47368421052631576,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 6
+        },
+        "win_rate": 0.47368421052631576,
+        "wins": 9
+      },
+      "run_id": "4b9f58ec9316aef5",
+      "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+      "status": "discard"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": true,
+          "minimum_total_trades": true
+        },
+        "passed": false
+      },
+      "candidate": "grid-0005",
+      "category": "candle-quality",
+      "folds": {
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -5.222238,
+        "overall_profit_factor": 1.7292928119866589,
+        "total_net_r": 7.498075999999999,
+        "total_trades": 19,
+        "worst_fold_net_r": -3.086917
+      },
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "maximum_pair_trade_share": 0.47368421052631576,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 6
+        },
+        "win_rate": 0.47368421052631576,
+        "wins": 9
+      },
+      "run_id": "3318af235476d727",
+      "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+      "status": "discard"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": true,
+          "minimum_total_trades": true
+        },
+        "passed": false
+      },
+      "candidate": "grid-0006",
+      "category": "candle-quality",
+      "folds": {
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -5.222238,
+        "overall_profit_factor": 1.7292928119866589,
+        "total_net_r": 7.498075999999999,
+        "total_trades": 19,
+        "worst_fold_net_r": -3.086917
+      },
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "maximum_pair_trade_share": 0.47368421052631576,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 6
+        },
+        "win_rate": 0.47368421052631576,
+        "wins": 9
+      },
+      "run_id": "63609e1cc449a1c5",
+      "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+      "status": "discard"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": true,
+          "minimum_total_trades": true
+        },
+        "passed": false
+      },
+      "candidate": "grid-0007",
+      "category": "candle-quality",
+      "folds": {
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -5.222238,
+        "overall_profit_factor": 1.7292928119866589,
+        "total_net_r": 7.498075999999999,
+        "total_trades": 19,
+        "worst_fold_net_r": -3.086917
+      },
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "maximum_pair_trade_share": 0.47368421052631576,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 6
+        },
+        "win_rate": 0.47368421052631576,
+        "wins": 9
+      },
+      "run_id": "65450a6eae3d18b0",
+      "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+      "status": "discard"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": true,
+          "minimum_total_trades": true
+        },
+        "passed": false
+      },
+      "candidate": "grid-0008",
+      "category": "candle-quality",
+      "folds": {
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -5.222238,
+        "overall_profit_factor": 1.7292928119866589,
+        "total_net_r": 7.498075999999999,
+        "total_trades": 19,
+        "worst_fold_net_r": -3.086917
+      },
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "maximum_pair_trade_share": 0.47368421052631576,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 6
+        },
+        "win_rate": 0.47368421052631576,
+        "wins": 9
+      },
+      "run_id": "3d3a32fe107365c5",
+      "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+      "status": "discard"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": true,
+          "minimum_total_trades": true
+        },
+        "passed": false
+      },
+      "candidate": "grid-0009",
+      "category": "candle-quality",
+      "folds": {
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -5.222238,
+        "overall_profit_factor": 1.7292928119866589,
+        "total_net_r": 7.498075999999999,
+        "total_trades": 19,
+        "worst_fold_net_r": -3.086917
+      },
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "maximum_pair_trade_share": 0.47368421052631576,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 6
+        },
+        "win_rate": 0.47368421052631576,
+        "wins": 9
+      },
+      "run_id": "885e2614117e68b4",
+      "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+      "status": "discard"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": true,
+          "minimum_total_trades": true
+        },
+        "passed": false
+      },
+      "candidate": "grid-0010",
+      "category": "candle-quality",
+      "folds": {
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -5.222238,
+        "overall_profit_factor": 1.7292928119866589,
+        "total_net_r": 7.498075999999999,
+        "total_trades": 19,
+        "worst_fold_net_r": -3.086917
+      },
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "maximum_pair_trade_share": 0.47368421052631576,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 6
+        },
+        "win_rate": 0.47368421052631576,
+        "wins": 9
+      },
+      "run_id": "1cf6ba1b384caeb5",
+      "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+      "status": "discard"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": true,
+          "minimum_total_trades": true
+        },
+        "passed": false
+      },
+      "candidate": "grid-0011",
+      "category": "candle-quality",
+      "folds": {
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -5.222238,
+        "overall_profit_factor": 1.7292928119866589,
+        "total_net_r": 7.498075999999999,
+        "total_trades": 19,
+        "worst_fold_net_r": -3.086917
+      },
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "maximum_pair_trade_share": 0.47368421052631576,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 6
+        },
+        "win_rate": 0.47368421052631576,
+        "wins": 9
+      },
+      "run_id": "feefa353df39d48c",
+      "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+      "status": "discard"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": true,
+          "minimum_total_trades": true
+        },
+        "passed": false
+      },
+      "candidate": "grid-0012",
+      "category": "candle-quality",
+      "folds": {
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -5.222238,
+        "overall_profit_factor": 1.7292928119866589,
+        "total_net_r": 7.498075999999999,
+        "total_trades": 19,
+        "worst_fold_net_r": -3.086917
+      },
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "maximum_pair_trade_share": 0.47368421052631576,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 6
+        },
+        "win_rate": 0.47368421052631576,
+        "wins": 9
+      },
+      "run_id": "e9c55dfb0bbaa9e2",
+      "score": "worst_fold_net_r=-3.086917;total_net_r=7.498076;overall_profit_factor=1.7292928;negative_overall_drawdown_r=-5.222238;total_trades=19",
+      "status": "discard"
+    }
+  ],
+  "generated_at_utc": "2026-08-05T12:29:03+00:00",
+  "incumbent": {
+    "acceptance_gates": {
+      "checks": {
+        "july_2026_minimum_trades": true,
+        "july_2026_positive_net_r": true,
+        "june_2026_minimum_trades": false,
+        "june_2026_positive_net_r": true,
+        "maximum_ambiguous_exits": true,
+        "maximum_overall_drawdown_r": false,
+        "maximum_pair_trade_share": true,
+        "minimum_distinct_pairs": true,
+        "minimum_overall_profit_factor": true,
+        "minimum_total_trades": true
+      },
+      "passed": false
+    },
+    "description": "Immutable Wickless production defaults with the London-New York session union at 9ddd1b44.",
+    "folds": {
+      "july_2026": {
+        "distinct_pairs": 5,
+        "expectancy_r": 0.6615620625,
+        "losses": 7,
+        "maximum_drawdown_r": 3.0908049999999996,
+        "maximum_pair_trade_share": 0.5,
+        "net_r": 10.584993,
+        "profit_factor": 2.4712863373911302,
+        "trades": 16,
+        "trades_by_pair": {
+          "EURUSD": 8,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 4
+        },
+        "win_rate": 0.5625,
+        "wins": 9
+      },
+      "june_2026": {
+        "distinct_pairs": 2,
+        "expectancy_r": -1.0289723333333334,
+        "losses": 3,
+        "maximum_drawdown_r": 3.0869169999999997,
+        "maximum_pair_trade_share": 0.6666666666666666,
+        "net_r": -3.086917,
+        "profit_factor": 0.0,
+        "trades": 3,
+        "trades_by_pair": {
+          "EURUSD": 1,
+          "USDJPY": 2
+        },
+        "win_rate": 0.0,
+        "wins": 0
+      }
+    },
+    "name": "production-baseline",
+    "overall": {
+      "ambiguous_exits": 0,
+      "distinct_pairs": 5,
+      "expectancy_r": 0.3946355789473684,
+      "losses": 10,
+      "maximum_drawdown_r": 5.222238,
+      "maximum_pair_trade_share": 0.47368421052631576,
+      "net_r": 7.498075999999999,
+      "profit_factor": 1.7292928119866589,
+      "trades": 19,
+      "trades_by_pair": {
+        "EURUSD": 9,
+        "GBPUSD": 2,
+        "USDCAD": 1,
+        "USDCHF": 1,
+        "USDJPY": 6
+      },
+      "win_rate": 0.47368421052631576,
+      "wins": 9
+    },
+    "parameters": {}
+  },
+  "kept": 0,
+  "london_date": "2026-08-05",
+  "rejected": 12,
+  "schema_version": 1,
+  "tested": 12,
+  "worker_attempts_total": 12
+}
