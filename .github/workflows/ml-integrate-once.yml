@@ -29,7 +29,7 @@ jobs:
           python-version: "3.12"
 
       - name: Apply Phase 3 and Phase 4 integration
-        run: python scripts/apply_ml_learning_patch.py
+        run: python scripts/run_ml_learning_patch.py
 
       - name: Compile repository
         run: >-
