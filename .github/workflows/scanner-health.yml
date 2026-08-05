@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
+  actions: write
   contents: read
 
 concurrency:
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   heartbeat:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Inspect the actual live-scan run history
+      - name: Assess scanner health and recover a stale scanner
         env:
           GH_TOKEN: ${{ github.token }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -33,136 +33,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p .runtime-output
-          python - <<'PY'
-          import json
-          import os
-          import time
-          import urllib.error
-          import urllib.request
-          from datetime import datetime, timedelta, timezone
-          from zoneinfo import ZoneInfo
-
-          utc = timezone.utc
-          now = datetime.now(utc).replace(microsecond=0)
-          url = (
-              f"https://api.github.com/repos/{os.environ['REPOSITORY']}"
-              "/actions/workflows/live-signals.yml/runs?per_page=100"
-          )
-          request = urllib.request.Request(
-              url,
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
-                  "X-GitHub-Api-Version": "2022-11-28",
-                  "User-Agent": "wickless-scanner-health/1",
-              },
-          )
-          with urllib.request.urlopen(request, timeout=30) as response:
-              runs = json.load(response)["workflow_runs"]
-          runs.sort(key=lambda row: row["created_at"], reverse=True)
-          latest = runs[0] if runs else None
-          cutoff = now - timedelta(hours=24)
-
-          def parsed(value):
-              return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(utc)
-
-          recent = [row for row in runs if parsed(row["created_at"]) >= cutoff]
-          successful = sum(row.get("conclusion") == "success" for row in recent)
-          failed = sum(row.get("conclusion") == "failure" for row in recent)
-          cancelled = sum(row.get("conclusion") == "cancelled" for row in recent)
-          latest_age_minutes = None
-          healthy = False
-          if latest:
-              latest_age_minutes = round(
-                  (now - parsed(latest["created_at"])).total_seconds() / 60, 1
-              )
-              healthy = (
-                  latest.get("status") == "completed"
-                  and latest.get("conclusion") == "success"
-                  and latest_age_minutes <= 20
-              )
-
-          payload = {
-              "schema_version": 1,
-              "generated_at_utc": now.isoformat(),
-              "generated_at_london": now.astimezone(
-                  ZoneInfo("Europe/London")
-              ).isoformat(),
-              "healthy": healthy,
-              "latest_run": None
-              if latest is None
-              else {
-                  "id": latest["id"],
-                  "status": latest.get("status"),
-                  "conclusion": latest.get("conclusion"),
-                  "created_at": latest["created_at"],
-                  "age_minutes": latest_age_minutes,
-                  "url": latest["html_url"],
-              },
-              "last_24_hours": {
-                  "total": len(recent),
-                  "successful": successful,
-                  "failed": failed,
-                  "cancelled": cancelled,
-              },
-          }
-          with open(
-              ".runtime-output/scanner-health.json", "w", encoding="utf-8"
-          ) as handle:
-              json.dump(payload, handle, indent=2, sort_keys=True)
-              handle.write("\n")
-
-          state = "HEALTHY" if healthy else "UNHEALTHY"
-          latest_text = (
-              "no run found"
-              if latest is None
-              else (
-                  f"{latest.get('conclusion')} {latest_age_minutes:.1f} minutes ago"
-              )
-          )
-          message = "\n".join(
-              (
-                  f"🫀 **Wickless scanner heartbeat — {state}**",
-                  f"UTC: `{payload['generated_at_utc']}`",
-                  f"London: `{payload['generated_at_london']}`",
-                  f"Latest scan: {latest_text}",
-                  (
-                      "Last 24h: "
-                      f"{len(recent)} runs | {successful} success | "
-                      f"{failed} failed | {cancelled} cancelled"
-                  ),
-                  "No trade signal is implied by this health message.",
-              )
-          )
-          print(message)
-
-          webhook = os.environ.get("DISCORD_WEBHOOK_URL")
-          if not webhook:
-              raise SystemExit("DISCORD_WEBHOOK_URL is not configured")
-          body = json.dumps(
-              {"content": message, "allowed_mentions": {"parse": []}}
-          ).encode("utf-8")
-          for attempt in range(1, 4):
-              try:
-                  notification = urllib.request.Request(
-                      webhook,
-                      data=body,
-                      headers={
-                          "Content-Type": "application/json",
-                          "User-Agent": "wickless-scanner-health/1",
-                      },
-                      method="POST",
-                  )
-                  urllib.request.urlopen(notification, timeout=20).read()
-                  break
-              except (urllib.error.HTTPError, urllib.error.URLError):
-                  if attempt == 3:
-                      raise
-                  time.sleep(2 ** (attempt - 1))
-
-          if not healthy:
-              raise SystemExit("The latest live scan is not a recent successful run")
-          PY
+          python scripts/scanner_health.py \
+            --repository "$REPOSITORY" \
+            --workflow live-signals.yml \
+            --ref main \
+            --event-name "$GITHUB_EVENT_NAME" \
+            --output .runtime-output/scanner-health.json
 
       - name: Upload scanner health record
         if: always()
