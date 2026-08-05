@@ -1,15 +1,15 @@
 from __future__ import annotations
 
+import runpy
 from pathlib import Path
-
-from scripts.apply_ml_learning_patch import main as apply_patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def main() -> None:
-    apply_patch()
+    namespace = runpy.run_path(str(ROOT / "scripts" / "apply_ml_learning_patch.py"))
+    namespace["main"]()
     path = ROOT / "tests" / "test_ml_learning.py"
     source = path.read_text(encoding="utf-8")
     old = "probabilities = [0.9, 0.85, 0.8, 0.2, 0.15, 0.1]"
