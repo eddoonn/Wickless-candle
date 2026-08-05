@@ -31,14 +31,18 @@ stop-distance, execution-cost, freshness, and position safeguard passes.
   dynamic Discord JSON alerts.
 - `wickless_bot.py` — standard-library Python detector, scanner, Discord
   renderer, dedupe state, statistics, and conservative backtester.
+- `live_scan.py` and `time_display.py` — the live entrypoint and shared timestamp
+  renderer that pair every event time in UTC and `Europe/London`, including
+  automatic GMT/BST daylight-saving conversion.
 - `no_wick_research.py` — the shared, no-lookahead engine used by both live
   Discord scanning and historical backtests.
 - `live_data.py` — account-free live Dukascopy BID and ASK candles, aggregated
   from 1m to true 15m OHLC, plus a timestamped executable quote snapshot.
 - `run_daemon.py`, `Dockerfile`, and `docker-compose.yml` — an always-on,
   candle-aligned deployment.
-- GitHub Actions for CI, fifteen-minute live scanning, and monthly trailing
-  30-day backtests across XAUUSD and all seven USD majors.
+- GitHub Actions for CI, five-minute live scanning, monthly trailing 30-day
+  backtests across XAUUSD and all seven USD majors, and a reproducible
+  seven-pair production-reference backtest.
 - Unit, integration, timing, Pine-contract, workflow, and secret-leak tests.
 
 The default markets are:
@@ -79,13 +83,15 @@ The Discord message contains side, symbol, 15m timeframe, quality score,
 signal-close entry, signal-range stop, 2R target, current BID/ASK and spread,
 entry displacement in R,
 stop distance in pips and ATR, estimated execution cost as a percentage of 1R,
-signal age, publication time, actionability status, London fill time, and signal
-ID. It reports validated entries; it does not place or manage broker orders.
+signal age, actionability status, and signal ID. Signal close, entry, detection,
+and publication timestamps are each shown in both UTC and Europe/London, with
+GMT/BST handled automatically. It reports validated entries; it does not place
+or manage broker orders.
 
 ## Automatic Discord signals with GitHub Actions
 
-The workflow runs every fifteen minutes and reads the webhook only from the
-repository secret `DISCORD_WEBHOOK_URL`. The URL is never stored in source,
+The workflow is scheduled every five minutes and reads the webhook only from
+the repository secret `DISCORD_WEBHOOK_URL`. The URL is never stored in source,
 Pine, workflow YAML, logs, Docker layers, or test fixtures.
 
 1. Revoke the webhook URL that was shared in chat and create a replacement.
@@ -97,7 +103,7 @@ Pine, workflow YAML, logs, Docker layers, or test fixtures.
 6. Confirm the run is green. Scheduled runs then continue automatically.
 
 GitHub scheduled workflows can start late during platform load, and a private
-repository running every fifteen minutes can exceed the included Actions minutes
+repository running every five minutes can exceed the included Actions minutes
 on some plans. The scanner audits fills from a 45-minute research window but
 fails closed after 120 seconds: a delayed run records the signal as expired
 instead of presenting an old entry as actionable.
@@ -153,7 +159,8 @@ No Python packages are required:
 
 ```bash
 python -m compileall -q \
-  wickless_bot.py no_wick_research.py live_data.py run_daemon.py tests
+  wickless_bot.py live_scan.py time_display.py no_wick_research.py \
+  live_data.py run_daemon.py autoresearch scripts tests
 python -m unittest discover -s tests -v
 ```
 
@@ -217,6 +224,23 @@ python wickless_bot.py backtest \
 The result includes `summary.json` and a trade-by-trade `trades.csv`. The
 monthly workflow produces the same files for all eight default markets as a
 downloadable Actions artifact.
+
+Re-run the reviewed seven-pair June/July production reference, including paired
+UTC and London windows and trade timestamps:
+
+```bash
+python scripts/rerun_production_backtest.py \
+  --data-root .runtime-data/autoresearch-datasets \
+  --policy autoresearch/policy.json \
+  --output reports/production-backtest/latest
+```
+
+The **Production Wickless backtest** Actions workflow restores or builds the
+fixed BID/ASK data, runs all tests, publishes `report.json`, `summary.json`, and
+`trades.csv` to `reports/production-backtest/latest`, appends an immutable
+history summary, and sends the outcome to Discord. Every generated timestamp,
+fold boundary, data boundary, signal time, entry time, and exit time is available
+in both UTC and Europe/London.
 
 ## Reproduce the seven-pair comparison
 
