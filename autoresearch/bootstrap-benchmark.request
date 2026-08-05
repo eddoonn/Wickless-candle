@@ -1,5 +1,6 @@
 Run the complete benchmark-free bootstrap search over June and July 2026.
-Requested: 2026-08-05T02:31:00+01:00
+Requested: 2026-08-05T02:45:00+01:00
 Candidate limit: 0 (complete search space)
 Required minimum trades: June 10, July 10
 Promote only the strongest candidate that passes every acceptance gate.
+Reason: retry after updating the workflow contract test for bootstrap mode.
