@@ -9,8 +9,12 @@ from pathlib import Path
 from typing import Any
 
 from production_session import PRODUCTION_RELEASE_SHA
-from wickless_ml.features import FEATURE_SCHEMA_VERSION, features_from_setup, supported_instrument
-from wickless_ml.model import score_model
+from wickless_ml.features import (
+    SUPPORTED_FEATURE_SCHEMA_VERSIONS,
+    features_from_setup,
+    supported_instrument,
+)
+from wickless_ml.model_v2 import score_model
 
 
 HERE = Path(__file__).resolve().parent
@@ -19,8 +23,11 @@ HERE = Path(__file__).resolve().parent
 @dataclass(frozen=True)
 class Prediction:
     model_id: str = ""
+    model_family: str = ""
     mode: str = "unavailable"
+    raw_probability: float | None = None
     probability: float | None = None
+    lower_probability_bound: float | None = None
     threshold: float = 0.0
     uncertainty: float = 1.0
     ood_score: float = 0.0
@@ -60,7 +67,7 @@ def load_champion(
     metadata = model.get("metadata", {})
     if metadata.get("production_release_sha") != PRODUCTION_RELEASE_SHA:
         raise ValueError("Champion model is stale for the production release")
-    if metadata.get("feature_schema") != FEATURE_SCHEMA_VERSION:
+    if metadata.get("feature_schema") not in SUPPORTED_FEATURE_SCHEMA_VERSIONS:
         raise ValueError("Champion model uses an incompatible feature schema")
     return registry, policy, model
 
@@ -83,30 +90,66 @@ def score_signal(
     features = features_from_setup(signal, instrument=instrument)
     scored = score_model(model, features)
     threshold = float(model["threshold"])
-    maximum_ood = float(policy["training"]["maximum_ood_score"])
+    training_policy = policy["training"]
+    maximum_ood = float(training_policy["maximum_ood_score"])
+    maximum_uncertainty = float(training_policy.get("maximum_prediction_uncertainty", 1.0))
+    lower_bound_slack = float(training_policy.get("lower_bound_slack", 1.0))
     deployment = registry.get("deployment", {})
     requested_mode = str(deployment.get("mode", "shadow"))
     status = str(deployment.get("status", "UNKNOWN"))
     mode = requested_mode if requested_mode in {"shadow", "canary", "active"} else "shadow"
     if status in {"NO_CHAMPION", "DRIFT", "ROLLED_BACK", "MODEL_ERROR"}:
         mode = "shadow"
-    accepted = scored.probability >= threshold
+
+    uncertainty_enabled = (
+        model.get("metadata", {}).get("feature_schema")
+        == "wickless-meta-label-features-v2"
+    )
+    common = {
+        "model_id": model["model_id"],
+        "model_family": str(model.get("model_family", "logistic_regression")),
+        "mode": mode,
+        "raw_probability": scored.raw_probability,
+        "probability": scored.probability,
+        "lower_probability_bound": scored.lower_probability_bound,
+        "threshold": threshold,
+        "uncertainty": scored.uncertainty,
+        "ood_score": scored.ood_score,
+    }
     if scored.ood_score > maximum_ood:
         return Prediction(
-            model_id=model["model_id"],
-            mode=mode,
-            probability=scored.probability,
-            threshold=threshold,
-            uncertainty=scored.uncertainty,
-            ood_score=scored.ood_score,
+            **common,
             decision="ABSTAIN_OOD",
             applied=False,
             should_block=False,
             reason="Feature vector is outside the approved model support; deterministic strategy wins.",
         )
+    if uncertainty_enabled and scored.uncertainty > maximum_uncertainty:
+        return Prediction(
+            **common,
+            decision="ABSTAIN_UNCERTAIN",
+            applied=False,
+            should_block=False,
+            reason="Prediction uncertainty exceeds policy; deterministic strategy wins.",
+        )
+    if (
+        uncertainty_enabled
+        and scored.probability >= threshold
+        and scored.lower_probability_bound < max(0.0, threshold - lower_bound_slack)
+    ):
+        return Prediction(
+            **common,
+            decision="ABSTAIN_LOWER_BOUND",
+            applied=False,
+            should_block=False,
+            reason="The calibrated probability passes, but its lower confidence bound does not.",
+        )
+
+    accepted = scored.probability >= threshold
     canary_percent = int(deployment.get("canary_percent", 20))
     applied = mode == "active" or (
-        mode == "canary" and _canary_selected(str(getattr(signal, "key", "")), model["model_id"], canary_percent)
+        mode == "canary"
+        and _canary_selected(str(getattr(signal, "key", "")), model["model_id"], canary_percent)
     )
     if mode == "shadow":
         decision = "SHADOW_ACCEPT" if accepted else "SHADOW_REJECT"
@@ -117,12 +160,7 @@ def score_signal(
     else:
         decision = "ACTIVE_ACCEPT" if accepted else "ACTIVE_REJECT"
     return Prediction(
-        model_id=model["model_id"],
-        mode=mode,
-        probability=scored.probability,
-        threshold=threshold,
-        uncertainty=scored.uncertainty,
-        ood_score=scored.ood_score,
+        **common,
         decision=decision,
         applied=applied,
         should_block=applied and not accepted,

@@ -75,12 +75,12 @@ jobs:
             .runtime-data/duka-bi5
           key: wickless-autoresearch-data-v2-walk-forward
 
-      - name: Train and validate challenger
+      - name: Train and validate Phase 3 challengers
         shell: bash
         run: |
           mkdir -p .runtime-output
           set -o pipefail
-          python -m wickless_ml.training \
+          python -m wickless_ml.phase3_training \
             --data-root "$DATA_ROOT" \
             --validation-policy autoresearch/walk_forward_policy.json \
             --learning-policy wickless_ml/policy.json \
@@ -148,6 +148,7 @@ jobs:
               "🧠 **Wickless ML learning**",
               f"Status: **{report.get('status', 'UNKNOWN')}**",
               f"Samples: {report.get('sample_counts', {}).get('total', 0)}",
+              f"Family: `{report.get('model_family', 'none')}`",
               f"Challenger: `{report.get('model_id', 'none')}`",
               f"Champion: `{champion.get('model_id', 'none')}`",
               f"Deployment: **{registry.get('deployment', {}).get('mode', 'shadow').upper()}**",
