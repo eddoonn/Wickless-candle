@@ -29,7 +29,7 @@ jobs:
           python-version: "3.12"
 
       - name: Apply Phase 2 integration
-        run: python scripts/apply_phase2_patch.py
+        run: python scripts/run_phase2_patch.py
 
       - name: Compile repository
         run: >-
