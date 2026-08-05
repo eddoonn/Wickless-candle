@@ -18,10 +18,11 @@ from autoresearch.run_experiment import (
     _read_ledger,
     _write_json_atomic,
 )
+from production_session import PRODUCTION_RELEASE_SHA
 
 UTC = timezone.utc
 HERE = Path(__file__).resolve().parent
-PRODUCTION_BASELINE_SHA = "12250ed9e7698e9b7e57341f09d23372cb7ba1cc"
+PRODUCTION_BASELINE_SHA = PRODUCTION_RELEASE_SHA
 
 
 def production_reference_candidate() -> Candidate:
@@ -29,8 +30,8 @@ def production_reference_candidate() -> Candidate:
     return Candidate(
         name="production-baseline",
         description=(
-            "Immutable Wickless production defaults used as the nightly comparison "
-            f"reference at {PRODUCTION_BASELINE_SHA[:8]}."
+            "Immutable Wickless production defaults with the London-New York "
+            f"session union at {PRODUCTION_BASELINE_SHA[:8]}."
         ),
         parameters={},
         source_sha256=hashlib.sha256(identity.encode("utf-8")).hexdigest(),
