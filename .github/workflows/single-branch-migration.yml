@@ -27,8 +27,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Compile migration runner
-        run: python -m py_compile scripts/single_branch_migration.py
+      - name: Patch and compile migration runner
+        run: |
+          python -m py_compile scripts/patch_single_branch_migration.py
+          python scripts/patch_single_branch_migration.py
+          python -m py_compile scripts/single_branch_migration.py
 
       - name: Consolidate repository and remove old branches
         run: python scripts/single_branch_migration.py
