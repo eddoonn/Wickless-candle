@@ -1,5 +1,5 @@
-requested_at_utc=2026-08-05T13:19:00+00:00
-requested_at_london=2026-08-05T14:19:00+01:00
-framework_commit=b02f8885ae37284db3f7fedd21f2860e3683b533
+requested_at_utc=2026-08-05T13:26:00+00:00
+requested_at_london=2026-08-05T14:26:00+01:00
+framework_commit=c72bcc122e337ee0a2c9fe542244d86db889ce76
 target_branch=agent/system-polish-main
-reason=final_three_level_effect_model_full_suite_and_health_validation
+reason=synchronized_three_level_effect_model_full_suite_health_and_release_validation
