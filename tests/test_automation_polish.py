@@ -144,6 +144,7 @@ class HealthTests(unittest.TestCase):
         self.assertEqual(checks["locked_sessions_absent_from_search"]["status"], "pass")
         self.assertEqual(checks["single_flight_live_scans"]["status"], "pass")
         self.assertEqual(checks["single_main_branch_automation"]["status"], "pass")
+        self.assertEqual(checks["scanner_health_self_recovery"]["status"], "pass")
 
 
 if __name__ == "__main__":
