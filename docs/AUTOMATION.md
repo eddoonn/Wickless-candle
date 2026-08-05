@@ -22,7 +22,7 @@ The two clocks use independent IANA time zones. Candidate parameters cannot shor
 - Every run uploads a seven-day diagnostic artifact containing the scanner log and paired UTC/London metadata.
 - A failed run sends a best-effort Discord failure alert with the Actions URL.
 
-A separate weekday `Wickless scanner health heartbeat` runs at 18:45 London time. It reads the actual live-workflow history and reports whether the most recent scan completed successfully within 20 minutes. The heartbeat is operational only; it never implies that a trade signal existed.
+A separate weekday `Wickless scanner health heartbeat` is scheduled for 18:45 London time. It evaluates scanner coverage against that intended checkpoint rather than the delayed time at which GitHub eventually starts the heartbeat. It reports `HEALTHY`, `DEGRADED`, or `UNHEALTHY`, includes scheduling delay and the latest live-run URL, and checks both checkpoint coverage and the preceding 24-hour cadence. When no successful or active scan exists within 20 minutes of the current check, the heartbeat dispatches one recovery run of `live-signals.yml`, waits for completion, and reports the recovery result. A successful recovery remains `DEGRADED` when cadence or checkpoint warnings remain; failed recovery is `UNHEALTHY`. The heartbeat is operational only and never implies that a trade signal existed.
 
 ## Nightly autoresearch
 
