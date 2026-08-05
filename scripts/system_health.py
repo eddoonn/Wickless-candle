@@ -52,6 +52,12 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
     live_workflow = (root / ".github/workflows/live-signals.yml").read_text(
         encoding="utf-8"
     )
+    scanner_health_workflow = (
+        root / ".github/workflows/scanner-health.yml"
+    ).read_text(encoding="utf-8")
+    scanner_health_script = (root / "scripts/scanner_health.py").read_text(
+        encoding="utf-8"
+    )
     nightly_workflow = (
         root / ".github/workflows/autoresearch-nightly.yml"
     ).read_text(encoding="utf-8")
@@ -101,6 +107,19 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
             "single_flight_live_scans",
             "cancel-in-progress: true" in live_workflow,
             "live scan concurrency cancels overlapping work",
+        ),
+        _check(
+            "scanner_health_self_recovery",
+            "actions: write" in scanner_health_workflow
+            and "contents: read" in scanner_health_workflow
+            and "contents: write" not in scanner_health_workflow
+            and "python scripts/scanner_health.py" in scanner_health_workflow
+            and "dispatch_workflow(" in scanner_health_script
+            and '"HEALTHY"' in scanner_health_script
+            and '"DEGRADED"' in scanner_health_script
+            and '"UNHEALTHY"' in scanner_health_script
+            and "checkpoint_covered" in scanner_health_script,
+            "heartbeat is checkpoint-aware and may dispatch one recovery scan without content writes",
         ),
     ]
 
