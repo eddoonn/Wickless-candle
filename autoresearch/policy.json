@@ -19,7 +19,7 @@
     }
   ],
   "acceptance": {
-    "minimum_net_r_each_fold": null,
+    "minimum_net_r_each_fold": -1000000000.0,
     "minimum_total_trades": 11,
     "minimum_overall_profit_factor": 1.5,
     "maximum_overall_drawdown_r": 4.0,
