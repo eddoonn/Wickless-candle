@@ -1,5 +1,0 @@
-requested_at_utc=2026-08-05T13:33:00+00:00
-requested_at_london=2026-08-05T14:33:00+01:00
-framework_commit=e39b8b9d9169377abe14ca07a76707eb84ad9e86
-target_branch=agent/system-polish-main
-reason=rerun_after_130_tests_passed_and_direct_health_entrypoint_was_fixed
