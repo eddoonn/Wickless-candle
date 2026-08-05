@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "production_baseline_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+  "phase1_validation": {
+    "profile": "phase1-walk-forward-v1",
+    "training_window_days": 90,
+    "purge_days": 2,
+    "embargo_days": 1,
+    "bootstrap_samples": 2000,
+    "bootstrap_block_size": 3,
+    "confidence_level": 0.9,
+    "maximum_neighbour_variants": 4
+  },
+  "folds": [
+    {
+      "name": "august_2025",
+      "directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "start_utc": "2025-08-01T00:00:00+00:00",
+      "end_utc_exclusive": "2025-09-01T00:00:00+00:00",
+      "minimum_trades": 0
+    },
+    {
+      "name": "september_2025",
+      "directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "start_utc": "2025-09-01T00:00:00+00:00",
+      "end_utc_exclusive": "2025-10-01T00:00:00+00:00",
+      "minimum_trades": 0
+    },
+    {
+      "name": "october_2025",
+      "directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "start_utc": "2025-10-01T00:00:00+00:00",
+      "end_utc_exclusive": "2025-11-01T00:00:00+00:00",
+      "minimum_trades": 0
+    },
+    {
+      "name": "november_2025",
+      "directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "start_utc": "2025-11-01T00:00:00+00:00",
+      "end_utc_exclusive": "2025-12-01T00:00:00+00:00",
+      "minimum_trades": 0
+    },
+    {
+      "name": "december_2025",
+      "directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "start_utc": "2025-12-01T00:00:00+00:00",
+      "end_utc_exclusive": "2026-01-01T00:00:00+00:00",
+      "minimum_trades": 0
+    },
+    {
+      "name": "january_2026",
+      "directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "start_utc": "2026-01-01T00:00:00+00:00",
+      "end_utc_exclusive": "2026-02-01T00:00:00+00:00",
+      "minimum_trades": 0
+    },
+    {
+      "name": "february_2026",
+      "directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "start_utc": "2026-02-01T00:00:00+00:00",
+      "end_utc_exclusive": "2026-03-01T00:00:00+00:00",
+      "minimum_trades": 0
+    },
+    {
+      "name": "march_2026",
+      "directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "start_utc": "2026-03-01T00:00:00+00:00",
+      "end_utc_exclusive": "2026-04-01T00:00:00+00:00",
+      "minimum_trades": 0
+    },
+    {
+      "name": "april_2026",
+      "directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "start_utc": "2026-04-01T00:00:00+00:00",
+      "end_utc_exclusive": "2026-05-01T00:00:00+00:00",
+      "minimum_trades": 0
+    },
+    {
+      "name": "may_2026",
+      "directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "start_utc": "2026-05-01T00:00:00+00:00",
+      "end_utc_exclusive": "2026-06-01T00:00:00+00:00",
+      "minimum_trades": 0
+    },
+    {
+      "name": "june_2026",
+      "directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "start_utc": "2026-06-01T00:00:00+00:00",
+      "end_utc_exclusive": "2026-07-01T00:00:00+00:00",
+      "minimum_trades": 10
+    },
+    {
+      "name": "july_2026",
+      "directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "start_utc": "2026-07-01T00:00:00+00:00",
+      "end_utc_exclusive": "2026-08-01T00:00:00+00:00",
+      "minimum_trades": 10
+    }
+  ],
+  "acceptance": {
+    "minimum_net_r_each_fold": -1000000000.0,
+    "minimum_total_trades": 60,
+    "minimum_overall_profit_factor": 1.5,
+    "maximum_overall_drawdown_r": 4.0,
+    "maximum_pair_trade_share": 0.6,
+    "minimum_distinct_pairs": 3,
+    "maximum_ambiguous_exits": 0,
+    "minimum_profitable_fold_ratio": 0.58,
+    "maximum_single_fold_profit_share": 0.35,
+    "minimum_worst_rolling_three_fold_net_r": -2.0,
+    "minimum_bootstrap_probability_mean_positive": 0.8,
+    "minimum_bootstrap_mean_fold_net_r_lower": -0.25,
+    "minimum_neighbourhood_pass_rate": 0.5,
+    "minimum_neighbourhood_median_net_r": 0.0,
+    "require_objective_improvement": true
+  },
+  "objective_order": [
+    "worst_fold_net_r",
+    "total_net_r",
+    "overall_profit_factor",
+    "negative_overall_drawdown_r",
+    "total_trades"
+  ],
+  "repository_branch": "main"
+}
