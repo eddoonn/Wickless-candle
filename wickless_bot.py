@@ -54,6 +54,7 @@ AMBIGUOUS_PRICE_PATH = "AMBIGUOUS_PRICE_PATH"
 PRICE_MOVED_TOO_FAR = "PRICE_MOVED_TOO_FAR"
 ACTIVE_POSITION_EXISTS = "ACTIVE_POSITION_EXISTS"
 DUPLICATE_SIGNAL = "DUPLICATE_SIGNAL"
+ML_FILTER_REJECTED = "ML_FILTER_REJECTED"
 STOP_TOO_TIGHT = "STOP_TOO_TIGHT"
 STOP_TOO_WIDE = "STOP_TOO_WIDE"
 EXECUTION_COST_TOO_LARGE_RELATIVE_TO_RISK = (
@@ -276,6 +277,14 @@ class OriginLimitSignal:
     close_location: float = 0.0
     quality_score: float = 0.0
     entry_displacement_atr: float = 0.0
+    ml_model_id: str = ""
+    ml_mode: str = "unavailable"
+    ml_probability: float | None = None
+    ml_threshold: float = 0.0
+    ml_uncertainty: float = 1.0
+    ml_ood_score: float = 0.0
+    ml_decision: str = "UNAVAILABLE"
+    ml_applied: bool = False
 
 
 @dataclass(frozen=True)
@@ -1329,6 +1338,20 @@ def discord_payload(signal: OriginLimitSignal) -> dict[str, object]:
                         "inline": False,
                     },
                     {
+                        "name": "ML meta-label",
+                        "value": (
+                            "`UNAVAILABLE • deterministic strategy used`"
+                            if signal.ml_probability is None
+                            else (
+                                f"`p={100 * signal.ml_probability:.1f}% • "
+                                f"threshold={100 * signal.ml_threshold:.1f}% • "
+                                f"{signal.ml_decision} • "
+                                f"uncertainty={100 * signal.ml_uncertainty:.0f}%`"
+                            )
+                        ),
+                        "inline": False,
+                    },
+                    {
                         "name": "Published (UTC)",
                         "value": f"`{signal.published_time_utc}`",
                         "inline": False,
@@ -1489,10 +1512,49 @@ def _record_rejection(
         "close_location": signal.close_location,
         "quality_score": signal.quality_score,
         "entry_displacement_atr": signal.entry_displacement_atr,
+        "ml_model_id": signal.ml_model_id,
+        "ml_mode": signal.ml_mode,
+        "ml_probability": signal.ml_probability,
+        "ml_threshold": signal.ml_threshold,
+        "ml_uncertainty": signal.ml_uncertainty,
+        "ml_ood_score": signal.ml_ood_score,
+        "ml_decision": signal.ml_decision,
+        "ml_applied": signal.ml_applied,
     }
     state.rejections.append(record)
     state.rejections = state.rejections[-500:]
     state.handled[signal.key] = record
+
+
+def _ml_outcome(
+    status: str,
+    signal: OriginLimitSignal,
+) -> tuple[int, float] | None:
+    if not signal.ml_model_id:
+        return None
+    cost = max(0.0, signal.cost_to_risk_ratio)
+    if status == TARGET_ALREADY_REACHED:
+        return 1, round(signal.reward_risk - cost, 6)
+    if status in {STOP_ALREADY_REACHED, AMBIGUOUS_PRICE_PATH}:
+        return 0, round(-1.0 - cost, 6)
+    return None
+
+
+def _record_ml_outcome(
+    handled: dict[str, object],
+    *,
+    status: str,
+    signal: OriginLimitSignal,
+    at: datetime,
+) -> None:
+    outcome = _ml_outcome(status, signal)
+    if outcome is None:
+        return
+    label, realized_r = outcome
+    handled["ml_outcome"] = label
+    handled["ml_realized_r"] = realized_r
+    handled["ml_outcome_status"] = status
+    handled["closed_time_utc"] = at.astimezone(UTC).isoformat()
 
 
 def _update_active_position(
@@ -1523,6 +1585,42 @@ def _update_active_position(
     handled = state.handled.setdefault(signal.key, {})
     handled["position_status"] = status
     handled["closed_time_utc"] = at.astimezone(UTC).isoformat()
+    _record_ml_outcome(handled, status=status, signal=signal, at=at)
+
+
+def _update_filtered_outcomes(
+    state: ScannerState,
+    *,
+    instrument: str,
+    bid_bars: Sequence[Bar],
+    ask_bars: Sequence[Bar],
+    at: datetime,
+) -> None:
+    for record in state.handled.values():
+        if (
+            not isinstance(record, dict)
+            or record.get("status") != "ML_FILTERED"
+            or "ml_outcome" in record
+            or not isinstance(record.get("signal"), dict)
+        ):
+            continue
+        try:
+            signal = OriginLimitSignal(**record["signal"])
+        except TypeError as error:
+            raise ValueError(f"Invalid filtered ML signal: {error}") from error
+        if signal.instrument != instrument:
+            continue
+        status = _price_path_status(
+            signal,
+            bid_bars=bid_bars,
+            ask_bars=ask_bars,
+            require_ask_fill=False,
+        )
+        if status is None:
+            record["last_evaluated_time_utc"] = at.astimezone(UTC).isoformat()
+            continue
+        record["filter_status"] = status
+        _record_ml_outcome(record, status=status, signal=signal, at=at)
 
 
 def scan_markets(
@@ -1578,6 +1676,13 @@ def scan_markets(
             ask_bars=ask_bars,
             at=as_of,
         )
+        _update_filtered_outcomes(
+            state,
+            instrument=instrument,
+            bid_bars=bid_bars,
+            ask_bars=ask_bars,
+            at=as_of,
+        )
         signals = find_fresh_origin_limit_signals(
             bid_bars,
             instrument=instrument,
@@ -1619,6 +1724,33 @@ def scan_markets(
                 print(
                     f"{signal.symbol}: rejected {signal.key} "
                     f"({validated.actionability_status})"
+                )
+                continue
+            from wickless_ml.runtime import annotate_signal
+
+            validated, prediction = annotate_signal(validated)
+            if prediction.should_block:
+                filtered = replace(
+                    validated,
+                    actionability_status=ML_FILTER_REJECTED,
+                    published_time_utc=as_of.isoformat(),
+                )
+                _record_rejection(
+                    state,
+                    filtered,
+                    status=ML_FILTER_REJECTED,
+                    at=as_of,
+                )
+                state.handled[signal.key] = {
+                    "status": "ML_FILTERED",
+                    "timestamp": as_of.isoformat(),
+                    "last_evaluated_time_utc": as_of.isoformat(),
+                    "signal": asdict(filtered),
+                }
+                _save_state(state_path, state)
+                print(
+                    f"{signal.symbol}: ML filtered {signal.key} "
+                    f"({prediction.decision})"
                 )
                 continue
             publishable = replace(validated, published_time_utc=as_of.isoformat())

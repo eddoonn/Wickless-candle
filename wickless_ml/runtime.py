@@ -54,7 +54,7 @@ def load_champion(
     model_path = champion.get("model_path")
     if not isinstance(model_id, str) or not isinstance(model_path, str):
         raise ValueError("Champion registry record is incomplete")
-    model = _read_json(HERE / model_path)
+    model = _read_json(registry_path.resolve().parent / model_path)
     if model.get("model_id") != model_id:
         raise ValueError("Champion model identity does not match the registry")
     metadata = model.get("metadata", {})

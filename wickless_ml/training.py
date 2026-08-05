@@ -394,7 +394,7 @@ def train_and_register(
     registry = _read_json(registry_path) if registry_path.exists() else _initial_registry()
     if registry.get("production_release_sha") != PRODUCTION_RELEASE_SHA:
         registry = _initial_registry()
-    relative_model = str(model_path.relative_to(HERE))
+    relative_model = str(model_path.resolve().relative_to(HERE.resolve()))
     record = {
         "model_id": model["model_id"],
         "model_path": relative_model,

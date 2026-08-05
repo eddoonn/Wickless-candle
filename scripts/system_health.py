@@ -23,6 +23,8 @@ from autoresearch.phase1_validation import policy_profile_sha256
 from autoresearch.phase2_optimizer import MODEL_VERSION, phase2_settings
 from autoresearch.reference_benchmark import PRODUCTION_BASELINE_SHA
 from production_session import PRODUCTION_RELEASE_SHA, SESSION_LABEL
+from wickless_ml.features import FEATURE_SCHEMA_VERSION
+from wickless_ml.model import MODEL_FORMAT_VERSION
 
 
 UTC = timezone.utc
@@ -77,6 +79,23 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
     )
     nightly_workflow = (
         root / ".github/workflows/autoresearch-nightly.yml"
+    ).read_text(encoding="utf-8")
+    ml_policy = json.loads(
+        (root / "wickless_ml" / "policy.json").read_text(encoding="utf-8")
+    )
+    ml_registry = json.loads(
+        (root / "wickless_ml" / "registry.json").read_text(encoding="utf-8")
+    )
+    ml_features = (root / "wickless_ml" / "features.py").read_text(encoding="utf-8")
+    ml_model = (root / "wickless_ml" / "model.py").read_text(encoding="utf-8")
+    ml_runtime = (root / "wickless_ml" / "runtime.py").read_text(encoding="utf-8")
+    ml_monitor = (root / "wickless_ml" / "monitor.py").read_text(encoding="utf-8")
+    bot_source = (root / "wickless_bot.py").read_text(encoding="utf-8")
+    ml_learning_workflow = (
+        root / ".github/workflows/ml-learning.yml"
+    ).read_text(encoding="utf-8")
+    ml_live_workflow = (
+        root / ".github/workflows/ml-live-monitor.yml"
     ).read_text(encoding="utf-8")
 
     checks = [
@@ -155,6 +174,39 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
             (
                 f"model={MODEL_VERSION} exploration="
                 f"{optimizer_settings['exploration_fraction'] if optimizer_settings else 'invalid'}"
+            ),
+        ),
+        _check(
+            "phase3_meta_label_learning",
+            ml_policy.get("profile") == "wickless-meta-label-learning-v1"
+            and int(ml_policy["training"]["minimum_total_samples"]) >= 60
+            and FEATURE_SCHEMA_VERSION in ml_features
+            and "fit_isotonic_calibrator" in ml_model
+            and "chronological_split" in (
+                root / "wickless_ml" / "training.py"
+            ).read_text(encoding="utf-8")
+            and "annotate_signal" in bot_source
+            and "ML_FILTER_REJECTED" in bot_source
+            and "deterministic strategy wins" in ml_runtime,
+            f"features={FEATURE_SCHEMA_VERSION} model_format={MODEL_FORMAT_VERSION}",
+        ),
+        _check(
+            "phase4_automated_production_learning",
+            ml_registry.get("production_release_sha") == PRODUCTION_RELEASE_SHA
+            and bool(ml_policy["deployment"]["automatic_canary_enabled"])
+            and bool(ml_policy["deployment"]["automatic_active_enabled"])
+            and int(ml_policy["deployment"]["minimum_shadow_outcomes"]) >= 50
+            and int(ml_policy["deployment"]["minimum_canary_outcomes"]) >= 30
+            and int(ml_policy["deployment"]["canary_percent"]) == 20
+            and "ROLLED_BACK" in ml_monitor
+            and "contents: write" in ml_learning_workflow
+            and "contents: write" in ml_live_workflow
+            and "wickless-autoresearch-data-v2-walk-forward" in ml_learning_workflow
+            and "wickless-signal-state-" in ml_live_workflow
+            and "contents: write" not in live_workflow,
+            (
+                f"deployment={ml_registry.get('deployment', {}).get('mode', 'shadow')} "
+                f"champion={(ml_registry.get('champion') or {}).get('model_id', 'none')}"
             ),
         ),
         _check(
@@ -265,6 +317,9 @@ def audit(root: Path = ROOT) -> dict[str, Any]:
         "phase1_validation_profile_sha256": phase1_profile,
         "phase2_model_version": MODEL_VERSION,
         "phase2_optimizer_profile": (optimizer_settings or {}).get("profile"),
+        "phase3_feature_schema": FEATURE_SCHEMA_VERSION,
+        "phase4_deployment_mode": ml_registry.get("deployment", {}).get("mode"),
+        "ml_champion_model_id": (ml_registry.get("champion") or {}).get("model_id"),
         "checks": [asdict(check) for check in checks],
     }
 
