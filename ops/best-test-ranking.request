@@ -1,4 +1,4 @@
-requested_at_utc=2026-08-05T13:40:00+00:00
-requested_at_london=2026-08-05T14:40:00+01:00
-reason=retrigger_registered_workflow_to_prevent_zero_trade_best_test
+requested_at_utc=2026-08-05T13:45:00+00:00
+requested_at_london=2026-08-05T14:45:00+01:00
+reason=run_simplified_checked_ranking_patch
 ranking=passed_gates_then_minimum_fold_trades_then_total_trades_then_objective
