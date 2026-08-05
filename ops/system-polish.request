@@ -1,5 +1,5 @@
-requested_at_utc=2026-08-05T12:53:00+00:00
-requested_at_london=2026-08-05T13:53:00+01:00
-framework_commit=e4ec02052d01fb468fe049056e9ee29fdceb5c4c
+requested_at_utc=2026-08-05T12:58:00+00:00
+requested_at_london=2026-08-05T13:58:00+01:00
+framework_commit=6ea5d35ca59f451ecef3cf45e48aee097c3b5327
 target_branch=agent/system-polish-main
-reason=full_suite_health_audit_and_diagnosable_promotion
+reason=promote_after_only_stale_contract_assertion_was_fixed
