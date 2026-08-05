@@ -2,51 +2,90 @@
   "runs": [
     {
       "conclusion": "failure",
+      "created_at": "2026-08-05T15:29:52Z",
+      "head_sha": "2d001e6dd07c9eb5b306327b4e2ee6c8579a6c6f",
+      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31020584406",
+      "id": 31020584406,
+      "jobs": [
+        {
+          "conclusion": "failure",
+          "id": 92355957354,
+          "name": "migrate",
+          "status": "completed",
+          "steps": [
+            {
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 3,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Compile migration runner",
+              "number": 4,
+              "status": "completed"
+            },
+            {
+              "conclusion": "failure",
+              "name": "Consolidate repository and remove old branches",
+              "number": 5,
+              "status": "completed"
+            },
+            {
+              "conclusion": "skipped",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 9,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Post Run actions/checkout@v4",
+              "number": 10,
+              "status": "completed"
+            },
+            {
+              "conclusion": "success",
+              "name": "Complete job",
+              "number": 11,
+              "status": "completed"
+            }
+          ]
+        }
+      ],
+      "status": "completed",
+      "updated_at": "2026-08-05T15:30:13Z"
+    },
+    {
+      "conclusion": "failure",
+      "created_at": "2026-08-05T15:29:02Z",
+      "head_sha": "cfe4992d39c3ed8241d457e211729c066faa509f",
+      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31020515299",
+      "id": 31020515299,
+      "jobs": [],
+      "status": "completed",
+      "updated_at": "2026-08-05T15:29:02Z"
+    },
+    {
+      "conclusion": "failure",
       "created_at": "2026-08-05T15:27:00Z",
-      "event": "push",
       "head_sha": "0ec39b9427362a2cecf47e385134ecca1bc85fc9",
       "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31020344497",
       "id": 31020344497,
       "jobs": [],
-      "run_number": 4,
       "status": "completed",
       "updated_at": "2026-08-05T15:27:00Z"
-    },
-    {
-      "conclusion": "failure",
-      "created_at": "2026-08-05T15:26:45Z",
-      "event": "push",
-      "head_sha": "6b0673d56c0ccd896fc4c80d39cc611a11d5a748",
-      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31020322766",
-      "id": 31020322766,
-      "jobs": [],
-      "run_number": 3,
-      "status": "completed",
-      "updated_at": "2026-08-05T15:26:45Z"
-    },
-    {
-      "conclusion": "failure",
-      "created_at": "2026-08-05T15:24:55Z",
-      "event": "push",
-      "head_sha": "00f83388aeca71a6e60eb97ab6ed37569c4e5dbb",
-      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31020170560",
-      "id": 31020170560,
-      "jobs": [],
-      "run_number": 2,
-      "status": "completed",
-      "updated_at": "2026-08-05T15:24:55Z"
-    },
-    {
-      "conclusion": "failure",
-      "created_at": "2026-08-05T15:24:39Z",
-      "event": "push",
-      "head_sha": "8167b8542ae4cd130c4654c6c4b1af4d443cf21d",
-      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31020149273",
-      "id": 31020149273,
-      "jobs": [],
-      "run_number": 1,
-      "status": "completed",
-      "updated_at": "2026-08-05T15:24:39Z"
     }
   ]
 }
