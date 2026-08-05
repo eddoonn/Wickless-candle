@@ -101,6 +101,10 @@ def score_signal(
     if status in {"NO_CHAMPION", "DRIFT", "ROLLED_BACK", "MODEL_ERROR"}:
         mode = "shadow"
 
+    uncertainty_enabled = (
+        model.get("metadata", {}).get("feature_schema")
+        == "wickless-meta-label-features-v2"
+    )
     common = {
         "model_id": model["model_id"],
         "model_family": str(model.get("model_family", "logistic_regression")),
@@ -120,7 +124,7 @@ def score_signal(
             should_block=False,
             reason="Feature vector is outside the approved model support; deterministic strategy wins.",
         )
-    if scored.uncertainty > maximum_uncertainty:
+    if uncertainty_enabled and scored.uncertainty > maximum_uncertainty:
         return Prediction(
             **common,
             decision="ABSTAIN_UNCERTAIN",
@@ -129,7 +133,8 @@ def score_signal(
             reason="Prediction uncertainty exceeds policy; deterministic strategy wins.",
         )
     if (
-        scored.probability >= threshold
+        uncertainty_enabled
+        and scored.probability >= threshold
         and scored.lower_probability_bound < max(0.0, threshold - lower_bound_slack)
     ):
         return Prediction(
