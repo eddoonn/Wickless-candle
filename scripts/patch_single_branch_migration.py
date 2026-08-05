@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Narrow branch-reference assertions in the one-time migration runner."""
+"""Narrow and finalize the one-time single-branch migration runner."""
 
 from __future__ import annotations
 
@@ -105,6 +105,27 @@ new_staging = '''        "tests",
 if old_staging not in text:
     raise SystemExit("Expected obsolete diagnostic staging path was not found")
 text = text.replace(old_staging, new_staging, 1)
+
+old_workflow_call = '''    import_nightly_state()
+    rewrite_workflows()
+    rewrite_code_and_docs()
+'''
+new_workflow_call = '''    import_nightly_state()
+    # Workflow YAML is installed through the GitHub connector, which has workflow permission.
+    rewrite_code_and_docs()
+'''
+if old_workflow_call not in text:
+    raise SystemExit("Expected workflow rewrite call was not found")
+text = text.replace(old_workflow_call, new_workflow_call, 1)
+
+old_workflow_cleanup = '''        ".github/workflows/single-branch-migration.yml",
+        "ops/single-branch-migration.request",
+'''
+new_workflow_cleanup = '''        "ops/single-branch-migration.request",
+'''
+if old_workflow_cleanup not in text:
+    raise SystemExit("Expected migration workflow cleanup entry was not found")
+text = text.replace(old_workflow_cleanup, new_workflow_cleanup, 1)
 
 old_cleanup = '''        "scripts/single_branch_migration.py",
         "reports/maintenance/latest/single-branch-migration.json",
