@@ -32,7 +32,17 @@ class ProposalTests(unittest.TestCase):
         self.assertIn('git push origin "$NIGHTLY_BRANCH"', workflow)
         self.assertIn("default: \"12\"", workflow)
         self.assertIn("--coach-interval 20", workflow)
+        self.assertIn("refresh_baseline:", workflow)
+        self.assertIn("autoresearch/baseline-refresh.request", workflow)
+        self.assertIn("Refresh production baseline benchmark", workflow)
+        self.assertIn("rm -f autoresearch/incumbent.json", workflow)
         self.assertNotIn("git push origin main", workflow)
+
+        policy = json.loads((ROOT / "autoresearch/policy.json").read_text(encoding="utf-8"))
+        folds = {fold["name"]: fold for fold in policy["folds"]}
+        self.assertEqual(folds["june_2026"]["minimum_trades"], 10)
+        self.assertEqual(folds["july_2026"]["minimum_trades"], 10)
+        self.assertLess(policy["acceptance"]["minimum_net_r_each_fold"], -1e8)
 
     def test_space_is_large_deterministic_and_unique(self) -> None:
         first = proposal_space()
@@ -54,12 +64,15 @@ class ProposalTests(unittest.TestCase):
 
         record["record_sha256"] = hashlib.sha256(encoded.encode()).hexdigest()
         with tempfile.TemporaryDirectory() as directory:
-            ledger = Path(directory) / "results.jsonl"
+            root = Path(directory)
+            ledger = root / "results.jsonl"
+            playbook = root / "playbook.md"
             ledger.write_text(
                 json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n",
                 encoding="utf-8",
             )
-            selected = select_proposals(ledger, 2)
+            playbook.write_text("", encoding="utf-8")
+            selected = select_proposals(ledger, 2, playbook)
         self.assertEqual(selected, proposal_space()[1:3])
 
     def test_selection_obeys_playbook_priorities_and_blocks(self) -> None:
