@@ -1,5 +1,6 @@
-requested_at_utc=2026-08-05T15:16:00+00:00
-requested_at_london=2026-08-05T16:16:00+01:00
+requested_at_utc=2026-08-05T15:29:00+00:00
+requested_at_london=2026-08-05T16:29:00+01:00
 keep_branch=main
 delete_all_other_branches=true
 preserve_research_state=true
+runner=compile-checked-python
