@@ -15,7 +15,41 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  align-framework:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: autoresearch/framework-v1
+          fetch-depth: 0
+
+      - name: Align evaluator with production release identity
+        shell: bash
+        run: |
+          git config user.name "wickless-maintenance[bot]"
+          git config user.email "wickless-maintenance[bot]@users.noreply.github.com"
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("autoresearch/evaluator.py")
+          source = path.read_text(encoding="utf-8")
+          old = "12250ed9e7698e9b7e57341f09d23372cb7ba1cc"
+          new = "9ddd1b44aee10467247fda4627bc472ed1ff4132"
+          if old in source:
+              source = source.replace(old, new)
+              path.write_text(source, encoding="utf-8")
+          if old in path.read_text(encoding="utf-8"):
+              raise SystemExit("Legacy production identity remains in evaluator")
+          PY
+          git add -- autoresearch/evaluator.py autoresearch/policy.json
+          if ! git diff --cached --quiet; then
+            git commit -m "research: align evaluator with production release"
+            git push origin HEAD:autoresearch/framework-v1
+          fi
+
   apply:
+    needs: align-framework
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -45,8 +79,10 @@ jobs:
             autoresearch/behavior.py
             autoresearch/bootstrap_benchmark.py
             autoresearch/candidate.py
+            autoresearch/evaluator.py
             autoresearch/nightly_batch.py
             autoresearch/notifications.py
+            autoresearch/policy.json
             autoresearch/reference_benchmark.py
             autoresearch/run_experiment.py
             scripts/system_health.py
@@ -83,8 +119,10 @@ jobs:
             autoresearch/behavior.py \
             autoresearch/bootstrap_benchmark.py \
             autoresearch/candidate.py \
+            autoresearch/evaluator.py \
             autoresearch/nightly_batch.py \
             autoresearch/notifications.py \
+            autoresearch/policy.json \
             autoresearch/reference_benchmark.py \
             autoresearch/run_experiment.py \
             scripts/system_health.py \
