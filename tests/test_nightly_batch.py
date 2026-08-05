@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -8,9 +9,11 @@ from pathlib import Path
 from autoresearch.attempts import idea_category
 from autoresearch.evaluator import load_candidate
 from autoresearch.nightly_batch import (
+    LOCKED_SESSION_PARAMETERS,
     Proposal,
     discord_summary,
     parameter_signature,
+    proposal_family,
     proposal_space,
     render_candidate,
     select_best_experiment,
@@ -45,7 +48,7 @@ class ProposalTests(unittest.TestCase):
         self.assertIn("Run worker and coach experiment loop", workflow)
         self.assertIn("--no-discord", workflow)
         self.assertIn("Notify Discord of nightly benchmark and best test", workflow)
-        self.assertIn("discord_summary", workflow)
+        self.assertIn("autoresearch.notifications nightly", workflow)
         self.assertLess(
             workflow.index("Publish audit history to the nightly branch only"),
             workflow.index("Notify Discord of nightly benchmark and best test"),
@@ -60,14 +63,17 @@ class ProposalTests(unittest.TestCase):
         self.assertEqual(folds["july_2026"]["minimum_trades"], 10)
         self.assertLess(policy["acceptance"]["minimum_net_r_each_fold"], -1e8)
 
-    def test_space_is_large_deterministic_and_unique(self) -> None:
+    def test_space_is_large_deterministic_unique_and_has_no_clock_mutations(self) -> None:
         first = proposal_space()
         second = proposal_space()
         self.assertEqual(first, second)
         self.assertGreater(len(first), 500)
         signatures = [parameter_signature(row.parameters) for row in first]
         self.assertEqual(len(signatures), len(set(signatures)))
-        self.assertTrue(all(1 <= len(row.parameters) <= 2 for row in first))
+        self.assertTrue(
+            all(not LOCKED_SESSION_PARAMETERS.intersection(row.parameters) for row in first)
+        )
+        self.assertTrue(any(row.parameters.get("entry_model") for row in first))
 
     def test_selection_skips_parameters_already_in_ledger(self) -> None:
         first = proposal_space()[0]
@@ -76,8 +82,6 @@ class ProposalTests(unittest.TestCase):
             "previous_sha256": "0" * 64,
         }
         encoded = json.dumps(record, sort_keys=True, separators=(",", ":"))
-        import hashlib
-
         record["record_sha256"] = hashlib.sha256(encoded.encode()).hexdigest()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -88,8 +92,20 @@ class ProposalTests(unittest.TestCase):
                 encoding="utf-8",
             )
             playbook.write_text("", encoding="utf-8")
-            selected = select_proposals(ledger, 2, playbook)
-        self.assertEqual(selected, proposal_space()[1:3])
+            selected = select_proposals(ledger, 4, playbook)
+        self.assertEqual(len(selected), 4)
+        self.assertNotIn(parameter_signature(first.parameters), {
+            parameter_signature(row.parameters) for row in selected
+        })
+
+    def test_selection_diversifies_categories_and_parameter_families(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            selected = select_proposals(root / "results.jsonl", 8, root / "playbook.md")
+        categories = {idea_category(row.parameters) for row in selected}
+        families = {proposal_family(row.parameters) for row in selected}
+        self.assertGreaterEqual(len(categories), 4)
+        self.assertGreaterEqual(len(families), 6)
 
     def test_selection_obeys_playbook_priorities_and_blocks(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -112,7 +128,7 @@ class ProposalTests(unittest.TestCase):
         proposal = Proposal(
             name="test-candidate",
             description="A small controlled test.",
-            parameters={"minimum_body_ratio": 0.79, "session_start": "04:45"},
+            parameters={"minimum_body_ratio": 0.79, "trend_filter": "none"},
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "candidate.py"
@@ -120,9 +136,9 @@ class ProposalTests(unittest.TestCase):
             loaded = load_candidate(path)
         self.assertEqual(loaded.name, proposal.name)
         self.assertEqual(loaded.parameters["minimum_body_ratio"], 0.79)
-        self.assertEqual(loaded.parameters["session_start"].isoformat(), "04:45:00")
+        self.assertEqual(loaded.parameters["trend_filter"], "none")
 
-    def test_best_experiment_uses_the_policy_objective_order(self) -> None:
+    def test_best_experiment_uses_policy_order_and_only_trade_changes(self) -> None:
         policy = {
             "objective_order": [
                 "worst_fold_net_r",
@@ -132,8 +148,31 @@ class ProposalTests(unittest.TestCase):
                 "total_trades",
             ]
         }
+        no_effect = {
+            "candidate": "identical",
+            "effect": "no-effect",
+            "objective": {
+                "worst_fold_net_r": 99.0,
+                "total_net_r": 99.0,
+                "overall_profit_factor": 99.0,
+                "negative_overall_drawdown_r": 0.0,
+                "total_trades": 99,
+            },
+        }
+        funnel_only = {
+            "candidate": "funnel-only",
+            "effect": "funnel-only",
+            "objective": {
+                "worst_fold_net_r": 100.0,
+                "total_net_r": 100.0,
+                "overall_profit_factor": 100.0,
+                "negative_overall_drawdown_r": 0.0,
+                "total_trades": 100,
+            },
+        }
         high_total_worse_fold = {
             "candidate": "high-total",
+            "effect": "trade-changed",
             "objective": {
                 "worst_fold_net_r": -3.0,
                 "total_net_r": 20.0,
@@ -144,6 +183,7 @@ class ProposalTests(unittest.TestCase):
         }
         stronger_worst_fold = {
             "candidate": "stronger-fold",
+            "effect": "trade-changed",
             "objective": {
                 "worst_fold_net_r": -2.0,
                 "total_net_r": 12.0,
@@ -153,34 +193,27 @@ class ProposalTests(unittest.TestCase):
             },
         }
         selected = select_best_experiment(
-            [high_total_worse_fold, stronger_worst_fold], policy
+            [no_effect, funnel_only, high_total_worse_fold, stronger_worst_fold], policy
         )
         self.assertEqual(selected["candidate"], "stronger-fold")
+        self.assertIsNone(select_best_experiment([no_effect, funnel_only], policy))
 
-    def test_discord_summary_compares_benchmark_with_best_experiment(self) -> None:
-        benchmark_june = {
-            "trades": 2,
-            "net_r": -2.06,
-            "maximum_drawdown_r": 2.06,
-        }
-        benchmark_july = {
-            "trades": 13,
-            "net_r": 13.68,
-            "maximum_drawdown_r": 2.06,
-        }
-        benchmark_overall = {
-            "trades": 15,
-            "net_r": 11.62,
-            "maximum_drawdown_r": 2.14,
-        }
-        best_june = {"trades": 2, "net_r": -2.06, "maximum_drawdown_r": 2.06}
-        best_july = {"trades": 14, "net_r": 15.65, "maximum_drawdown_r": 2.06}
-        best_overall = {"trades": 16, "net_r": 13.59, "maximum_drawdown_r": 2.06}
+    def test_discord_summary_reports_trade_funnel_and_no_effect_counts(self) -> None:
+        benchmark_june = {"trades": 3, "net_r": -3.09, "maximum_drawdown_r": 3.09}
+        benchmark_july = {"trades": 16, "net_r": 10.58, "maximum_drawdown_r": 3.09}
+        benchmark_overall = {"trades": 19, "net_r": 7.49, "maximum_drawdown_r": 5.22}
+        best_june = {"trades": 4, "net_r": -2.00, "maximum_drawdown_r": 3.00}
+        best_july = {"trades": 17, "net_r": 11.50, "maximum_drawdown_r": 3.00}
+        best_overall = {"trades": 21, "net_r": 9.50, "maximum_drawdown_r": 4.50}
         summary = {
-            "london_date": "2026-08-01",
+            "london_date": "2026-08-05",
             "tested": 12,
+            "trade_changed": 5,
+            "funnel_only": 2,
+            "no_effect": 5,
             "kept": 0,
             "rejected": 12,
+            "category_counts": {"candle-quality": 3, "trend-filter": 3},
             "benchmark": {
                 "name": "production-baseline",
                 "overall": benchmark_overall,
@@ -191,11 +224,13 @@ class ProposalTests(unittest.TestCase):
             },
             "best_experiment": {
                 "candidate": "grid-0031",
+                "parameters": {"ema_length": 45},
                 "status": "discard",
+                "effect": "trade-changed",
                 "overall": best_overall,
                 "folds": {"june_2026": best_june, "july_2026": best_july},
                 "acceptance_gates": {
-                    "checks": {"june_2026_positive_net_r": False}
+                    "checks": {"june_2026_minimum_trades": False}
                 },
             },
             "incumbent": {
@@ -206,15 +241,15 @@ class ProposalTests(unittest.TestCase):
                     "july_2026": benchmark_july,
                 },
             },
+            "coach_runs": [],
         }
         message = discord_summary(summary)
-        self.assertIn("KEEP **0**", message)
-        self.assertIn("Benchmark — production-baseline", message)
-        self.assertIn("Best tonight — grid-0031", message)
-        self.assertIn("Overall +1.97R", message)
+        self.assertIn("Trade changed **5**", message)
+        self.assertIn("Funnel only **2**", message)
+        self.assertIn("No effect **5**", message)
+        self.assertIn("Best trade-changing test — grid-0031", message)
+        self.assertIn("ema_length=45", message)
         self.assertIn("Decision: **DISCARD**", message)
-        self.assertIn("june 2026 positive net r", message)
-        self.assertIn("autoresearch/nightly", message)
         self.assertLess(len(message), 2000)
 
 

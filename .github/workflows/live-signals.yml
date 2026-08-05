@@ -2,7 +2,7 @@ name: Live Wickless 15m Discord signals
 
 on:
   schedule:
-    # GitHub cron is UTC. The scanner itself accepts only finalized 15m candles.
+    # GitHub cron is UTC. The scanner accepts only finalized 15-minute candles.
     - cron: "*/5 * * * *"
   workflow_dispatch:
 
@@ -11,14 +11,15 @@ permissions:
 
 concurrency:
   group: wickless-live-signals
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -32,19 +33,56 @@ jobs:
             wickless-signal-state-
 
       - name: Download indicator warm-up and risk history
-        run: python live_data.py --data-dir .runtime-data
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            python live_data.py --data-dir .runtime-data && exit 0
+            sleep $((attempt * 5))
+          done
+          exit 1
 
       - name: Post every unseen validated signal-close entry
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: >-
-          python live_scan.py scan
-          --data-dir .runtime-data
-          --state .signal-state/seen.json
-          --max-signal-age-seconds 900
-          --max-quote-age-seconds 120
-          --max-entry-deviation-r 0.25
-          --research-lookback-seconds 2700
+        shell: bash
+        run: |
+          mkdir -p .runtime-output
+          set -o pipefail
+          python live_scan.py scan \
+            --data-dir .runtime-data \
+            --state .signal-state/seen.json \
+            --max-signal-age-seconds 900 \
+            --max-quote-age-seconds 120 \
+            --max-entry-deviation-r 0.25 \
+            --research-lookback-seconds 2700 \
+            2>&1 | tee .runtime-output/live-scan.log
+
+      - name: Record scan metadata
+        if: always()
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          mkdir -p .runtime-output
+          python - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from zoneinfo import ZoneInfo
+
+          now = datetime.now(timezone.utc).replace(microsecond=0)
+          payload = {
+              "schema_version": 1,
+              "status": os.environ["JOB_STATUS"],
+              "generated_at_utc": now.isoformat(),
+              "generated_at_london": now.astimezone(ZoneInfo("Europe/London")).isoformat(),
+              "run_url": os.environ["RUN_URL"],
+          }
+          with open(".runtime-output/live-scan.json", "w", encoding="utf-8") as handle:
+              json.dump(payload, handle, indent=2, sort_keys=True)
+              handle.write("\n")
+          PY
 
       - name: Save cross-run signal state
         if: always()
@@ -52,3 +90,46 @@ jobs:
         with:
           path: .signal-state
           key: wickless-signal-state-${{ github.run_id }}
+
+      - name: Upload live-scan diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-scan-${{ github.run_id }}
+          path: .runtime-output
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Alert Discord if live scanning fails
+        if: failure()
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+          if not webhook:
+              raise SystemExit(0)
+          message = "❌ **Wickless live scanner failed**\n" + os.environ["RUN_URL"]
+          request = urllib.request.Request(
+              webhook,
+              data=json.dumps(
+                  {"content": message, "allowed_mentions": {"parse": []}}
+              ).encode("utf-8"),
+              headers={
+                  "Content-Type": "application/json",
+                  "User-Agent": "wickless-live-health/1",
+              },
+              method="POST",
+          )
+          try:
+              urllib.request.urlopen(request, timeout=20).read()
+          except (urllib.error.HTTPError, urllib.error.URLError) as error:
+              print(f"Discord live failure alert failed: {error}")
+          PY

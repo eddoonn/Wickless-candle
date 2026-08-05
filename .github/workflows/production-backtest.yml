@@ -7,13 +7,20 @@ on:
       - main
     paths:
       - ops/backtest.request
+      - production_session.py
+      - no_wick_research.py
+      - wickless_bot.py
+      - autoresearch/evaluator.py
+      - autoresearch/policy.json
+      - scripts/rerun_production_backtest.py
+      - Wickless_Reversal_Strategy_v1_0.pine
 
 permissions:
   contents: write
 
 concurrency:
   group: wickless-production-backtest
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   backtest:
@@ -48,13 +55,21 @@ jobs:
           pairs=(EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD)
           june="$DATA_ROOT/dukascopy_m1_bidask_2026-06"
           july="$DATA_ROOT/dukascopy_m1_bidask_2026-07"
+          retry_download() {
+            local attempt
+            for attempt in 1 2 3; do
+              "$@" && return 0
+              sleep $((attempt * 5))
+            done
+            return 1
+          }
           if [[ ! -s "$june/manifest.json" ]]; then
-            python scripts/download_m1_bid_ask.py "${pairs[@]}" \
+            retry_download python scripts/download_m1_bid_ask.py "${pairs[@]}" \
               --start 2026-05-27 --end 2026-06-30 \
               --output "$june" --cache "$BI5_CACHE"
           fi
           if [[ ! -s "$july/manifest.json" ]]; then
-            python scripts/download_m1_bid_ask.py "${pairs[@]}" \
+            retry_download python scripts/download_m1_bid_ask.py "${pairs[@]}" \
               --start 2026-06-29 --end 2026-07-31 \
               --output "$july" --cache "$BI5_CACHE"
           fi
@@ -70,12 +85,13 @@ jobs:
             .runtime-data/duka-bi5
           key: wickless-autoresearch-data-v1-complete
 
-      - name: Validate code and time-zone contracts
+      - name: Validate code and automation contracts
         run: |
           python -m compileall -q \
             wickless_bot.py live_scan.py time_display.py no_wick_research.py \
-            live_data.py run_daemon.py autoresearch scripts tests
+            live_data.py run_daemon.py production_session.py autoresearch scripts tests
           python -m unittest discover -s tests -v
+          python scripts/system_health.py --output /tmp/system-health.json
 
       - name: Re-run reviewed production backtest
         run: >-
@@ -96,6 +112,8 @@ jobs:
               handle.write("# Production Wickless backtest\n\n")
               handle.write(f"Generated UTC: `{summary['generated_at_utc']}`  \n")
               handle.write(f"Generated London: `{summary['generated_at_london']}`\n\n")
+              handle.write(f"Production release: `{summary.get('production_release_sha', 'unstamped')}`  \n")
+              handle.write(f"Session: `{summary.get('production_session', 'unknown')}`\n\n")
               for name, fold in summary["folds"].items():
                   metrics = fold["metrics"]
                   handle.write(
@@ -134,9 +152,13 @@ jobs:
             echo "Backtest report is unchanged."
             exit 0
           fi
-          git commit -m "backtest: refresh production report with London times"
-          git pull --rebase origin main
-          git push origin HEAD:main
+          git commit -m "backtest: refresh release-current production report"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 5))
+          done
+          exit 1
 
       - name: Record repository publication failure
         if: always() && steps.publish.outcome == 'failure'
@@ -158,6 +180,7 @@ jobs:
           python - <<'PY'
           import json
           import os
+          import time
           import urllib.error
           import urllib.request
 
@@ -170,6 +193,8 @@ jobs:
                   "📊 **Wickless production backtest refreshed**",
                   f"Generated UTC: `{summary['generated_at_utc']}`",
                   f"Generated London: `{summary['generated_at_london']}`",
+                  f"Release: `{summary.get('production_release_sha', 'unstamped')}`",
+                  f"Session: `{summary.get('production_session', 'unknown')}`",
                   f"June: {june['trades']} trades, {june['net_r']:+.2f}R",
                   f"July: {july['trades']} trades, {july['net_r']:+.2f}R",
                   (
@@ -186,17 +211,24 @@ jobs:
           webhook = os.environ.get("DISCORD_WEBHOOK_URL")
           if not webhook:
               raise SystemExit("DISCORD_WEBHOOK_URL is not configured")
-          request = urllib.request.Request(
-              webhook,
-              data=json.dumps({"content": content, "allowed_mentions": {"parse": []}}).encode("utf-8"),
-              headers={
-                  "Content-Type": "application/json",
-                  "User-Agent": "wickless-production-backtest/1.0",
-              },
-              method="POST",
-          )
-          try:
-              urllib.request.urlopen(request, timeout=20).read()
-          except (urllib.error.HTTPError, urllib.error.URLError) as error:
-              raise SystemExit(f"Discord backtest notification failed: {error}")
+          body = json.dumps(
+              {"content": content, "allowed_mentions": {"parse": []}}
+          ).encode("utf-8")
+          for attempt in range(1, 4):
+              try:
+                  request = urllib.request.Request(
+                      webhook,
+                      data=body,
+                      headers={
+                          "Content-Type": "application/json",
+                          "User-Agent": "wickless-production-backtest/2.0",
+                      },
+                      method="POST",
+                  )
+                  urllib.request.urlopen(request, timeout=20).read()
+                  break
+              except (urllib.error.HTTPError, urllib.error.URLError):
+                  if attempt == 3:
+                      raise
+                  time.sleep(2 ** (attempt - 1))
           PY

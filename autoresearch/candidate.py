@@ -2,7 +2,8 @@
 
 CANDIDATE = {
     "name": "production-baseline",
-    "description": "Wickless-candle production defaults at 12250ed.",
+    "description": (
+        "Wickless production defaults using the fixed London and New York session union."
+    ),
     "parameters": {},
 }
-

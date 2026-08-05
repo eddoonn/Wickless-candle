@@ -46,12 +46,12 @@ class CandidateContractTests(unittest.TestCase):
         with self.assertRaisesRegex(CandidateError, "protected or unknown"):
             validate_parameters({"maximum_cost_to_risk_ratio": 0.2})
 
-    def test_allowed_parameter_is_normalized(self) -> None:
+    def test_allowed_parameters_are_normalized(self) -> None:
         values = validate_parameters(
-            {"minimum_body_ratio": 0.79, "session_start": "05:15"}
+            {"minimum_body_ratio": 0.79, "trend_filter": "none"}
         )
         self.assertEqual(values["minimum_body_ratio"], 0.79)
-        self.assertEqual(values["session_start"].isoformat(), "05:15:00")
+        self.assertEqual(values["trend_filter"], "none")
 
 
 class ObjectiveTests(unittest.TestCase):
@@ -142,6 +142,27 @@ class AttemptLogTests(unittest.TestCase):
         self.assertEqual(attempts[0].decision, "DISCARDED")
         self.assertEqual(attempts[1].decision, "KEPT")
 
+    def test_historical_session_category_remains_readable(self) -> None:
+        objective = {
+            "worst_fold_net_r": 0.0,
+            "total_net_r": 1.0,
+            "overall_profit_factor": 1.5,
+            "negative_overall_drawdown_r": -1.0,
+            "total_trades": 11,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "attempts.log"
+            append_attempt(
+                path,
+                timestamp="2026-08-01T00:00:00+00:00",
+                description="Historical session test.",
+                category="session-window",
+                score=format_score(objective),
+                status="discard",
+            )
+            attempts = read_attempts(path)
+        self.assertEqual(attempts[0].category, "session-window")
+
     def test_attempt_log_backfills_and_is_verified_against_ledger(self) -> None:
         record = {
             "generated_at_utc": "2026-08-01T00:00:00+00:00",
@@ -205,7 +226,7 @@ class CoachTests(unittest.TestCase):
                 attempts,
                 ["candle-quality"] * 10
                 + ["trend-filter"] * 5
-                + ["session-window"] * 5,
+                + ["entry-model"] * 5,
             )
             result = run_coach_if_due(
                 attempts_path=attempts,
@@ -217,7 +238,7 @@ class CoachTests(unittest.TestCase):
         self.assertTrue(result.ran)
         self.assertTrue(result.changed)
         self.assertFalse(result.last_ten_improved)
-        self.assertEqual(result.playbook_priorities, ["entry-geometry", "wick-detection"])
+        self.assertEqual(result.playbook_priorities, ["wick-detection"])
         self.assertIn("candle-quality: 10 attempts and zero kept improvements", rendered)
         self.assertLessEqual(len(rendered.splitlines()), 40)
 
@@ -285,4 +306,3 @@ class ScopeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a deterministic, profitability-first batch of Wickless experiments."""
+"""Run a deterministic, diversified, profitability-first experiment batch."""
 
 from __future__ import annotations
 
@@ -9,15 +9,19 @@ import io
 import json
 import os
 import subprocess
+import time as time_module
+import urllib.error
 import urllib.request
+from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from pprint import pformat
-from typing import Any
+from typing import Any, Iterable
 from zoneinfo import ZoneInfo
 
 from autoresearch.attempts import idea_category, parameter_categories, read_attempts
+from autoresearch.behavior import behavior_digest
 from autoresearch.coach import playbook_guidance, run_coach_if_due
 from autoresearch.evaluator import load_candidate, load_policy, objective_tuple
 from autoresearch.run_experiment import _read_ledger, main as run_experiment
@@ -28,6 +32,7 @@ LONDON = ZoneInfo("Europe/London")
 HERE = Path(__file__).resolve().parent
 REPOSITORY_URL = "https://github.com/eddoonn/Wickless-candle"
 NIGHTLY_BRANCH = "autoresearch/nightly"
+LOCKED_SESSION_PARAMETERS = frozenset({"use_session", "session_start", "session_end"})
 
 
 @dataclass(frozen=True)
@@ -37,20 +42,77 @@ class Proposal:
     parameters: dict[str, Any]
 
 
-# Small changes around the reviewed production defaults. Safety and execution
-# parameters are intentionally absent because evaluator.py does not expose them.
+# Values intentionally exclude the reviewed defaults. London and New York clocks
+# are fixed production policy and therefore never appear on the candidate surface.
 SEARCH_VALUES: tuple[tuple[str, tuple[Any, ...]], ...] = (
-    ("minimum_body_ratio", (0.82, 0.81, 0.79, 0.78, 0.84, 0.76)),
-    ("minimum_range_atr", (0.52, 0.48, 0.54, 0.46, 0.56, 0.44)),
+    ("minimum_body_ratio", (0.82, 0.78, 0.84, 0.76, 0.86, 0.74)),
+    ("minimum_range_atr", (0.52, 0.48, 0.56, 0.44, 0.60, 0.40)),
     ("maximum_range_atr", (1.90, 2.10, 1.80, 2.20)),
     ("close_location_fraction", (0.09, 0.11, 0.08, 0.12)),
     ("ema_length", (45, 55, 40, 60, 35, 65)),
     ("ema_slope_lookback", (4, 6, 3, 7, 2, 8)),
-    ("session_start", ("04:45", "05:15", "04:30", "05:30")),
-    ("session_end", ("13:15", "13:45", "13:00", "14:00")),
-    ("maximum_entry_displacement_atr", (0.28, 0.32, 0.26, 0.34)),
+    ("trend_filter", ("none",)),
     ("tolerance_ticks", (1.5, 1.0, 0.5)),
     ("maximum_wick_ticks", (1.75, 1.50, 1.25)),
+)
+
+
+# Alternative entry models need coherent supporting parameters. Keeping these as
+# curated bundles avoids spending runs on settings that cannot affect signal-close.
+CURATED_ENTRY_PROPOSALS: tuple[dict[str, Any], ...] = (
+    {
+        "entry_model": "zone_reclaim",
+        "expiry_bars": 2,
+        "origin_zone_atr_fraction": 0.08,
+        "reclaim_buffer_ticks": 0,
+        "maximum_entry_displacement_atr": 0.20,
+    },
+    {
+        "entry_model": "zone_reclaim",
+        "expiry_bars": 4,
+        "origin_zone_atr_fraction": 0.12,
+        "reclaim_buffer_ticks": 1,
+        "maximum_entry_displacement_atr": 0.30,
+    },
+    {
+        "entry_model": "zone_reclaim",
+        "expiry_bars": 6,
+        "origin_zone_atr_fraction": 0.16,
+        "reclaim_buffer_ticks": 1,
+        "maximum_entry_displacement_atr": 0.34,
+    },
+    {
+        "entry_model": "zone_reclaim",
+        "expiry_bars": 3,
+        "origin_zone_atr_fraction": 0.10,
+        "reclaim_buffer_ticks": 2,
+        "invalidate_on_trend_change": False,
+    },
+    {
+        "entry_model": "origin_limit",
+        "expiry_bars": 2,
+        "origin_zone_atr_fraction": 0.08,
+        "origin_zone_minimum_ticks": 1,
+    },
+    {
+        "entry_model": "origin_limit",
+        "expiry_bars": 4,
+        "origin_zone_atr_fraction": 0.12,
+        "origin_zone_minimum_ticks": 2,
+    },
+    {
+        "entry_model": "origin_limit",
+        "expiry_bars": 6,
+        "origin_zone_atr_fraction": 0.16,
+        "origin_zone_minimum_ticks": 2,
+    },
+    {
+        "entry_model": "origin_limit",
+        "expiry_bars": 3,
+        "origin_zone_atr_fraction": 0.10,
+        "origin_zone_minimum_ticks": 3,
+        "invalidate_on_trend_change": False,
+    },
 )
 
 
@@ -58,8 +120,12 @@ def parameter_signature(parameters: dict[str, Any]) -> str:
     return json.dumps(parameters, sort_keys=True, separators=(",", ":"))
 
 
+def proposal_family(parameters: dict[str, Any]) -> str:
+    return "+".join(sorted(parameters))
+
+
 def proposal_space() -> list[Proposal]:
-    """Return stable single-factor tests followed by two-factor neighbours."""
+    """Return stable meaningful single, paired, and curated entry-model tests."""
 
     raw: list[dict[str, Any]] = []
     for key, values in SEARCH_VALUES:
@@ -68,15 +134,22 @@ def proposal_space() -> list[Proposal]:
         for right_key, right_values in SEARCH_VALUES[left_index + 1 :]:
             for left_value in left_values:
                 for right_value in right_values:
-                    raw.append(
-                        {left_key: left_value, right_key: right_value}
-                    )
+                    raw.append({left_key: left_value, right_key: right_value})
+    raw.extend(dict(parameters) for parameters in CURATED_ENTRY_PROPOSALS)
+
     proposals: list[Proposal] = []
-    for index, parameters in enumerate(raw, 1):
+    seen: set[str] = set()
+    for parameters in raw:
+        if LOCKED_SESSION_PARAMETERS.intersection(parameters):
+            raise RuntimeError("Locked production session parameter reached proposal space")
+        signature = parameter_signature(parameters)
+        if signature in seen:
+            continue
+        seen.add(signature)
         detail = ", ".join(f"{key}={value}" for key, value in parameters.items())
         proposals.append(
             Proposal(
-                name=f"grid-{index:04d}",
+                name=f"grid-{len(proposals) + 1:04d}",
                 description=f"Controlled test of {detail} against production defaults.",
                 parameters=parameters,
             )
@@ -92,17 +165,45 @@ def tested_signatures(ledger: Path) -> set[str]:
     }
 
 
+def _round_robin_families(
+    rows: Iterable[tuple[int, int, Proposal]],
+) -> list[tuple[int, int, Proposal]]:
+    """Interleave parameter families while preserving rank and stable order."""
+
+    by_rank: dict[int, dict[str, deque[tuple[int, int, Proposal]]]] = defaultdict(
+        lambda: defaultdict(deque)
+    )
+    family_first_index: dict[tuple[int, str], int] = {}
+    for rank, original_index, proposal in rows:
+        family = proposal_family(proposal.parameters)
+        by_rank[rank][family].append((rank, original_index, proposal))
+        family_first_index.setdefault((rank, family), original_index)
+
+    ordered: list[tuple[int, int, Proposal]] = []
+    for rank in sorted(by_rank):
+        families = sorted(
+            by_rank[rank], key=lambda family: family_first_index[(rank, family)]
+        )
+        while any(by_rank[rank][family] for family in families):
+            for family in families:
+                bucket = by_rank[rank][family]
+                if bucket:
+                    ordered.append(bucket.popleft())
+    return ordered
+
+
 def select_proposals(
     ledger: Path,
     batch_size: int,
     playbook: Path = HERE / "playbook.md",
 ) -> list[Proposal]:
-    """Select untried proposals in the order directed by the current playbook."""
+    """Select a diverse batch while respecting tried signatures and the playbook."""
 
     tested = tested_signatures(ledger)
     priorities, blocked = playbook_guidance(playbook)
     priority_order = {category: index for index, category in enumerate(priorities)}
-    candidates: list[tuple[int, int, Proposal]] = []
+    category_rows: dict[str, list[tuple[int, int, Proposal]]] = defaultdict(list)
+
     for original_index, proposal in enumerate(proposal_space()):
         if parameter_signature(proposal.parameters) in tested:
             continue
@@ -111,9 +212,38 @@ def select_proposals(
             continue
         ranks = [priority_order[category] for category in categories if category in priority_order]
         rank = min(ranks) if ranks else len(priority_order)
-        candidates.append((rank, original_index, proposal))
-    candidates.sort(key=lambda row: (row[0], row[1]))
-    return [proposal for _, _, proposal in candidates[:batch_size]]
+        category_rows[idea_category(proposal.parameters)].append(
+            (rank, original_index, proposal)
+        )
+
+    queues = {
+        category: deque(_round_robin_families(rows))
+        for category, rows in category_rows.items()
+    }
+    category_order = sorted(
+        queues,
+        key=lambda category: (
+            min(row[0] for row in category_rows[category]),
+            min(row[1] for row in category_rows[category]),
+            category,
+        ),
+    )
+
+    selected: list[Proposal] = []
+    while len(selected) < batch_size and any(queues.values()):
+        progressed = False
+        for category in category_order:
+            if len(selected) >= batch_size:
+                break
+            queue = queues[category]
+            if not queue:
+                continue
+            _, _, proposal = queue.popleft()
+            selected.append(proposal)
+            progressed = True
+        if not progressed:
+            break
+    return selected
 
 
 def render_candidate(proposal: Proposal) -> str:
@@ -152,20 +282,35 @@ def git_commit(message: str, paths: list[Path]) -> str:
     ).stdout.strip()
 
 
-def post_discord(message: str, webhook: str | None = None) -> bool:
+def post_discord(message: str, webhook: str | None = None, attempts: int = 3) -> bool:
+    """Post with bounded retries; research results remain durable before delivery."""
+
     target = webhook or os.getenv("DISCORD_WEBHOOK_URL")
     if not target:
         return False
-    request = urllib.request.Request(
-        target,
-        data=json.dumps({"content": message}).encode("utf-8"),
-        headers={"Content-Type": "application/json", "User-Agent": "wickless-autoresearch/1"},
-        method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=20) as response:
-        if response.status not in {200, 204}:
-            raise RuntimeError(f"Discord returned HTTP {response.status}")
-    return True
+    payload = json.dumps(
+        {"content": message, "allowed_mentions": {"parse": []}}
+    ).encode("utf-8")
+    for attempt in range(1, attempts + 1):
+        request = urllib.request.Request(
+            target,
+            data=payload,
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "wickless-autoresearch/2",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                if response.status not in {200, 204}:
+                    raise RuntimeError(f"Discord returned HTTP {response.status}")
+            return True
+        except (urllib.error.HTTPError, urllib.error.URLError, RuntimeError):
+            if attempt == attempts:
+                raise
+            time_module.sleep(2 ** (attempt - 1))
+    return False
 
 
 def _metric(value: float | None) -> str:
@@ -177,15 +322,26 @@ def _metric(value: float | None) -> str:
 def select_best_experiment(
     outputs: list[dict[str, Any]], policy: dict[str, Any]
 ) -> dict[str, Any] | None:
-    """Return the strongest experiment using the evaluator's objective order."""
+    """Return the strongest experiment that changed realized trades."""
 
-    if not outputs:
+    trade_changed = [
+        output for output in outputs if output.get("effect") == "trade-changed"
+    ]
+    if not trade_changed:
         return None
-    return max(outputs, key=lambda output: objective_tuple(output, policy))
+    return max(trade_changed, key=lambda output: objective_tuple(output, policy))
 
 
 def _name(result: dict[str, Any]) -> str:
     return str(result.get("name") or result.get("candidate") or "unknown")
+
+
+def _parameter_line(result: dict[str, Any]) -> str:
+    parameters = result.get("parameters", {})
+    if not parameters:
+        return "Parameters: production defaults"
+    rendered = ", ".join(f"{key}={value}" for key, value in parameters.items())
+    return f"Parameters: `{rendered}`"
 
 
 def _result_lines(label: str, result: dict[str, Any]) -> tuple[str, str, str, str]:
@@ -248,27 +404,43 @@ def discord_summary(summary: dict[str, Any]) -> str:
     else:
         coach_line = "Coach: interval not reached"
 
+    coverage = ", ".join(
+        f"{name} {count}" for name, count in summary.get("category_counts", {}).items()
+    ) or "none"
     lines = [
         f"🔬 **Wickless nightly autoresearch — {summary['london_date']}**",
         (
-            f"Tested **{summary['tested']}** | KEEP **{summary['kept']}** | "
-            f"REJECT **{summary['rejected']}**"
+            f"Tested **{summary['tested']}** | Trade changed **{summary['trade_changed']}** | "
+            f"Funnel only **{summary['funnel_only']}** | "
+            f"No effect **{summary['no_effect']}** | KEEP **{summary['kept']}**"
         ),
+        f"Coverage: {coverage}",
         coach_line,
         *_result_lines("Benchmark", benchmark),
     ]
     if best is None:
-        lines.append("**Best tonight — no experiment completed**")
+        lines.append("**Best trade-changing test — none**")
+        if summary.get("funnel_only"):
+            lines.append(
+                f"{summary['funnel_only']} test(s) changed only the rejection funnel; "
+                "realized trades stayed identical."
+            )
+        elif summary.get("tested"):
+            lines.append("Every completed test reproduced benchmark behavior exactly.")
     else:
         lines.extend(
             (
-                *_result_lines("Best tonight", best),
+                *_result_lines("Best trade-changing test", best),
+                _parameter_line(best),
                 _delta_line(benchmark, best),
                 _decision_line(best),
             )
         )
     lines.append(f"Results: {REPOSITORY_URL}/tree/{NIGHTLY_BRANCH}")
-    return "\n".join(lines)
+    message = "\n".join(lines)
+    if len(message) > 2000:
+        raise RuntimeError("Discord summary exceeds 2,000 characters")
+    return message
 
 
 def keep_message(output: dict[str, Any]) -> str:
@@ -278,6 +450,7 @@ def keep_message(output: dict[str, Any]) -> str:
         (
             "✅ **Strong Wickless candidate found**",
             f"Candidate: **{output['candidate']}**",
+            _parameter_line(output),
             f"June: {folds['june_2026']['trades']} trades, {_metric(folds['june_2026']['net_r'])}",
             f"July: {folds['july_2026']['trades']} trades, {_metric(folds['july_2026']['net_r'])}",
             f"Overall: {overall['trades']} trades, {_metric(overall['net_r'])}",
@@ -292,6 +465,7 @@ def _incumbent_summary(path: Path) -> dict[str, Any]:
         "name": report["candidate"]["name"],
         "description": report["candidate"]["description"],
         "parameters": report["candidate"]["parameters"],
+        "behavior_sha256": behavior_digest(report),
         "overall": report["overall"],
         "folds": {
             name: value["metrics"] for name, value in report["folds"].items()
@@ -344,13 +518,9 @@ def main(argv: list[str] | None = None) -> int:
                 [args.playbook, args.coach_state],
             )
 
-    # Recover cleanly if a previous batch ended immediately after attempt 20.
     coach_cycle()
-    for _ in range(args.batch_size):
-        selected = select_proposals(args.ledger, 1, args.playbook)
-        if not selected:
-            break
-        proposal = selected[0]
+    planned = select_proposals(args.ledger, args.batch_size, args.playbook)
+    for proposal in planned:
         write_candidate(args.candidate, proposal)
         commit = None
         if args.git_commits:
@@ -379,11 +549,15 @@ def main(argv: list[str] | None = None) -> int:
         with contextlib.redirect_stdout(captured):
             code = run_experiment(command)
         output = json.loads(captured.getvalue())
-        output["category"] = idea_category(proposal.parameters)
         outputs.append(output)
         if args.git_commits:
+            suffix = (
+                output["effect"]
+                if output["effect"] != "trade-changed"
+                else output["status"]
+            )
             git_commit(
-                f"autoresearch: record {proposal.name} {output['status']}",
+                f"autoresearch: record {proposal.name} {suffix}",
                 [args.ledger, args.incumbent, args.runs, args.attempts],
             )
         if code == 0 and not args.no_discord:
@@ -402,13 +576,30 @@ def main(argv: list[str] | None = None) -> int:
     write_candidate(args.candidate, incumbent_proposal)
     generated = datetime.now(UTC).replace(microsecond=0)
     attempt_rows = read_attempts(args.attempts)
+    category_counts: dict[str, int] = {}
+    for output in outputs:
+        category = str(output["category"])
+        category_counts[category] = category_counts.get(category, 0) + 1
+    trade_changed = sum(
+        output["effect"] == "trade-changed" for output in outputs
+    )
+    funnel_only = sum(
+        output["effect"] == "funnel-only" for output in outputs
+    )
+    no_effect = sum(output["effect"] == "no-effect" for output in outputs)
     summary = {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at_utc": generated.isoformat(),
+        "generated_at_london": generated.astimezone(LONDON).isoformat(),
         "london_date": generated.astimezone(LONDON).date().isoformat(),
         "tested": len(outputs),
+        "trade_changed": trade_changed,
+        "funnel_only": funnel_only,
+        "no_effect": no_effect,
         "kept": sum(output["status"] == "keep" for output in outputs),
         "rejected": sum(output["status"] == "discard" for output in outputs),
+        "category_counts": dict(sorted(category_counts.items())),
+        "planned_candidates": [proposal.name for proposal in planned],
         "attempts_total": len(attempt_rows),
         "worker_attempts_total": sum(
             row.category != "baseline" for row in attempt_rows

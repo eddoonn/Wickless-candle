@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from autoresearch.reference_benchmark import ensure_reference_benchmark
+from production_session import PRODUCTION_RELEASE_SHA
 
 
 def sample_report() -> dict:
@@ -55,6 +56,7 @@ def sample_report() -> dict:
             "passed": False,
             "checks": {"june_2026_minimum_trades": False},
         },
+        "trades": [],
     }
 
 
@@ -84,23 +86,31 @@ class ReferenceBenchmarkTests(unittest.TestCase):
 
             self.assertTrue(created)
             self.assertEqual(payload["benchmark_role"], "production-reference")
+            self.assertEqual(payload["production_release_sha"], PRODUCTION_RELEASE_SHA)
             self.assertFalse(payload["report"]["acceptance_gates"]["passed"])
             record = json.loads((root / "results.jsonl").read_text(encoding="utf-8"))
             self.assertEqual(record["status"], "keep")
             self.assertEqual(record["category"], "baseline")
+            self.assertEqual(record["effect"], "baseline")
             self.assertTrue((root / "incumbent.json").exists())
 
-    def test_existing_incumbent_is_preserved_without_re_evaluation(self) -> None:
+    def test_current_release_incumbent_is_preserved_without_re_evaluation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             incumbent = root / "incumbent.json"
             incumbent.write_text(
-                json.dumps({"schema_version": 1, "report": sample_report()}),
+                json.dumps(
+                    {
+                        "schema_version": 2,
+                        "production_release_sha": PRODUCTION_RELEASE_SHA,
+                        "report": sample_report(),
+                    }
+                ),
                 encoding="utf-8",
             )
             with patch(
                 "autoresearch.reference_benchmark.evaluate",
-                side_effect=AssertionError("existing incumbent should be reused"),
+                side_effect=AssertionError("current release incumbent should be reused"),
             ):
                 payload, created = ensure_reference_benchmark(
                     data_root=root / "data",
@@ -112,6 +122,43 @@ class ReferenceBenchmarkTests(unittest.TestCase):
                 )
             self.assertFalse(created)
             self.assertEqual(payload["report"]["candidate"]["name"], "production-baseline")
+
+    def test_stale_release_incumbent_is_refreshed_automatically(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            incumbent = root / "incumbent.json"
+            incumbent.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "production_release_sha": "0" * 40,
+                        "report": sample_report(),
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with (
+                patch("autoresearch.reference_benchmark.load_policy", return_value={}),
+                patch(
+                    "autoresearch.reference_benchmark.evaluate",
+                    return_value=sample_report(),
+                ) as evaluate,
+                patch(
+                    "autoresearch.reference_benchmark._git_commit",
+                    return_value="1" * 40,
+                ),
+            ):
+                payload, created = ensure_reference_benchmark(
+                    data_root=root / "data",
+                    policy_path=root / "policy.json",
+                    ledger_path=root / "results.jsonl",
+                    incumbent_path=incumbent,
+                    runs_path=root / "runs",
+                    attempts_path=root / "attempts.log",
+                )
+            self.assertTrue(created)
+            evaluate.assert_called_once()
+            self.assertEqual(payload["production_release_sha"], PRODUCTION_RELEASE_SHA)
 
 
 if __name__ == "__main__":

@@ -14,14 +14,15 @@ from pathlib import Path
 from typing import Any
 
 from autoresearch.attempts import format_score, idea_category, sync_attempts_from_ledger
+from autoresearch.behavior import behavior_digest, outcome_digest
 from autoresearch.evaluator import (
-    Candidate,
     candidate_beats,
     evaluate,
     load_candidate,
     load_policy,
     report_digest,
 )
+from production_session import PRODUCTION_RELEASE_SHA
 
 
 UTC = timezone.utc
@@ -91,15 +92,6 @@ def _append_ledger(path: Path, record: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
-def _baseline_candidate() -> Candidate:
-    return Candidate(
-        name="production-baseline",
-        description="Immutable Wickless production defaults at 12250ed.",
-        parameters={},
-        source_sha256="production-baseline",
-    )
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", required=True, type=Path)
@@ -124,6 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.dry_run:
         existing_records, _ = _read_ledger(args.ledger)
         sync_attempts_from_ledger(args.attempts, existing_records)
+
     baseline_created = not args.incumbent.exists()
     incumbent_report = (
         None
@@ -131,6 +124,23 @@ def main(argv: list[str] | None = None) -> int:
         else json.loads(args.incumbent.read_text(encoding="utf-8"))["report"]
     )
     report = evaluate(candidate, data_root=args.data_root, policy=policy)
+    report_behavior = behavior_digest(report)
+    report_outcome = outcome_digest(report)
+    incumbent_behavior = (
+        behavior_digest(incumbent_report) if incumbent_report is not None else None
+    )
+    incumbent_outcome = (
+        outcome_digest(incumbent_report) if incumbent_report is not None else None
+    )
+    if incumbent_behavior is None:
+        effect = "baseline"
+    elif report_behavior == incumbent_behavior:
+        effect = "no-effect"
+    elif report_outcome == incumbent_outcome:
+        effect = "funnel-only"
+    else:
+        effect = "trade-changed"
+
     if baseline_created:
         baseline_qualifies = (
             candidate.parameters == {} and report["acceptance_gates"]["passed"]
@@ -144,6 +154,7 @@ def main(argv: list[str] | None = None) -> int:
             else "discard"
         )
         selected_report = report if status == "keep" else incumbent_report
+
     generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
     commit = args.commit or _git_commit()
     if commit != "uncommitted" and (
@@ -155,14 +166,18 @@ def main(argv: list[str] | None = None) -> int:
     category = idea_category(report["candidate"]["parameters"])
     score = format_score(report["objective"])
     record = {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_id": run_id,
         "generated_at_utc": generated_at,
         "commit": commit,
+        "production_release_sha": PRODUCTION_RELEASE_SHA,
         "candidate": report["candidate"],
         "category": category,
         "score": score,
         "status": status,
+        "effect": effect,
+        "behavior_sha256": report_behavior,
+        "outcome_sha256": report_outcome,
         "report_sha256": report_digest(report),
         "objective": report["objective"],
         "acceptance_gates": report["acceptance_gates"],
@@ -176,7 +191,13 @@ def main(argv: list[str] | None = None) -> int:
     output = {
         "run_id": run_id,
         "status": status,
+        "effect": effect,
+        "production_release_sha": PRODUCTION_RELEASE_SHA,
+        "behavior_sha256": report_behavior,
+        "outcome_sha256": report_outcome,
         "candidate": candidate.name,
+        "description": report["candidate"]["description"],
+        "parameters": report["candidate"]["parameters"],
         "category": category,
         "score": score,
         "objective": report["objective"],
@@ -194,9 +215,10 @@ def main(argv: list[str] | None = None) -> int:
             _write_json_atomic(
                 args.incumbent,
                 {
-                    "schema_version": 1,
+                    "schema_version": 2,
                     "updated_at_utc": generated_at,
                     "source_run_id": run_id if status == "keep" else None,
+                    "production_release_sha": PRODUCTION_RELEASE_SHA,
                     "report": selected_report,
                 },
             )

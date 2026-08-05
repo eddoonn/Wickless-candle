@@ -11,7 +11,12 @@ from autoresearch.bootstrap_benchmark import (
     main,
     select_best_passing,
 )
-from autoresearch.nightly_batch import Proposal, parameter_signature
+from autoresearch.nightly_batch import (
+    LOCKED_SESSION_PARAMETERS,
+    Proposal,
+    parameter_signature,
+)
+from production_session import PRODUCTION_RELEASE_SHA
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,7 +44,7 @@ def report(name: str, parameters: dict, *, passed: bool, score: float) -> dict:
     overall = {**metrics, "trades": 20, "net_r": score * 2, "ambiguous_exits": 0}
     return {
         "schema_version": 1,
-        "production_baseline_sha": "12250ed9e7698e9b7e57341f09d23372cb7ba1cc",
+        "production_baseline_sha": PRODUCTION_RELEASE_SHA,
         "candidate": {
             "name": name,
             "description": "test",
@@ -77,12 +82,15 @@ def report(name: str, parameters: dict, *, passed: bool, score: float) -> dict:
 
 
 class BootstrapTests(unittest.TestCase):
-    def test_space_is_unique_and_includes_frequency_candidates(self) -> None:
+    def test_space_is_unique_broad_and_never_mutates_session_clocks(self) -> None:
         proposals = bootstrap_proposal_space()
         signatures = [parameter_signature(row.parameters) for row in proposals]
         self.assertEqual(len(signatures), len(set(signatures)))
         self.assertTrue(proposals[0].name.startswith("bootstrap-"))
-        self.assertGreater(len(proposals), 1300)
+        self.assertGreater(len(proposals), 900)
+        self.assertTrue(
+            all(not LOCKED_SESSION_PARAMETERS.intersection(row.parameters) for row in proposals)
+        )
 
     def test_workflow_supports_full_bootstrap_and_neutral_reset(self) -> None:
         workflow = (
@@ -165,6 +173,8 @@ class BootstrapTests(unittest.TestCase):
             ledger = (root / "results.jsonl").read_text()
 
         self.assertEqual(code, 0)
+        self.assertEqual(incumbent["schema_version"], 2)
+        self.assertEqual(incumbent["production_release_sha"], PRODUCTION_RELEASE_SHA)
         self.assertEqual(
             incumbent["report"]["candidate"]["name"], "production-baseline"
         )
@@ -173,6 +183,8 @@ class BootstrapTests(unittest.TestCase):
             {"minimum_body_ratio": 0.70},
         )
         self.assertEqual(summary["selected"]["source_candidate"], "candidate-b")
+        self.assertEqual(summary["production_release_sha"], PRODUCTION_RELEASE_SHA)
+        self.assertEqual(summary["schema_version"], 2)
         self.assertIn('"category":"baseline"', ledger)
 
 
