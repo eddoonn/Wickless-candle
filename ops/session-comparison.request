@@ -1,0 +1,7 @@
+requested_at_utc=2026-08-05T11:16:00Z
+requested_at_london=2026-08-05T12:16:00+01:00
+reason=verify_full_London_session_and_London_New_York_union
+production_change=false
+current_window=05:00-13:30_America/New_York
+london_window=08:00-17:00_Europe/London
+union=full_London_OR_current_New_York
