@@ -19,12 +19,12 @@ on:
         required: false
         default: "12"
       refresh_baseline:
-        description: "Re-evaluate production defaults as the release-current reference"
+        description: "Re-evaluate production defaults under Phase 1 walk-forward validation"
         required: false
         type: boolean
         default: false
       bootstrap_benchmark:
-        description: "Search the fixed-session space and promote the strongest valid result"
+        description: "Search the fixed-session space under Phase 1 validation"
         required: false
         type: boolean
         default: false
@@ -48,6 +48,7 @@ jobs:
       MAIN_BRANCH: main
       DATA_ROOT: .runtime-data/autoresearch-datasets
       BI5_CACHE: .runtime-data/duka-bi5
+      RESEARCH_POLICY: autoresearch/walk_forward_policy.json
       BATCH_SIZE: ${{ github.event.inputs.batch_size || '12' }}
       REFRESH_INPUT: ${{ github.event.inputs.refresh_baseline || 'false' }}
       BOOTSTRAP_INPUT: ${{ github.event.inputs.bootstrap_benchmark || 'false' }}
@@ -100,7 +101,7 @@ jobs:
         shell: bash
         run: test -n "$DISCORD_WEBHOOK_URL"
 
-      - name: Restore fixed BID ASK research data
+      - name: Restore Phase 1 BID ASK research data
         if: env.RUN_MODE != 'validate'
         id: dataset-cache
         uses: actions/cache/restore@v4
@@ -108,17 +109,16 @@ jobs:
           path: |
             .runtime-data/autoresearch-datasets
             .runtime-data/duka-bi5
-          key: wickless-autoresearch-data-v1-complete
+          key: wickless-autoresearch-data-v2-walk-forward
           restore-keys: |
-            wickless-autoresearch-data-v1-partial-
+            wickless-autoresearch-data-v2-walk-forward-partial-
 
-      - name: Build missing June and July BID ASK datasets
+      - name: Build missing 15-month BID ASK dataset
         if: env.RUN_MODE != 'validate'
         shell: bash
         run: |
           pairs=(EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD)
-          june="$DATA_ROOT/dukascopy_m1_bidask_2026-06"
-          july="$DATA_ROOT/dukascopy_m1_bidask_2026-07"
+          dataset="$DATA_ROOT/dukascopy_m1_bidask_2025-05_2026-07"
           retry_download() {
             local attempt
             for attempt in 1 2 3; do
@@ -127,18 +127,12 @@ jobs:
             done
             return 1
           }
-          if [[ ! -s "$june/manifest.json" ]]; then
+          if [[ ! -s "$dataset/manifest.json" ]]; then
             retry_download python scripts/download_m1_bid_ask.py "${pairs[@]}" \
-              --start 2026-05-27 --end 2026-06-30 \
-              --output "$june" --cache "$BI5_CACHE"
+              --start 2025-05-01 --end 2026-07-31 \
+              --output "$dataset" --cache "$BI5_CACHE"
           fi
-          if [[ ! -s "$july/manifest.json" ]]; then
-            retry_download python scripts/download_m1_bid_ask.py "${pairs[@]}" \
-              --start 2026-06-29 --end 2026-07-31 \
-              --output "$july" --cache "$BI5_CACHE"
-          fi
-          test "$(find "$june" -name '*.csv.gz' | wc -l)" -eq 7
-          test "$(find "$july" -name '*.csv.gz' | wc -l)" -eq 7
+          test "$(find "$dataset" -name '*.csv.gz' | wc -l)" -eq 7
 
       - name: Save complete research data
         if: env.RUN_MODE != 'validate' && success() && steps.dataset-cache.outputs.cache-hit != 'true'
@@ -147,7 +141,7 @@ jobs:
           path: |
             .runtime-data/autoresearch-datasets
             .runtime-data/duka-bi5
-          key: wickless-autoresearch-data-v1-complete
+          key: wickless-autoresearch-data-v2-walk-forward
 
       - name: Save partial download for automatic retry
         if: env.RUN_MODE != 'validate' && failure() && steps.dataset-cache.outcome == 'success' && steps.dataset-cache.outputs.cache-hit != 'true'
@@ -156,28 +150,28 @@ jobs:
           path: |
             .runtime-data/autoresearch-datasets
             .runtime-data/duka-bi5
-          key: wickless-autoresearch-data-v1-partial-${{ github.run_id }}
+          key: wickless-autoresearch-data-v2-walk-forward-partial-${{ github.run_id }}
 
-      - name: Ensure production reference benchmark
+      - name: Ensure Phase 1 production reference benchmark
         if: env.RUN_MODE == 'nightly'
         shell: bash
         run: |
           python -m autoresearch.reference_benchmark \
             --data-root "$DATA_ROOT" \
-            --policy autoresearch/policy.json \
+            --policy "$RESEARCH_POLICY" \
             --ledger autoresearch/results.jsonl \
             --incumbent autoresearch/incumbent.json \
             --runs autoresearch/runs \
             --attempts autoresearch/attempts.log \
             | tee .runtime-reference.json
 
-      - name: Refresh production reference benchmark
+      - name: Refresh Phase 1 production reference benchmark
         if: env.RUN_MODE == 'refresh'
         shell: bash
         run: |
           python -m autoresearch.reference_benchmark \
             --data-root "$DATA_ROOT" \
-            --policy autoresearch/policy.json \
+            --policy "$RESEARCH_POLICY" \
             --ledger autoresearch/results.jsonl \
             --incumbent autoresearch/incumbent.json \
             --runs autoresearch/runs \
@@ -185,14 +179,14 @@ jobs:
             --force \
             | tee .runtime-reference.json
 
-      - name: Bootstrap the strongest valid benchmark
+      - name: Bootstrap the strongest Phase 1 benchmark
         if: env.RUN_MODE == 'bootstrap'
         shell: bash
         run: |
           rm -f /tmp/bootstrap-incumbent.json
           python -m autoresearch.bootstrap_benchmark \
             --data-root "$DATA_ROOT" \
-            --policy autoresearch/policy.json \
+            --policy "$RESEARCH_POLICY" \
             --ledger autoresearch/results.jsonl \
             --attempts autoresearch/attempts.log \
             --incumbent /tmp/bootstrap-incumbent.json \
@@ -207,6 +201,7 @@ jobs:
         run: >-
           python -m autoresearch.nightly_batch
           --data-root "$DATA_ROOT"
+          --policy "$RESEARCH_POLICY"
           --batch-size "$BATCH_SIZE"
           --coach-interval 20
           --no-discord
@@ -337,6 +332,7 @@ jobs:
             echo
             echo "- Mode: \`$RUN_MODE\`"
             echo "- Repository branch: \`$MAIN_BRANCH\`"
+            echo "- Validation policy: \`$RESEARCH_POLICY\`"
             echo "- Discord configured: \`${{ steps.discord-config.outcome == 'success' }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
