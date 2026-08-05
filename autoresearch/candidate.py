@@ -1,6 +1,6 @@
 """The only strategy file an autoresearch agent may edit."""
 
-CANDIDATE = {'name': 'grid-0006',
- 'description': 'Controlled test of minimum_body_ratio=0.76 against production '
+CANDIDATE = {'name': 'grid-0007',
+ 'description': 'Controlled test of minimum_range_atr=0.52 against production '
                 'defaults.',
- 'parameters': {'minimum_body_ratio': 0.76}}
+ 'parameters': {'minimum_range_atr': 0.52}}
