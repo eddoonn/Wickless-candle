@@ -1,5 +1,5 @@
-requested_at_utc=2026-08-05T12:46:00+00:00
-requested_at_london=2026-08-05T13:46:00+01:00
-framework_commit=ef33f0ab6dec39a823e80d527b7e5451b9d3ec19
+requested_at_utc=2026-08-05T12:49:00+00:00
+requested_at_london=2026-08-05T13:49:00+01:00
+framework_commit=537d4753032d9b9cd3cd6eee2181c4d3dcc5d4f8
 target_branch=agent/system-polish-main
-reason=rebase_safe_full_suite_promotion
+reason=align_policy_evaluator_run_full_suite_and_promote
