@@ -8,6 +8,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 
+PRODUCTION_RELEASE_SHA = "9ddd1b44aee10467247fda4627bc472ed1ff4132"
 LONDON = ZoneInfo("Europe/London")
 NEW_YORK = ZoneInfo("America/New_York")
 LONDON_START = time(8, 0)
