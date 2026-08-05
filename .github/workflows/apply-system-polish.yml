@@ -1,0 +1,92 @@
+name: Apply Wickless system polish
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ops/system-polish.request
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wickless-system-polish
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out clean production feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/system-polish-main
+          fetch-depth: 0
+
+      - name: Copy approved framework paths
+        shell: bash
+        run: |
+          git config user.name "wickless-maintenance[bot]"
+          git config user.email "wickless-maintenance[bot]@users.noreply.github.com"
+          git fetch origin autoresearch/framework-v1
+          paths=(
+            .github/workflows/autoresearch-nightly.yml
+            .github/workflows/live-signals.yml
+            .github/workflows/scanner-health.yml
+            .github/workflows/system-health.yml
+            autoresearch/attempts.py
+            autoresearch/behavior.py
+            autoresearch/bootstrap_benchmark.py
+            autoresearch/candidate.py
+            autoresearch/nightly_batch.py
+            autoresearch/notifications.py
+            autoresearch/reference_benchmark.py
+            autoresearch/run_experiment.py
+            scripts/system_health.py
+            tests/test_automation_polish.py
+            tests/test_autoresearch.py
+            tests/test_bootstrap_benchmark.py
+            tests/test_nightly_batch.py
+            tests/test_reference_benchmark.py
+          )
+          for path in "${paths[@]}"; do
+            mkdir -p "$(dirname "$path")"
+            git show "origin/autoresearch/framework-v1:$path" > "$path"
+          done
+
+      - name: Validate polished production tree
+        shell: bash
+        run: |
+          python -m compileall -q \
+            wickless_bot.py no_wick_research.py live_data.py live_scan.py \
+            run_daemon.py production_session.py time_display.py \
+            autoresearch scripts tests
+          python -m unittest discover -s tests -v
+          python scripts/system_health.py --output /tmp/system-health.json
+
+      - name: Commit and push tested feature branch
+        shell: bash
+        run: |
+          git add -- \
+            .github/workflows/autoresearch-nightly.yml \
+            .github/workflows/live-signals.yml \
+            .github/workflows/scanner-health.yml \
+            .github/workflows/system-health.yml \
+            autoresearch/attempts.py \
+            autoresearch/behavior.py \
+            autoresearch/bootstrap_benchmark.py \
+            autoresearch/candidate.py \
+            autoresearch/nightly_batch.py \
+            autoresearch/notifications.py \
+            autoresearch/reference_benchmark.py \
+            autoresearch/run_experiment.py \
+            scripts/system_health.py \
+            tests/test_automation_polish.py \
+            tests/test_autoresearch.py \
+            tests/test_bootstrap_benchmark.py \
+            tests/test_nightly_batch.py \
+            tests/test_reference_benchmark.py
+          git commit -m "Polish Wickless research and automation"
+          git push origin HEAD:agent/system-polish-main
