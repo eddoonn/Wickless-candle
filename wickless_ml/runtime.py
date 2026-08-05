@@ -14,7 +14,7 @@ from wickless_ml.features import (
     features_from_setup,
     supported_instrument,
 )
-from wickless_ml.model import score_model
+from wickless_ml.model_v2 import score_model
 
 
 HERE = Path(__file__).resolve().parent
