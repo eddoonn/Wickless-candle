@@ -94,11 +94,14 @@ jobs:
           python scripts/system_health.py --output /tmp/system-health.json
 
       - name: Re-run reviewed production backtest
-        run: >-
-          python scripts/rerun_production_backtest.py
-          --data-root "$DATA_ROOT"
-          --policy autoresearch/policy.json
-          --output reports/production-backtest/latest
+        id: backtest
+        shell: bash
+        run: |
+          rm -rf reports/production-backtest/latest
+          python scripts/rerun_production_backtest.py \
+            --data-root "$DATA_ROOT" \
+            --policy autoresearch/policy.json \
+            --output reports/production-backtest/latest
 
       - name: Write UTC and London summary
         shell: bash
@@ -170,8 +173,8 @@ jobs:
             echo "> The report artifact was preserved, but the best-effort push to main failed."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Send backtest result to Discord
-        if: always() && hashFiles('reports/production-backtest/latest/summary.json') != ''
+      - name: Send fresh backtest result to Discord
+        if: steps.backtest.outcome == 'success'
         continue-on-error: true
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -221,7 +224,7 @@ jobs:
                       data=body,
                       headers={
                           "Content-Type": "application/json",
-                          "User-Agent": "wickless-production-backtest/2.0",
+                          "User-Agent": "wickless-production-backtest/2.1",
                       },
                       method="POST",
                   )
@@ -231,4 +234,38 @@ jobs:
                   if attempt == 3:
                       raise
                   time.sleep(2 ** (attempt - 1))
+          PY
+
+      - name: Alert Discord if production backtest fails
+        if: failure()
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+          if not webhook:
+              raise SystemExit(0)
+          message = "❌ **Wickless production backtest failed**\n" + os.environ["RUN_URL"]
+          request = urllib.request.Request(
+              webhook,
+              data=json.dumps(
+                  {"content": message, "allowed_mentions": {"parse": []}}
+              ).encode("utf-8"),
+              headers={
+                  "Content-Type": "application/json",
+                  "User-Agent": "wickless-production-backtest-health/1",
+              },
+              method="POST",
+          )
+          try:
+              urllib.request.urlopen(request, timeout=20).read()
+          except (urllib.error.HTTPError, urllib.error.URLError) as error:
+              print(f"Discord backtest failure alert failed: {error}")
           PY
