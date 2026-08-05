@@ -1,0 +1,147 @@
+name: Wickless ML live evidence
+
+on:
+  schedule:
+    - cron: "30 19 * * *"
+      timezone: "Europe/London"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wickless-ml-live-monitor
+  cancel-in-progress: true
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore latest scanner and ML outcome state
+        uses: actions/cache/restore@v4
+        with:
+          path: .signal-state
+          key: wickless-signal-state-monitor-${{ github.run_id }}
+          restore-keys: |
+            wickless-signal-state-
+
+      - name: Evaluate live evidence and deployment state
+        shell: bash
+        run: |
+          mkdir -p .runtime-output
+          set -o pipefail
+          python -m wickless_ml.monitor \
+            --state .signal-state/seen.json \
+            --registry wickless_ml/registry.json \
+            --policy wickless_ml/policy.json \
+            --reports wickless_ml/live \
+            | tee .runtime-output/ml-live-monitor.json
+
+      - name: Validate learning safeguards
+        shell: bash
+        run: |
+          python -m unittest tests.test_ml_learning -v
+          python scripts/system_health.py --output .runtime-output/system-health.json
+
+      - name: Upload live evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wickless-ml-live-${{ github.run_id }}
+          path: |
+            .runtime-output
+            wickless_ml/live
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publish deployment state and live audit
+        shell: bash
+        run: |
+          git config user.name "wickless-ml-monitor[bot]"
+          git config user.email "wickless-ml-monitor[bot]@users.noreply.github.com"
+          git add -- wickless_ml/registry.json wickless_ml/live
+          if git diff --cached --quiet; then
+            echo "No live ML audit changes to publish"
+            exit 0
+          fi
+          git commit -m "ml: refresh live evidence and deployment"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 3))
+          done
+          exit 1
+
+      - name: Notify Discord of deployment state
+        if: success()
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+          if not webhook:
+              raise SystemExit(0)
+          report = json.loads(Path("wickless_ml/live/latest.json").read_text())
+          deployment = report.get("deployment") or {}
+          message = "\n".join((
+              "🧠 **Wickless ML live evidence**",
+              f"Status: **{report.get('status', 'UNKNOWN')}**",
+              f"Model: `{report.get('model_id', 'none')}`",
+              f"Mode: **{deployment.get('mode', 'shadow').upper()}**",
+              f"Resolved outcomes: {deployment.get('resolved_outcomes', 0)}",
+              f"Applied outcomes: {deployment.get('resolved_applied_outcomes', 0)}",
+              f"Reason: {deployment.get('reason', 'n/a')}",
+              os.environ["RUN_URL"],
+          ))
+          request = urllib.request.Request(
+              webhook,
+              data=json.dumps({"content": message, "allowed_mentions": {"parse": []}}).encode(),
+              headers={"Content-Type": "application/json", "User-Agent": "wickless-ml-monitor/1"},
+              method="POST",
+          )
+          urllib.request.urlopen(request, timeout=20).read()
+          PY
+
+      - name: Alert Discord if live ML monitoring fails
+        if: failure()
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+          if not webhook:
+              raise SystemExit(0)
+          request = urllib.request.Request(
+              webhook,
+              data=json.dumps({
+                  "content": "❌ **Wickless ML live monitor failed**\n" + os.environ["RUN_URL"],
+                  "allowed_mentions": {"parse": []},
+              }).encode(),
+              headers={"Content-Type": "application/json", "User-Agent": "wickless-ml-monitor/1"},
+              method="POST",
+          )
+          urllib.request.urlopen(request, timeout=20).read()
+          PY
