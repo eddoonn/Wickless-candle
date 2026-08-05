@@ -7,10 +7,16 @@ import argparse
 import csv
 import hashlib
 import json
+import sys
 from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from autoresearch.evaluator import Candidate, FOREX_MAJORS, evaluate, load_policy
 from production_session import PRODUCTION_RELEASE_SHA, SESSION_LABEL
@@ -18,7 +24,6 @@ from time_display import london_iso
 
 
 UTC = timezone.utc
-ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "reports" / "production-backtest" / "latest"
 
 
