@@ -41,6 +41,8 @@ def production_reference_candidate() -> Candidate:
 
 
 def _required_validation_profile(policy_path: Path) -> str | None:
+    if not policy_path.exists():
+        return None
     policy = load_policy(policy_path)
     if "phase1_validation" not in policy:
         return None
