@@ -5,6 +5,7 @@ from datetime import datetime, time, timezone
 from pathlib import Path
 
 import no_wick_research
+import wickless_bot
 from no_wick_research import NoWickConfig
 from production_session import (
     SESSION_LABEL,
@@ -42,17 +43,19 @@ class ProductionSessionUnionTests(unittest.TestCase):
     def test_union_end_is_exclusive(self) -> None:
         self.assertFalse(in_production_session(bar_at("2026-06-10T17:30:00Z"), self.config))
 
-    def test_london_remains_included_when_new_york_candidate_clock_changes(self) -> None:
-        config = NoWickConfig(session_start=time(9, 30), session_end=time(13, 30))
+    def test_candidate_clock_fields_cannot_narrow_either_production_window(self) -> None:
+        config = NoWickConfig(session_start=time(9, 30), session_end=time(10, 0))
         self.assertTrue(in_production_session(bar_at("2026-06-10T07:00:00Z"), config))
+        self.assertTrue(in_production_session(bar_at("2026-06-10T17:15:00Z"), config))
 
     def test_all_hours_diagnostic_still_contains_both_sessions(self) -> None:
         config = NoWickConfig(use_session=False)
         self.assertTrue(in_production_session(bar_at("2026-06-10T02:00:00Z"), config))
 
-    def test_shared_engine_installer_replaces_only_the_session_predicate(self) -> None:
+    def test_shared_installer_updates_engine_and_live_labels(self) -> None:
         install_production_session()
         self.assertIs(no_wick_research._in_entry_session, in_production_session)
+        self.assertTrue(wickless_bot._production_session_label_installed)
 
     def test_live_and_autoresearch_entrypoints_install_the_union(self) -> None:
         live = (ROOT / "live_scan.py").read_text(encoding="utf-8")
