@@ -1,0 +1,190 @@
+name: Wickless ML production learning
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - wickless_ml/training.request
+  schedule:
+    - cron: "30 1 * * 1"
+      timezone: "Europe/London"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wickless-ml-learning
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      DATA_ROOT: .runtime-data/autoresearch-datasets
+      BI5_CACHE: .runtime-data/duka-bi5
+      DATASET: .runtime-data/autoresearch-datasets/dukascopy_m1_bidask_2025-05_2026-07
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore Phase 1 BID ASK research data
+        id: dataset-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .runtime-data/autoresearch-datasets
+            .runtime-data/duka-bi5
+          key: wickless-autoresearch-data-v2-walk-forward
+          restore-keys: |
+            wickless-autoresearch-data-v2-walk-forward-partial-
+
+      - name: Build missing 15-month BID ASK dataset
+        shell: bash
+        run: |
+          pairs=(EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD)
+          retry_download() {
+            local attempt
+            for attempt in 1 2 3; do
+              "$@" && return 0
+              sleep $((attempt * 5))
+            done
+            return 1
+          }
+          if [[ ! -s "$DATASET/manifest.json" ]]; then
+            retry_download python scripts/download_m1_bid_ask.py "${pairs[@]}" \
+              --start 2025-05-01 --end 2026-07-31 \
+              --output "$DATASET" --cache "$BI5_CACHE"
+          fi
+          test "$(find "$DATASET" -name '*.csv.gz' | wc -l)" -eq 7
+
+      - name: Save complete research data
+        if: success() && steps.dataset-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .runtime-data/autoresearch-datasets
+            .runtime-data/duka-bi5
+          key: wickless-autoresearch-data-v2-walk-forward
+
+      - name: Train and validate challenger
+        shell: bash
+        run: |
+          mkdir -p .runtime-output
+          set -o pipefail
+          python -m wickless_ml.training \
+            --data-root "$DATA_ROOT" \
+            --validation-policy autoresearch/walk_forward_policy.json \
+            --learning-policy wickless_ml/policy.json \
+            --registry wickless_ml/registry.json \
+            --models wickless_ml/models \
+            --reports wickless_ml/reports \
+            | tee .runtime-output/ml-training.json
+
+      - name: Validate repository
+        shell: bash
+        run: |
+          python -m compileall -q wickless_ml wickless_bot.py scripts tests
+          python -m unittest discover -s tests -v
+          python scripts/system_health.py --output .runtime-output/system-health.json
+
+      - name: Upload durable ML audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wickless-ml-training-${{ github.run_id }}
+          path: |
+            .runtime-output
+            wickless_ml/reports
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publish registry, models, and reports
+        shell: bash
+        run: |
+          git config user.name "wickless-ml[bot]"
+          git config user.email "wickless-ml[bot]@users.noreply.github.com"
+          git add -- wickless_ml/registry.json wickless_ml/models wickless_ml/reports
+          if git diff --cached --quiet; then
+            echo "No ML audit changes to publish"
+            exit 0
+          fi
+          git commit -m "ml: refresh challenger and registry"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 3))
+          done
+          exit 1
+
+      - name: Notify Discord of ML result
+        if: success()
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+          if not webhook:
+              raise SystemExit(0)
+          report = json.loads(Path("wickless_ml/reports/latest.json").read_text())
+          registry = json.loads(Path("wickless_ml/registry.json").read_text())
+          champion = registry.get("champion") or {}
+          message = "\n".join((
+              "🧠 **Wickless ML learning**",
+              f"Status: **{report.get('status', 'UNKNOWN')}**",
+              f"Samples: {report.get('sample_counts', {}).get('total', 0)}",
+              f"Challenger: `{report.get('model_id', 'none')}`",
+              f"Champion: `{champion.get('model_id', 'none')}`",
+              f"Deployment: **{registry.get('deployment', {}).get('mode', 'shadow').upper()}**",
+              os.environ["RUN_URL"],
+          ))
+          request = urllib.request.Request(
+              webhook,
+              data=json.dumps({"content": message, "allowed_mentions": {"parse": []}}).encode(),
+              headers={"Content-Type": "application/json", "User-Agent": "wickless-ml/1"},
+              method="POST",
+          )
+          urllib.request.urlopen(request, timeout=20).read()
+          PY
+
+      - name: Alert Discord if ML learning fails
+        if: failure()
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+          if not webhook:
+              raise SystemExit(0)
+          request = urllib.request.Request(
+              webhook,
+              data=json.dumps({
+                  "content": "❌ **Wickless ML learning failed**\n" + os.environ["RUN_URL"],
+                  "allowed_mentions": {"parse": []},
+              }).encode(),
+              headers={"Content-Type": "application/json", "User-Agent": "wickless-ml/1"},
+              method="POST",
+          )
+          urllib.request.urlopen(request, timeout=20).read()
+          PY
