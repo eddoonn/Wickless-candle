@@ -136,11 +136,11 @@ test_usdcad_bullish_wickless_is_buy_at_two_r (test_wickless_bot.WicklessDetectio
 Regression: a green USDCAD wickless marker maps to a 2R BUY. ... ok
 
 ----------------------------------------------------------------------
-Ran 130 tests in 0.412s
+Ran 130 tests in 0.216s
 
 OK
 {
-  "generated_at_utc": "2026-08-05T13:16:31+00:00",
+  "generated_at_utc": "2026-08-05T13:18:57+00:00",
   "passing": 2,
   "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
   "schema_version": 2,
@@ -223,9 +223,9 @@ OK
   "session_policy": "fixed London-or-New-York production union",
   "tested": 3
 }
+GBPUSD BID: 1 bars through 2026-07-30T08:00:00+00:00
 EURUSD BID: 1 bars through 2026-07-30T08:00:00+00:00
 EURUSD ASK: 1 bars through 2026-07-30T08:00:00+00:00
-GBPUSD BID: 1 bars through 2026-07-30T08:00:00+00:00
 GBPUSD ASK: 1 bars through 2026-07-30T08:00:00+00:00
 EURUSD: already sent 1234567890abcdef
 {
