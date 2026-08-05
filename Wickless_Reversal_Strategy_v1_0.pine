@@ -17,7 +17,7 @@ strategy(
 
 // Shared Phase 1–3 rules:
 // - finalized, directional 15-minute wickless impulse;
-// - EMA(50) direction plus five-bar slope and 05:00–13:30 New York session;
+// - EMA(50) direction plus five-bar slope and London-or-New-York session union;
 // - 80% body, <=2-tick opening wick, 0.50–2.00 ATR range, top/bottom 10% close;
 // - entry at the finalized signal close;
 // - opposite signal-candle edge plus one tick for the stop;
@@ -37,7 +37,8 @@ stopBufferTicks = input.int(1, "Stop buffer (ticks)", minval = 0, group = groupR
 atrLength = input.int(14, "ATR length", minval = 1, group = groupRules)
 minimumStopAtr = input.float(0.40, "Minimum stop (ATR)", minval = 0.0, step = 0.05, group = groupRules)
 maximumStopAtr = input.float(1.50, "Maximum stop (ATR)", minval = 0.1, step = 0.05, group = groupRules)
-entrySession = input.session("0500-1330", "New York signal session", group = groupRules)
+londonSession = input.session("0800-1700", "London signal session", group = groupRules)
+newYorkSession = input.session("0500-1330", "New York signal session", group = groupRules)
 enforceFifteenMinutes = input.bool(true, "Require 15-minute chart", group = groupRules)
 enableLongs = input.bool(true, "Enable BUY signals", group = groupRules)
 enableShorts = input.bool(true, "Enable SELL signals", group = groupRules)
@@ -63,7 +64,9 @@ maximumRisk = atrValue * maximumStopAtr
 upTrend = close > emaValue and emaValue > emaValue[emaSlopeLookback]
 downTrend = close < emaValue and emaValue < emaValue[emaSlopeLookback]
 trend = upTrend ? 1 : downTrend ? -1 : 0
-inSession = not na(time(timeframe.period, entrySession, "America/New_York"))
+inLondonSession = not na(time(timeframe.period, londonSession, "Europe/London"))
+inNewYorkSession = not na(time(timeframe.period, newYorkSession, "America/New_York"))
+inSession = inLondonSession or inNewYorkSession
 
 candleRange = high - low
 bodyRatio = candleRange > 0 ? math.abs(close - open) / candleRange : 0.0
