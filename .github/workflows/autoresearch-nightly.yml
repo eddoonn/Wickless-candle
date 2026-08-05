@@ -3,7 +3,7 @@ name: Nightly Wickless autoresearch
 on:
   push:
     branches:
-      - autoresearch/framework-v1
+      - main
     paths:
       - autoresearch/baseline-refresh.request
       - autoresearch/bootstrap-benchmark.request
@@ -45,8 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      FRAMEWORK_BRANCH: autoresearch/framework-v1
-      NIGHTLY_BRANCH: autoresearch/nightly
+      MAIN_BRANCH: main
       DATA_ROOT: .runtime-data/autoresearch-datasets
       BI5_CACHE: .runtime-data/duka-bi5
       BATCH_SIZE: ${{ github.event.inputs.batch_size || '12' }}
@@ -54,16 +53,23 @@ jobs:
       BOOTSTRAP_INPUT: ${{ github.event.inputs.bootstrap_benchmark || 'false' }}
       BOOTSTRAP_LIMIT: ${{ github.event.inputs.bootstrap_limit || '0' }}
     steps:
-      - name: Check out the fixed framework
+      - name: Check out main
         uses: actions/checkout@v4
         with:
-          ref: autoresearch/framework-v1
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Capture immutable starting point
+        shell: bash
+        run: |
+          git config user.name "wickless-autoresearch[bot]"
+          git config user.email "wickless-autoresearch[bot]@users.noreply.github.com"
+          echo "BASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Resolve requested mode
         shell: bash
@@ -85,20 +91,6 @@ jobs:
           fi
           echo "RUN_MODE=$mode" >> "$GITHUB_ENV"
           echo "Resolved autoresearch mode: $mode"
-
-      - name: Resume the isolated nightly branch
-        shell: bash
-        run: |
-          git config user.name "wickless-autoresearch[bot]"
-          git config user.email "wickless-autoresearch[bot]@users.noreply.github.com"
-          git fetch origin "$FRAMEWORK_BRANCH"
-          if git ls-remote --exit-code --heads origin "refs/heads/$NIGHTLY_BRANCH"; then
-            git fetch origin "$NIGHTLY_BRANCH"
-            git checkout -B "$NIGHTLY_BRANCH" "origin/$NIGHTLY_BRANCH"
-            git merge --no-edit "origin/$FRAMEWORK_BRANCH"
-          else
-            git checkout -b "$NIGHTLY_BRANCH" "origin/$FRAMEWORK_BRANCH"
-          fi
 
       - name: Check Discord configuration
         id: discord-config
@@ -178,14 +170,6 @@ jobs:
             --runs autoresearch/runs \
             --attempts autoresearch/attempts.log \
             | tee .runtime-reference.json
-          git add -A -- \
-            autoresearch/incumbent.json \
-            autoresearch/results.jsonl \
-            autoresearch/attempts.log \
-            autoresearch/runs
-          if ! git diff --cached --quiet; then
-            git commit -m "autoresearch: restore release-current reference"
-          fi
 
       - name: Refresh production reference benchmark
         if: env.RUN_MODE == 'refresh'
@@ -200,12 +184,6 @@ jobs:
             --attempts autoresearch/attempts.log \
             --force \
             | tee .runtime-reference.json
-          git add -A -- \
-            autoresearch/incumbent.json \
-            autoresearch/results.jsonl \
-            autoresearch/attempts.log \
-            autoresearch/runs
-          git commit -m "autoresearch: refresh release-current reference"
 
       - name: Bootstrap the strongest valid benchmark
         if: env.RUN_MODE == 'bootstrap'
@@ -223,8 +201,6 @@ jobs:
           if [[ -s /tmp/bootstrap-incumbent.json ]]; then
             cp /tmp/bootstrap-incumbent.json autoresearch/incumbent.json
           fi
-          git add -A -- autoresearch
-          git commit -m "autoresearch: bootstrap fixed-session benchmark search"
 
       - name: Run worker and coach experiment loop
         if: env.RUN_MODE == 'nightly'
@@ -233,7 +209,6 @@ jobs:
           --data-root "$DATA_ROOT"
           --batch-size "$BATCH_SIZE"
           --coach-interval 20
-          --git-commits
           --no-discord
 
       - name: Restore neutral candidate surface
@@ -250,12 +225,8 @@ jobs:
               "parameters": {},
           }
           PY
-          git add -- autoresearch/candidate.py
-          if ! git diff --cached --quiet; then
-            git commit -m "autoresearch: reset candidate surface"
-          fi
 
-      - name: Validate code, health, and protected scope
+      - name: Validate code, health, and changed-file scope
         shell: bash
         run: |
           python -m compileall -q \
@@ -265,8 +236,35 @@ jobs:
           python -m unittest discover -s tests -v
           mkdir -p .runtime-output
           python scripts/system_health.py --output .runtime-output/system-health.json
-          python autoresearch/verify_scope.py \
-            --base "origin/$FRAMEWORK_BRANCH"
+          {
+            git diff --name-only "$BASE_SHA"
+            git ls-files --others --exclude-standard
+          } | sort -u > .runtime-output/changed-files.txt
+          python - <<'PY'
+          from pathlib import Path
+
+          allowed_exact = {
+              "autoresearch/candidate.py",
+              "autoresearch/incumbent.json",
+              "autoresearch/results.jsonl",
+              "autoresearch/attempts.log",
+              "autoresearch/playbook.md",
+              "autoresearch/coach_state.json",
+          }
+          changed = [
+              line.strip()
+              for line in Path(".runtime-output/changed-files.txt").read_text().splitlines()
+              if line.strip()
+          ]
+          forbidden = [
+              path for path in changed
+              if path not in allowed_exact
+              and not (path.startswith("autoresearch/runs/") and path.endswith(".json"))
+          ]
+          if forbidden:
+              raise SystemExit("Protected files changed during research: " + ", ".join(forbidden))
+          print(f"Scope OK: {len(changed)} allowed changed file(s)")
+          PY
 
       - name: Upload durable autoresearch audit artifact
         if: always()
@@ -280,42 +278,55 @@ jobs:
             autoresearch/incumbent.json
             .runtime-reference.json
             .runtime-output/system-health.json
+            .runtime-output/changed-files.txt
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Publish audit history to the nightly branch only
+      - name: Publish audit history to main
+        id: publish
         shell: bash
         run: |
+          git add -A -- \
+            autoresearch/candidate.py \
+            autoresearch/incumbent.json \
+            autoresearch/results.jsonl \
+            autoresearch/attempts.log \
+            autoresearch/playbook.md \
+            autoresearch/coach_state.json \
+            autoresearch/runs
+          if git diff --cached --quiet; then
+            echo "No audit changes to publish."
+            exit 0
+          fi
+          git commit -m "autoresearch: publish $RUN_MODE audit state"
           for attempt in 1 2 3; do
-            git push origin "$NIGHTLY_BRANCH" && exit 0
+            git pull --rebase origin "$MAIN_BRANCH" && \
+              git push origin HEAD:"$MAIN_BRANCH" && exit 0
+            git rebase --abort 2>/dev/null || true
             sleep $((attempt * 5))
           done
           exit 1
 
       - name: Notify Discord of nightly benchmark and best test
-        if: env.RUN_MODE == 'nightly'
+        if: env.RUN_MODE == 'nightly' && steps.publish.outcome == 'success'
         continue-on-error: true
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python -m autoresearch.notifications nightly --path autoresearch/runs
 
       - name: Notify Discord of bootstrap result
-        if: env.RUN_MODE == 'bootstrap'
+        if: env.RUN_MODE == 'bootstrap' && steps.publish.outcome == 'success'
         continue-on-error: true
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: >-
-          python -m autoresearch.notifications bootstrap
-          --path autoresearch/runs/bootstrap-summary.json
+        run: python -m autoresearch.notifications bootstrap --path autoresearch/runs/bootstrap-summary.json
 
       - name: Notify Discord of refreshed reference
-        if: env.RUN_MODE == 'refresh'
+        if: env.RUN_MODE == 'refresh' && steps.publish.outcome == 'success'
         continue-on-error: true
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: >-
-          python -m autoresearch.notifications refresh
-          --path .runtime-reference.json
+        run: python -m autoresearch.notifications refresh --path .runtime-reference.json
 
       - name: Write automation summary
         if: always()
@@ -325,12 +336,8 @@ jobs:
             echo "# Wickless autoresearch automation"
             echo
             echo "- Mode: \`$RUN_MODE\`"
-            echo "- Framework: \`$FRAMEWORK_BRANCH\`"
-            echo "- Audit branch: \`$NIGHTLY_BRANCH\`"
+            echo "- Repository branch: \`$MAIN_BRANCH\`"
             echo "- Discord configured: \`${{ steps.discord-config.outcome == 'success' }}\`"
-            if [[ -s .runtime-output/system-health.json ]]; then
-              echo "- System health report included in the artifact."
-            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Alert Discord if the batch fails
@@ -339,6 +346,4 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: >-
-          python -m autoresearch.notifications failure
-          --run-url "$RUN_URL"
+        run: python -m autoresearch.notifications failure --run-url "$RUN_URL"
