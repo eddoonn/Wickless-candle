@@ -8,7 +8,7 @@ on:
     paths:
       - "autoresearch/**"
       - ".github/workflows/autoresearch.yml"
-      - "tests/test_autoresearch.py"
+      - "tests/**"
   workflow_dispatch:
 
 permissions:
@@ -35,8 +35,11 @@ jobs:
 
       - name: Protect fixed harness on experiment branches
         if: >-
-          github.ref_name != 'autoresearch/framework-v1' &&
-          github.head_ref != 'autoresearch/framework-v1'
+          (github.event_name == 'push' &&
+           github.ref_name != 'autoresearch/framework-v1') ||
+          (github.event_name == 'pull_request' &&
+           startsWith(github.head_ref, 'autoresearch/') &&
+           github.head_ref != 'autoresearch/framework-v1')
         run: |
           git fetch origin autoresearch/framework-v1:refs/remotes/origin/autoresearch/framework-v1
           python autoresearch/verify_scope.py \
