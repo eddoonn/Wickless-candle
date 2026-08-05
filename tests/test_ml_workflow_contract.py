@@ -25,7 +25,8 @@ class MachineLearningWorkflowContractTests(unittest.TestCase):
         self.assertIn("group: wickless-autoresearch-nightly", workflow)
         self.assertIn("wickless-autoresearch-data-v2-walk-forward", workflow)
         self.assertIn("wickless_ml/training.request", workflow)
-        self.assertIn("python -m wickless_ml.training", workflow)
+        self.assertIn("python -m wickless_ml.phase3_training", workflow)
+        self.assertIn("Train and validate Phase 3 challengers", workflow)
 
     def test_one_time_integration_files_are_absent(self) -> None:
         forbidden = (
