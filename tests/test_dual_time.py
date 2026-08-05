@@ -8,6 +8,7 @@ from unittest.mock import patch
 from live_scan import dual_timezone_discord_payload
 from scripts.rerun_production_backtest import enrich_report_times
 from time_display import london_iso, utc_london_text
+from tools.test_discord_webhook import connectivity_message
 
 
 UTC = timezone.utc
@@ -26,6 +27,14 @@ class DualTimeTests(unittest.TestCase):
         rendered = utc_london_text("2026-08-05T10:00:00+00:00")
         self.assertIn("UTC 2026-08-05T10:00:00+00:00 (UTC)", rendered)
         self.assertIn("London 2026-08-05T11:00:00+01:00 (BST)", rendered)
+
+    def test_connectivity_message_shows_the_same_instant_in_both_zones(self) -> None:
+        rendered = connectivity_message(
+            datetime(2026, 8, 5, 10, 53, tzinfo=UTC)
+        )
+        self.assertIn("No trade signal was generated or placed", rendered)
+        self.assertIn("UTC: `2026-08-05T10:53:00+00:00 (UTC)`", rendered)
+        self.assertIn("London: `2026-08-05T11:53:00+01:00 (BST)`", rendered)
 
     def test_live_payload_replaces_partial_time_fields_with_four_dual_time_fields(self) -> None:
         base = {
