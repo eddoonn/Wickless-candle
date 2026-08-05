@@ -1,0 +1,52 @@
+{
+  "runs": [
+    {
+      "conclusion": "failure",
+      "created_at": "2026-08-05T15:27:00Z",
+      "event": "push",
+      "head_sha": "0ec39b9427362a2cecf47e385134ecca1bc85fc9",
+      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31020344497",
+      "id": 31020344497,
+      "jobs": [],
+      "run_number": 4,
+      "status": "completed",
+      "updated_at": "2026-08-05T15:27:00Z"
+    },
+    {
+      "conclusion": "failure",
+      "created_at": "2026-08-05T15:26:45Z",
+      "event": "push",
+      "head_sha": "6b0673d56c0ccd896fc4c80d39cc611a11d5a748",
+      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31020322766",
+      "id": 31020322766,
+      "jobs": [],
+      "run_number": 3,
+      "status": "completed",
+      "updated_at": "2026-08-05T15:26:45Z"
+    },
+    {
+      "conclusion": "failure",
+      "created_at": "2026-08-05T15:24:55Z",
+      "event": "push",
+      "head_sha": "00f83388aeca71a6e60eb97ab6ed37569c4e5dbb",
+      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31020170560",
+      "id": 31020170560,
+      "jobs": [],
+      "run_number": 2,
+      "status": "completed",
+      "updated_at": "2026-08-05T15:24:55Z"
+    },
+    {
+      "conclusion": "failure",
+      "created_at": "2026-08-05T15:24:39Z",
+      "event": "push",
+      "head_sha": "8167b8542ae4cd130c4654c6c4b1af4d443cf21d",
+      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31020149273",
+      "id": 31020149273,
+      "jobs": [],
+      "run_number": 1,
+      "status": "completed",
+      "updated_at": "2026-08-05T15:24:39Z"
+    }
+  ]
+}
