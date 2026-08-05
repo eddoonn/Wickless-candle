@@ -113,6 +113,29 @@ jobs:
             .runtime-data/duka-bi5
           key: wickless-autoresearch-data-v1-partial-${{ github.run_id }}
 
+      - name: Require a valid benchmark
+        if: env.REFRESH_BASELINE != 'true'
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("autoresearch/incumbent.json")
+          if not path.exists():
+              raise SystemExit(
+                  "No valid benchmark exists. The production baseline must first pass all acceptance gates."
+              )
+          report = json.loads(path.read_text(encoding="utf-8"))["report"]
+          gates = report.get("acceptance_gates", {})
+          failed = [
+              name for name, passed in gates.get("checks", {}).items() if not passed
+          ]
+          if not gates.get("passed", False):
+              detail = ", ".join(failed) or "unknown gate failure"
+              raise SystemExit(f"Benchmark is invalid: {detail}")
+          PY
+
       - name: Refresh production baseline benchmark
         if: env.REFRESH_BASELINE == 'true'
         shell: bash
@@ -196,7 +219,7 @@ jobs:
                       f"{overall['net_r']:+.2f}R, "
                       f"drawdown {overall['maximum_drawdown_r']:.2f}R"
                   ),
-                  "Future candidates require at least 10 trades in June and July.",
+                  "The benchmark passed the 10-trade minimum in both June and July.",
               )
           )
           request = urllib.request.Request(
@@ -207,10 +230,8 @@ jobs:
           )
           try:
               urllib.request.urlopen(request, timeout=20).read()
-          except urllib.error.HTTPError as error:
-              print(f"Discord benchmark notification failed: HTTP {error.code}")
-          except urllib.error.URLError as error:
-              print(f"Discord benchmark notification failed: {error.reason}")
+          except (urllib.error.HTTPError, urllib.error.URLError) as error:
+              print(f"Discord benchmark notification failed: {error}")
           PY
 
       - name: Alert Discord if the batch fails
@@ -238,8 +259,6 @@ jobs:
               )
               try:
                   urllib.request.urlopen(request, timeout=20).read()
-              except urllib.error.HTTPError as error:
-                  print(f"Discord failure alert failed: HTTP {error.code}")
-              except urllib.error.URLError as error:
-                  print(f"Discord failure alert failed: {error.reason}")
+              except (urllib.error.HTTPError, urllib.error.URLError) as error:
+                  print(f"Discord failure alert failed: {error}")
           PY
