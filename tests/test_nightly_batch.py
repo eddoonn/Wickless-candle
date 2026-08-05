@@ -13,6 +13,7 @@ from autoresearch.nightly_batch import (
     parameter_signature,
     proposal_space,
     render_candidate,
+    select_best_experiment,
     select_proposals,
 )
 
@@ -92,22 +93,98 @@ class ProposalTests(unittest.TestCase):
         self.assertEqual(loaded.parameters["minimum_body_ratio"], 0.79)
         self.assertEqual(loaded.parameters["session_start"].isoformat(), "04:45:00")
 
-    def test_discord_summary_is_concise(self) -> None:
-        metric = {"trades": 12, "net_r": 4.25, "maximum_drawdown_r": 1.1}
+    def test_best_experiment_uses_the_policy_objective_order(self) -> None:
+        policy = {
+            "objective_order": [
+                "worst_fold_net_r",
+                "total_net_r",
+                "overall_profit_factor",
+                "negative_overall_drawdown_r",
+                "total_trades",
+            ]
+        }
+        high_total_worse_fold = {
+            "candidate": "high-total",
+            "objective": {
+                "worst_fold_net_r": -3.0,
+                "total_net_r": 20.0,
+                "overall_profit_factor": 4.0,
+                "negative_overall_drawdown_r": -3.0,
+                "total_trades": 20,
+            },
+        }
+        stronger_worst_fold = {
+            "candidate": "stronger-fold",
+            "objective": {
+                "worst_fold_net_r": -2.0,
+                "total_net_r": 12.0,
+                "overall_profit_factor": 3.0,
+                "negative_overall_drawdown_r": -2.0,
+                "total_trades": 15,
+            },
+        }
+        selected = select_best_experiment(
+            [high_total_worse_fold, stronger_worst_fold], policy
+        )
+        self.assertEqual(selected["candidate"], "stronger-fold")
+
+    def test_discord_summary_compares_benchmark_with_best_experiment(self) -> None:
+        benchmark_june = {
+            "trades": 2,
+            "net_r": -2.06,
+            "maximum_drawdown_r": 2.06,
+        }
+        benchmark_july = {
+            "trades": 13,
+            "net_r": 13.68,
+            "maximum_drawdown_r": 2.06,
+        }
+        benchmark_overall = {
+            "trades": 15,
+            "net_r": 11.62,
+            "maximum_drawdown_r": 2.14,
+        }
+        best_june = {"trades": 2, "net_r": -2.06, "maximum_drawdown_r": 2.06}
+        best_july = {"trades": 14, "net_r": 15.65, "maximum_drawdown_r": 2.06}
+        best_overall = {"trades": 16, "net_r": 13.59, "maximum_drawdown_r": 2.06}
         summary = {
             "london_date": "2026-08-01",
             "tested": 12,
-            "kept": 1,
-            "rejected": 11,
+            "kept": 0,
+            "rejected": 12,
+            "benchmark": {
+                "name": "production-baseline",
+                "overall": benchmark_overall,
+                "folds": {
+                    "june_2026": benchmark_june,
+                    "july_2026": benchmark_july,
+                },
+            },
+            "best_experiment": {
+                "candidate": "grid-0031",
+                "status": "discard",
+                "overall": best_overall,
+                "folds": {"june_2026": best_june, "july_2026": best_july},
+                "acceptance_gates": {
+                    "checks": {"june_2026_positive_net_r": False}
+                },
+            },
             "incumbent": {
-                "name": "grid-0001",
-                "overall": metric,
-                "folds": {"june_2026": metric, "july_2026": metric},
+                "name": "production-baseline",
+                "overall": benchmark_overall,
+                "folds": {
+                    "june_2026": benchmark_june,
+                    "july_2026": benchmark_july,
+                },
             },
         }
         message = discord_summary(summary)
-        self.assertIn("KEEP **1**", message)
-        self.assertIn("June: 12 trades, +4.25R", message)
+        self.assertIn("KEEP **0**", message)
+        self.assertIn("Benchmark — production-baseline", message)
+        self.assertIn("Best tonight — grid-0031", message)
+        self.assertIn("Overall +1.97R", message)
+        self.assertIn("Decision: **DISCARD**", message)
+        self.assertIn("june 2026 positive net r", message)
         self.assertIn("autoresearch/nightly", message)
         self.assertLess(len(message), 2000)
 
