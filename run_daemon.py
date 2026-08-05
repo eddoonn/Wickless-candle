@@ -12,7 +12,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Sequence
 
+import wickless_bot
 from live_data import refresh
+from live_scan import dual_timezone_discord_payload
 from wickless_bot import (
     DEFAULT_MAX_SIGNAL_AGE_SECONDS,
     LIVE_INSTRUMENTS,
@@ -94,6 +96,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("error: DISCORD_WEBHOOK_URL is missing", file=sys.stderr)
         return 2
 
+    wickless_bot.discord_payload = dual_timezone_discord_payload
     for event in (signal.SIGINT, signal.SIGTERM):
         signal.signal(event, _request_stop)
 
