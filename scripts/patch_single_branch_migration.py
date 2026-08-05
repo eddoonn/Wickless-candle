@@ -55,6 +55,44 @@ if old_guard_test not in text:
     raise SystemExit("Expected broad guard assertions were not found")
 text = text.replace(old_guard_test, new_guard_test, 1)
 
+old_scan = '''    hits: list[str] = []
+    for path in ROOT.rglob("*"):
+        if not path.is_file() or ".git" in path.parts:
+            continue
+        relative = path.relative_to(ROOT)
+        if relative.parts[:2] == ("autoresearch", "runs"):
+            continue
+        if path.suffix.lower() not in {".py", ".md", ".json", ".yml", ".yaml"}:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        for old in ("autoresearch/framework-v1", "autoresearch/nightly"):
+            if old in text:
+                hits.append(f"{relative}: {old}")
+    if hits:
+        raise RuntimeError("Old branch references remain: " + "; ".join(hits))
+'''
+new_scan = '''    nightly_workflow = (
+        ROOT / ".github/workflows/autoresearch-nightly.yml"
+    ).read_text(encoding="utf-8")
+    forbidden_mechanics = (
+        "FRAMEWORK_BRANCH:",
+        "NIGHTLY_BRANCH:",
+        "ref: autoresearch/framework-v1",
+        'git push origin "$NIGHTLY_BRANCH"',
+    )
+    hits = [item for item in forbidden_mechanics if item in nightly_workflow]
+    policy = json.loads(
+        (ROOT / "autoresearch/policy.json").read_text(encoding="utf-8")
+    )
+    if policy.get("repository_branch") != "main":
+        hits.append("policy repository_branch is not main")
+    if hits:
+        raise RuntimeError("Old branch mechanics remain: " + "; ".join(hits))
+'''
+if old_scan not in text:
+    raise SystemExit("Expected naive repository text scan was not found")
+text = text.replace(old_scan, new_scan, 1)
+
 old_cleanup = '''        "scripts/single_branch_migration.py",
         "reports/maintenance/latest/single-branch-migration.json",
 '''
