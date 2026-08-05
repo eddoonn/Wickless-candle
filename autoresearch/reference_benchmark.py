@@ -13,6 +13,7 @@ from typing import Any
 from autoresearch.attempts import format_score, sync_attempts_from_ledger
 from autoresearch.behavior import behavior_digest
 from autoresearch.evaluator import Candidate, evaluate, load_policy, report_digest
+from autoresearch.phase1_validation import policy_profile_sha256
 from autoresearch.run_experiment import (
     _append_ledger,
     _git_commit,
@@ -39,7 +40,17 @@ def production_reference_candidate() -> Candidate:
     )
 
 
-def _load_usable_incumbent(path: Path) -> dict[str, Any] | None:
+def _required_validation_profile(policy_path: Path) -> str | None:
+    policy = load_policy(policy_path)
+    if "phase1_validation" not in policy:
+        return None
+    return policy_profile_sha256(policy)
+
+
+def _load_usable_incumbent(
+    path: Path,
+    policy_path: Path = HERE / "policy.json",
+) -> dict[str, Any] | None:
     if not path.exists():
         return None
     try:
@@ -47,6 +58,14 @@ def _load_usable_incumbent(path: Path) -> dict[str, Any] | None:
         if payload.get("production_release_sha") != PRODUCTION_RELEASE_SHA:
             return None
         report = payload["report"]
+        required_profile = _required_validation_profile(policy_path)
+        if required_profile is not None:
+            actual_profile = (
+                payload.get("validation_profile_sha256")
+                or report.get("validation", {}).get("profile_sha256")
+            )
+            if actual_profile != required_profile:
+                return None
         candidate = report["candidate"]
         if not isinstance(candidate["name"], str) or not candidate["name"]:
             return None
@@ -70,18 +89,21 @@ def ensure_reference_benchmark(
     attempts_path: Path,
     force: bool = False,
 ) -> tuple[dict[str, Any], bool]:
-    """Return a release-current incumbent, creating a reference when needed.
+    """Return a release-and-validation-current reference, creating it when needed.
 
     Acceptance gates continue to apply to every experiment. The reference benchmark
-    is allowed to miss a newer candidate gate because it is the comparison point,
-    not a candidate being promoted.
+    is allowed to miss candidate gates because it is a comparison point, not a
+    candidate being promoted.
     """
 
-    existing = _load_usable_incumbent(incumbent_path)
+    existing = _load_usable_incumbent(incumbent_path, policy_path)
     if existing is not None and not force:
         return existing, False
 
     policy = load_policy(policy_path)
+    validation_profile = (
+        policy_profile_sha256(policy) if "phase1_validation" in policy else None
+    )
     candidate = production_reference_candidate()
     report = evaluate(candidate, data_root=data_root, policy=policy)
     generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
@@ -92,11 +114,12 @@ def ensure_reference_benchmark(
     runs_path.mkdir(parents=True, exist_ok=True)
     _write_json_atomic(runs_path / f"{run_id}.json", report)
     record = {
-        "schema_version": 2,
+        "schema_version": 3,
         "run_id": run_id,
         "generated_at_utc": generated_at,
         "commit": commit,
         "production_release_sha": PRODUCTION_RELEASE_SHA,
+        "validation_profile_sha256": validation_profile,
         "candidate": report["candidate"],
         "category": "baseline",
         "score": format_score(report["objective"]),
@@ -114,10 +137,11 @@ def ensure_reference_benchmark(
     }
     _append_ledger(ledger_path, record)
     payload = {
-        "schema_version": 2,
+        "schema_version": 3,
         "updated_at_utc": generated_at,
         "source_run_id": run_id,
         "production_release_sha": PRODUCTION_RELEASE_SHA,
+        "validation_profile_sha256": validation_profile,
         "benchmark_role": "production-reference",
         "report": report,
     }
@@ -154,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     output = {
         "created": created,
         "production_release_sha": payload["production_release_sha"],
+        "validation_profile_sha256": payload.get("validation_profile_sha256"),
         "benchmark_role": payload.get("benchmark_role", "promoted-incumbent"),
         "candidate": report["candidate"]["name"],
         "acceptance_gates": report["acceptance_gates"],
