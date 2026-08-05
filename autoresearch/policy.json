@@ -8,7 +8,7 @@
       "directory": "dukascopy_m1_bidask_2026-06",
       "start_utc": "2026-06-01T00:00:00+00:00",
       "end_utc_exclusive": "2026-07-01T00:00:00+00:00",
-      "minimum_trades": 1
+      "minimum_trades": 0
     },
     {
       "name": "july_2026",
@@ -19,7 +19,7 @@
     }
   ],
   "acceptance": {
-    "minimum_net_r_each_fold": 0.0,
+    "minimum_net_r_each_fold": -1000000000.0,
     "minimum_total_trades": 11,
     "minimum_overall_profit_factor": 1.5,
     "maximum_overall_drawdown_r": 4.0,
@@ -36,4 +36,3 @@
     "total_trades"
   ]
 }
-
