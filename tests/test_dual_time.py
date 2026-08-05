@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import unittest
 from datetime import datetime, timezone
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -12,6 +15,7 @@ from tools.test_discord_webhook import connectivity_message
 
 
 UTC = timezone.utc
+ROOT = Path(__file__).resolve().parents[1]
 
 
 class DualTimeTests(unittest.TestCase):
@@ -112,6 +116,17 @@ class DualTimeTests(unittest.TestCase):
         self.assertEqual(qa["last_bar_london"], "2026-07-01T00:45:00+01:00")
         trade = enriched["trades"][0]
         self.assertEqual(trade["entry_time_london"], "2026-06-05T10:30:00+01:00")
+
+    def test_backtest_runner_is_importable_when_executed_by_path(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, "scripts/rerun_production_backtest.py", "--help"],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("--data-root", completed.stdout)
 
 
 if __name__ == "__main__":
