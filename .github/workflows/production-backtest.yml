@@ -1,0 +1,181 @@
+name: Production Wickless backtest
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ops/backtest.request
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wickless-production-backtest
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATA_ROOT: .runtime-data/autoresearch-datasets
+      BI5_CACHE: .runtime-data/duka-bi5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore fixed June and July BID ASK data
+        id: dataset-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .runtime-data/autoresearch-datasets
+            .runtime-data/duka-bi5
+          key: wickless-autoresearch-data-v1-complete
+          restore-keys: |
+            wickless-autoresearch-data-v1-partial-
+
+      - name: Build missing seven-pair datasets
+        shell: bash
+        run: |
+          pairs=(EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD)
+          june="$DATA_ROOT/dukascopy_m1_bidask_2026-06"
+          july="$DATA_ROOT/dukascopy_m1_bidask_2026-07"
+          if [[ ! -s "$june/manifest.json" ]]; then
+            python scripts/download_m1_bid_ask.py "${pairs[@]}" \
+              --start 2026-05-27 --end 2026-06-30 \
+              --output "$june" --cache "$BI5_CACHE"
+          fi
+          if [[ ! -s "$july/manifest.json" ]]; then
+            python scripts/download_m1_bid_ask.py "${pairs[@]}" \
+              --start 2026-06-29 --end 2026-07-31 \
+              --output "$july" --cache "$BI5_CACHE"
+          fi
+          test "$(find "$june" -name '*.csv.gz' | wc -l)" -eq 7
+          test "$(find "$july" -name '*.csv.gz' | wc -l)" -eq 7
+
+      - name: Save completed data cache
+        if: success() && steps.dataset-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .runtime-data/autoresearch-datasets
+            .runtime-data/duka-bi5
+          key: wickless-autoresearch-data-v1-complete
+
+      - name: Validate code and time-zone contracts
+        run: |
+          python -m compileall -q \
+            wickless_bot.py live_scan.py time_display.py no_wick_research.py \
+            live_data.py run_daemon.py autoresearch scripts tests
+          python -m unittest discover -s tests -v
+
+      - name: Re-run reviewed production backtest
+        run: >-
+          python scripts/rerun_production_backtest.py
+          --data-root "$DATA_ROOT"
+          --policy autoresearch/policy.json
+          --output reports/production-backtest/latest
+
+      - name: Write UTC and London summary
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+
+          summary = json.load(open("reports/production-backtest/latest/summary.json", encoding="utf-8"))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+              handle.write("# Production Wickless backtest\n\n")
+              handle.write(f"Generated UTC: `{summary['generated_at_utc']}`  \n")
+              handle.write(f"Generated London: `{summary['generated_at_london']}`\n\n")
+              for name, fold in summary["folds"].items():
+                  metrics = fold["metrics"]
+                  handle.write(
+                      f"- **{name}**: {metrics['trades']} trades, "
+                      f"{metrics['net_r']:+.6f}R\n"
+                  )
+              overall = summary["overall"]
+              handle.write(
+                  f"- **Overall**: {overall['trades']} trades, "
+                  f"{overall['net_r']:+.6f}R, "
+                  f"drawdown {overall['maximum_drawdown_r']:.6f}R\n"
+              )
+              handle.write(
+                  f"- **Acceptance gates**: "
+                  f"{'PASS' if summary['acceptance_gates']['passed'] else 'FAIL'}\n"
+              )
+          PY
+
+      - name: Publish refreshed report to main
+        shell: bash
+        run: |
+          git config user.name "wickless-backtest[bot]"
+          git config user.email "wickless-backtest[bot]@users.noreply.github.com"
+          git add -- reports/production-backtest
+          if git diff --cached --quiet; then
+            echo "Backtest report is unchanged."
+            exit 0
+          fi
+          git commit -m "backtest: refresh production report with London times"
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Send backtest result to Discord
+        continue-on-error: true
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          summary = json.load(open("reports/production-backtest/latest/summary.json", encoding="utf-8"))
+          june = summary["folds"]["june_2026"]["metrics"]
+          july = summary["folds"]["july_2026"]["metrics"]
+          overall = summary["overall"]
+          content = "\n".join(
+              (
+                  "📊 **Wickless production backtest refreshed**",
+                  f"Generated UTC: `{summary['generated_at_utc']}`",
+                  f"Generated London: `{summary['generated_at_london']}`",
+                  f"June: {june['trades']} trades, {june['net_r']:+.2f}R",
+                  f"July: {july['trades']} trades, {july['net_r']:+.2f}R",
+                  (
+                      f"Overall: {overall['trades']} trades, "
+                      f"{overall['net_r']:+.2f}R, "
+                      f"drawdown {overall['maximum_drawdown_r']:.2f}R"
+                  ),
+                  (
+                      "Candidate gates: "
+                      + ("PASS" if summary["acceptance_gates"]["passed"] else "FAIL")
+                  ),
+              )
+          )
+          webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+          if not webhook:
+              raise SystemExit("DISCORD_WEBHOOK_URL is not configured")
+          request = urllib.request.Request(
+              webhook,
+              data=json.dumps({"content": content, "allowed_mentions": {"parse": []}}).encode("utf-8"),
+              headers={
+                  "Content-Type": "application/json",
+                  "User-Agent": "wickless-production-backtest/1.0",
+              },
+              method="POST",
+          )
+          try:
+              urllib.request.urlopen(request, timeout=20).read()
+          except (urllib.error.HTTPError, urllib.error.URLError) as error:
+              raise SystemExit(f"Discord backtest notification failed: {error}")
+          PY
