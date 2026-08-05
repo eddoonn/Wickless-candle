@@ -125,25 +125,25 @@ def main(argv: list[str] | None = None) -> int:
         existing_records, _ = _read_ledger(args.ledger)
         sync_attempts_from_ledger(args.attempts, existing_records)
     baseline_created = not args.incumbent.exists()
-    if baseline_created:
-        incumbent_report = evaluate(
-            _baseline_candidate(), data_root=args.data_root, policy=policy
-        )
-    else:
-        incumbent_report = json.loads(args.incumbent.read_text(encoding="utf-8"))[
-            "report"
-        ]
-    report = evaluate(candidate, data_root=args.data_root, policy=policy)
-    is_identical_baseline = baseline_created and candidate.parameters == {}
-    status = (
-        "keep"
-        if is_identical_baseline or candidate_beats(report, incumbent_report, policy)
-        else "discard"
+    incumbent_report = (
+        None
+        if baseline_created
+        else json.loads(args.incumbent.read_text(encoding="utf-8"))["report"]
     )
-    if status == "keep":
-        selected_report = report
+    report = evaluate(candidate, data_root=args.data_root, policy=policy)
+    if baseline_created:
+        baseline_qualifies = (
+            candidate.parameters == {} and report["acceptance_gates"]["passed"]
+        )
+        status = "keep" if baseline_qualifies else "discard"
+        selected_report = report if baseline_qualifies else None
     else:
-        selected_report = incumbent_report
+        status = (
+            "keep"
+            if candidate_beats(report, incumbent_report, policy)
+            else "discard"
+        )
+        selected_report = report if status == "keep" else incumbent_report
     generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
     commit = args.commit or _git_commit()
     if commit != "uncommitted" and (
@@ -166,8 +166,12 @@ def main(argv: list[str] | None = None) -> int:
         "report_sha256": report_digest(report),
         "objective": report["objective"],
         "acceptance_gates": report["acceptance_gates"],
-        "incumbent_before": incumbent_report["candidate"]["name"],
-        "incumbent_after": selected_report["candidate"]["name"],
+        "incumbent_before": (
+            incumbent_report["candidate"]["name"] if incumbent_report else None
+        ),
+        "incumbent_after": (
+            selected_report["candidate"]["name"] if selected_report else None
+        ),
     }
     output = {
         "run_id": run_id,
@@ -186,15 +190,16 @@ def main(argv: list[str] | None = None) -> int:
         args.runs.mkdir(parents=True, exist_ok=True)
         _write_json_atomic(args.runs / f"{run_id}.json", report)
         _append_ledger(args.ledger, record)
-        _write_json_atomic(
-            args.incumbent,
-            {
-                "schema_version": 1,
-                "updated_at_utc": generated_at,
-                "source_run_id": run_id if status == "keep" else None,
-                "report": selected_report,
-            },
-        )
+        if selected_report is not None:
+            _write_json_atomic(
+                args.incumbent,
+                {
+                    "schema_version": 1,
+                    "updated_at_utc": generated_at,
+                    "source_run_id": run_id if status == "keep" else None,
+                    "report": selected_report,
+                },
+            )
         records, _ = _read_ledger(args.ledger)
         sync_attempts_from_ledger(args.attempts, records)
     print(json.dumps(output, indent=2, sort_keys=True, allow_nan=False))
