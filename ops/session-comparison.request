@@ -1,7 +1,8 @@
-requested_at_utc=2026-08-05T11:18:00Z
-requested_at_london=2026-08-05T12:18:00+01:00
-reason=retrigger_after_reliable_test_discovery_fix
+requested_at_utc=2026-08-05T11:27:00Z
+requested_at_london=2026-08-05T12:27:00+01:00
+reason=publish_comparison_to_isolated_results_branch
 production_change=false
+results_branch=session-comparison-results
 current_window=05:00-13:30_America/New_York
 london_window=08:00-17:00_Europe/London
 union=full_London_OR_current_New_York
