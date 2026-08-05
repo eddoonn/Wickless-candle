@@ -2,14 +2,14 @@
   "runs": [
     {
       "conclusion": "failure",
-      "created_at": "2026-08-05T15:38:12Z",
-      "head_sha": "699a0fa4544273c21e77cc571c93b8ae87815a26",
-      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31021297426",
-      "id": 31021297426,
+      "created_at": "2026-08-05T15:41:44Z",
+      "head_sha": "ef2102991d9089db169eccadb2f5a85370a11844",
+      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31021586527",
+      "id": 31021586527,
       "jobs": [
         {
           "conclusion": "failure",
-          "id": 92358372218,
+          "id": 92359359920,
           "name": "migrate",
           "status": "completed",
           "steps": [
@@ -65,7 +65,7 @@
         }
       ],
       "status": "completed",
-      "updated_at": "2026-08-05T15:38:24Z"
+      "updated_at": "2026-08-05T15:42:41Z"
     }
   ]
 }
