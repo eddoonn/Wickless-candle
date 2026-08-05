@@ -6,8 +6,13 @@ from __future__ import annotations
 from typing import Any, Sequence
 
 import wickless_bot
+from production_session import install_production_session
 from time_display import utc_london_text
 
+
+# The GitHub Actions live entrypoint always installs the same session union used
+# by the reference baseline and candidate evaluator.
+install_production_session()
 
 _ORIGINAL_DISCORD_PAYLOAD = wickless_bot.discord_payload
 _REPLACED_TIME_FIELDS = {
