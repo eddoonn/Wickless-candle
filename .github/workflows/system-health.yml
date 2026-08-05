@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - autoresearch/framework-v1
     paths:
       - production_session.py
       - live_scan.py
