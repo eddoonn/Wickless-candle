@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from autoresearch.evaluator import Candidate, FOREX_MAJORS, evaluate, load_policy
+from production_session import PRODUCTION_RELEASE_SHA, SESSION_LABEL
 from time_display import london_iso
 
 
@@ -25,7 +26,10 @@ def _candidate(production_sha: str) -> Candidate:
     identity = f"production-baseline:{production_sha}"
     return Candidate(
         name="production-baseline",
-        description=f"Reviewed Wickless production defaults at {production_sha[:8]}.",
+        description=(
+            f"Reviewed Wickless production defaults at {production_sha[:8]} "
+            f"using {SESSION_LABEL}."
+        ),
         parameters={},
         source_sha256=hashlib.sha256(identity.encode("utf-8")).hexdigest(),
     )
@@ -51,6 +55,8 @@ def enrich_report_times(
         __import__("zoneinfo").ZoneInfo("Europe/London")
     ).isoformat()
     enriched["display_timezone"] = "Europe/London"
+    enriched["production_release_sha"] = PRODUCTION_RELEASE_SHA
+    enriched["production_session"] = SESSION_LABEL
 
     for fold in enriched.get("folds", {}).values():
         window = fold.get("window", {})
@@ -76,6 +82,8 @@ def compact_summary(report: dict[str, Any]) -> dict[str, Any]:
         "display_timezone": report["display_timezone"],
         "strategy": report["candidate"],
         "production_baseline_sha": report["production_baseline_sha"],
+        "production_release_sha": report["production_release_sha"],
+        "production_session": report["production_session"],
         "universe": [instrument.upper() for instrument in FOREX_MAJORS],
         "folds": {
             name: {
@@ -164,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     policy = load_policy(args.policy)
     report = evaluate(
-        _candidate(policy["production_baseline_sha"]),
+        _candidate(PRODUCTION_RELEASE_SHA),
         data_root=args.data_root,
         policy=policy,
     )
