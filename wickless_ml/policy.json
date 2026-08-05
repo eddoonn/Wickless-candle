@@ -5,16 +5,29 @@
     "minimum_total_samples": 60,
     "minimum_training_samples": 35,
     "minimum_calibration_samples": 10,
+    "minimum_calibration_fit_samples": 5,
+    "minimum_model_selection_samples": 5,
     "minimum_holdout_samples": 10,
+    "model_families": [
+      "logistic_regression",
+      "gradient_boosted_stumps"
+    ],
     "l2_penalty": 0.08,
     "iterations": 900,
     "learning_rate": 0.08,
+    "boosting_estimators": 48,
+    "boosting_learning_rate": 0.12,
+    "boosting_maximum_thresholds": 8,
+    "boosting_minimum_leaf_samples": 4,
     "minimum_filter_coverage": 0.25,
     "maximum_filter_coverage": 0.8,
     "minimum_filtered_holdout_trades": 10,
     "maximum_expected_calibration_error": 0.18,
     "minimum_expectancy_improvement_r": 0.0,
-    "maximum_ood_score": 3.5
+    "maximum_ood_score": 3.5,
+    "maximum_prediction_uncertainty": 0.24,
+    "lower_bound_slack": 0.07,
+    "maximum_abstention_rate": 0.5
   },
   "deployment": {
     "automatic_canary_enabled": true,
@@ -26,9 +39,11 @@
     "maximum_live_filter_coverage": 0.85,
     "maximum_live_expected_calibration_error": 0.15,
     "maximum_live_ood_rate": 0.25,
+    "maximum_live_abstention_rate": 0.5,
     "minimum_live_expectancy_improvement_r": 0.0,
     "rollback_window": 30,
     "rollback_maximum_expected_calibration_error": 0.22,
-    "rollback_maximum_ood_rate": 0.35
+    "rollback_maximum_ood_rate": 0.35,
+    "rollback_maximum_abstention_rate": 0.65
   }
 }
