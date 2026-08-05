@@ -1,0 +1,5 @@
+requested_at_utc=2026-08-05T20:10:00+00:00
+requested_at_london=2026-08-05T21:10:00+01:00
+reason=initialize_phase1_walk_forward_reference
+policy=autoresearch/walk_forward_policy.json
+validation_profile=phase1-walk-forward-v1
