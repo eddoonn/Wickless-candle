@@ -18,9 +18,11 @@ candles with no wick **from the opening price**, which makes the core rule:
 `≈` allows at most two minimum ticks. A doji is not classified. Signals use
 only finalized fifteen-minute candles, so the live detector does not repaint.
 The pattern becomes actionable only when it passes the impulse-quality gates,
-agrees with the EMA trend, and closes during the liquid London-plus-New-York
-window. Discord receives the executable signal-close entry after every spread,
-stop-distance, execution-cost, freshness, and position safeguard passes.
+agrees with the EMA trend, and closes during the configured `05:00–13:30`
+`America/New_York` window. During June and July daylight saving, that maps to
+`10:00–18:30 Europe/London`; it does **not** include the London open. Discord
+receives the executable signal-close entry after every spread, stop-distance,
+execution-cost, freshness, and position safeguard passes.
 
 ## What is included
 
@@ -58,8 +60,9 @@ or a post-close fill model. Those are deliberately explicit here:
 1. Detect the pattern at the close of a finalized 15m bar.
 2. Require a BUY candle to close above a rising EMA(50), or a SELL candle to
    close below a falling EMA(50). EMA slope uses a five-bar lookback.
-3. Accept new setups from 05:00 through 13:30 America/New_York, covering the
-   liquid London morning and New York session.
+3. Accept new setups from `05:00` through `13:30 America/New_York`. In June and
+   July this is `10:00–18:30 Europe/London`, covering the later London session
+   and New York overlap but excluding the London open and early London morning.
 4. Require at least an 80% body, no more than a two-tick opening wick, a
    `0.50–2.00 × ATR(14)` range, and a close in the final 10% of the impulse.
 5. Enter at the finalized signal candle's ASK close for BUY or BID close for
@@ -85,8 +88,9 @@ entry displacement in R,
 stop distance in pips and ATR, estimated execution cost as a percentage of 1R,
 signal age, actionability status, and signal ID. Signal close, entry, detection,
 and publication timestamps are each shown in both UTC and Europe/London, with
-GMT/BST handled automatically. It reports validated entries; it does not place
-or manage broker orders.
+GMT/BST handled automatically. Displaying London time does not change the entry
+session. It reports validated entries; it does not place or manage broker
+orders.
 
 ## Automatic Discord signals with GitHub Actions
 
@@ -182,10 +186,11 @@ one-position safeguards.
 
 Start with `autoresearch/README.md` and `autoresearch/program.md`. The fixed
 evaluator uses reusable Dukascopy M1 BID/ASK archives for June and July 2026,
-requires at least ten July trades, and prioritizes worst-fold profitability over
-raw frequency. Every experiment also appends one line to `attempts.log`; after
-every 20 cumulative attempts, a deterministic coach updates only the bounded
-`playbook.md` search guidance and never changes scoring or safety rules.
+requires at least ten trades in **each** month, and prioritizes worst-fold
+profitability over raw frequency. Every experiment also appends one line to
+`attempts.log`; after every 20 cumulative attempts, a deterministic coach
+updates only the bounded `playbook.md` search guidance and never changes scoring
+or safety rules.
 
 ## Historical statistics and backtest
 
@@ -242,16 +247,32 @@ history summary, and sends the outcome to Discord. Every generated timestamp,
 fold boundary, data boundary, signal time, entry time, and exit time is available
 in both UTC and Europe/London.
 
+### Session-window audit
+
+A forced production-reference refresh also compares four session definitions
+without modifying production parameters or candidate gates:
+
+- current `05:00–13:30 America/New_York`;
+- full `08:00–17:00 Europe/London`;
+- the union of those two windows;
+- a 24-hour diagnostic.
+
+The complete reports are stored only as research audit output under
+`autoresearch/nightly/autoresearch/runs/session-comparison/`. The August 5, 2026
+comparison found that London-inclusive windows increased trades but did not pass
+the existing June-frequency and drawdown gates, so they were not promoted to
+production.
+
 ## Reproduce the seven-pair comparison
 
 The live strategy is the same trend-filtered signal-close model used by this
 comparison: EMA(50) with a five-bar slope, the signal candle's opposite edge
-plus one tick for the stop, the 05:00–13:30 New York London-plus-New-York signal
-window, unchanged impulse-quality gates, 2R targets, one active position per
-pair, and pair/ATR stop bounds.
-Python is the execution source of truth for BID/ASK spread and cost-to-risk
-validation because Pine historical bars do not provide equivalent market-side
-data.
+plus one tick for the stop, the `05:00–13:30 America/New_York` signal window
+(`10:00–18:30 Europe/London` during June/July daylight saving), unchanged
+impulse-quality gates, 2R targets, one active position per pair, and pair/ATR
+stop bounds. Python is the execution source of truth for BID/ASK spread and
+cost-to-risk validation because Pine historical bars do not provide equivalent
+market-side data.
 
 Run the complete comparison across the seven FX majors:
 
