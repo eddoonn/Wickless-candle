@@ -4,8 +4,8 @@
       "checks": {
         "july_2026_minimum_trades": true,
         "july_2026_positive_net_r": true,
-        "june_2026_minimum_trades": true,
-        "june_2026_positive_net_r": false,
+        "june_2026_minimum_trades": false,
+        "june_2026_positive_net_r": true,
         "maximum_ambiguous_exits": true,
         "maximum_overall_drawdown_r": true,
         "maximum_pair_trade_share": true,
@@ -19,7 +19,7 @@
       "description": "Wickless-candle production defaults at 12250ed.",
       "name": "production-baseline",
       "parameters": {},
-      "source_sha256": "7c68bf979e09fbeb690ada96bd5c1eb01988101139b1ebf7b165972175506bea"
+      "source_sha256": "d48e46498ba4e1dd1deeecc01c15b9444048f44307400f8f0bd04fc405095b21"
     },
     "folds": {
       "july_2026": {
@@ -46,7 +46,7 @@
             "last_bar_utc": "2026-07-31T20:45:00+00:00",
             "pair": "EURUSD",
             "source_file": "EURUSD_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
-            "source_sha256": "4fca6679f935331eb9115f1a1932b8ebe0f8ec9eea22b3adb3d8e22db562cf2e"
+            "source_sha256": "9137e018c0db0ed2213107a1ccca6a1ab3417cf44e95c3173d5eb8845c52dd52"
           },
           {
             "complete_m15_bars": 2309,
@@ -55,7 +55,7 @@
             "last_bar_utc": "2026-07-31T20:45:00+00:00",
             "pair": "GBPUSD",
             "source_file": "GBPUSD_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
-            "source_sha256": "80e12c40ec9fa438bce2d8b3669da18db793157f004e88372d5fb5987537fbbd"
+            "source_sha256": "6ac69b7490150788c93f962fab7dbfb6ca0aa2fd3532718456ecbfd42939aee7"
           },
           {
             "complete_m15_bars": 2313,
@@ -64,7 +64,7 @@
             "last_bar_utc": "2026-07-31T20:45:00+00:00",
             "pair": "USDJPY",
             "source_file": "USDJPY_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
-            "source_sha256": "0c0e66d5bfcbc9001152c2ce8603a3279bc71728a42207d49f80dff1c3a8f70c"
+            "source_sha256": "c5f149719b3449a18e8bab9db6ae62c81689f2a3ca95468ab5479ea06510fc04"
           },
           {
             "complete_m15_bars": 2249,
@@ -73,7 +73,7 @@
             "last_bar_utc": "2026-07-31T20:45:00+00:00",
             "pair": "USDCHF",
             "source_file": "USDCHF_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
-            "source_sha256": "3f65bfcea1361d363280d6f1db32995e2db3bf1ff6b0b2f1dd5e038fc97aca0e"
+            "source_sha256": "5db1652a4b52c3b1c66acd4fe7e8254d04886ee3b2591706d8b10b4d27e8ce3a"
           },
           {
             "complete_m15_bars": 2241,
@@ -82,7 +82,7 @@
             "last_bar_utc": "2026-07-31T20:45:00+00:00",
             "pair": "USDCAD",
             "source_file": "USDCAD_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
-            "source_sha256": "9476406d8421b9301dcc2adc7fd6e214ff8a9634618cbc3e516cf81e889e5b22"
+            "source_sha256": "bbf1b6f63c2dcd26df2c365bdc1f81570660667fbcee7b84075b1f1b99558830"
           },
           {
             "complete_m15_bars": 2277,
@@ -91,7 +91,7 @@
             "last_bar_utc": "2026-07-31T20:45:00+00:00",
             "pair": "AUDUSD",
             "source_file": "AUDUSD_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
-            "source_sha256": "077fc015f8dfc414da91a3b798f7b7cb4cc8be9f049c9c4841a61a2a302e9e0e"
+            "source_sha256": "d047f88d2be42b4e2e625b47e5bc955db03e25040b62945d0fda54df37df15c8"
           },
           {
             "complete_m15_bars": 2268,
@@ -100,7 +100,7 @@
             "last_bar_utc": "2026-07-31T20:45:00+00:00",
             "pair": "NZDUSD",
             "source_file": "NZDUSD_M1_BIDASK_2026-06-29_2026-07-31.csv.gz",
-            "source_sha256": "e136fdbbed98f4f1e62eace1e562ce9884625618d6ab4f87bda1f45199461f60"
+            "source_sha256": "6ec8c265b93385072dbab861d3f1640196f7a2776dee746abbb4cfde0a1412da"
           }
         ],
         "metrics": {
@@ -152,7 +152,7 @@
             "last_bar_utc": "2026-06-30T23:45:00+00:00",
             "pair": "EURUSD",
             "source_file": "EURUSD_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
-            "source_sha256": "10244dc4e0c9695cb4d2f0dfa211460cc32f35829f1ae430e6a10e20dad39d52"
+            "source_sha256": "f6efc4ae8a33db835774ed6513e51d452f64e0041537b206b8a4d1cb9e581212"
           },
           {
             "complete_m15_bars": 2312,
@@ -161,7 +161,7 @@
             "last_bar_utc": "2026-06-30T23:45:00+00:00",
             "pair": "GBPUSD",
             "source_file": "GBPUSD_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
-            "source_sha256": "9b8352334f358274bb8145dd8e0b8b13adaeefe39e230c54801f1c6f73324c49"
+            "source_sha256": "d53cf18af6de8d7a9960abf031110c9a3bba0e5cdc33337a7327c9ff1c9c4da9"
           },
           {
             "complete_m15_bars": 2281,
@@ -170,7 +170,7 @@
             "last_bar_utc": "2026-06-30T23:45:00+00:00",
             "pair": "USDJPY",
             "source_file": "USDJPY_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
-            "source_sha256": "e97154410ca1920020394a111aeea04d41153cec88648462f38d0c3596ebb356"
+            "source_sha256": "2e3deb55dd0198e29c32f159405f0c2ba529a4d3c76cfc44be098dfb3306efe4"
           },
           {
             "complete_m15_bars": 2297,
@@ -179,7 +179,7 @@
             "last_bar_utc": "2026-06-30T23:45:00+00:00",
             "pair": "USDCHF",
             "source_file": "USDCHF_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
-            "source_sha256": "523e18c936d7cddafa429dd8064cb1940eb8e1a8cf68c1c9bb928b79061bcd4c"
+            "source_sha256": "f2f2c2e422ba7bb05d6ab71de7bdd2f78f8dd7858dd2638b19c666743a147209"
           },
           {
             "complete_m15_bars": 2313,
@@ -188,7 +188,7 @@
             "last_bar_utc": "2026-06-30T23:45:00+00:00",
             "pair": "USDCAD",
             "source_file": "USDCAD_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
-            "source_sha256": "0db685b6bd579489c5b893808f4a344f0351dc2b8081ad2c16ec5ee7c6c5d1bf"
+            "source_sha256": "9a599665c0e261230fba817479d1d0913f0e2797915575218ff81043b710b64d"
           },
           {
             "complete_m15_bars": 2315,
@@ -197,7 +197,7 @@
             "last_bar_utc": "2026-06-30T23:45:00+00:00",
             "pair": "AUDUSD",
             "source_file": "AUDUSD_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
-            "source_sha256": "93546625aafa5946e641cf449cfbb628d430d0cfcd8c3cb7b76a049d80f11584"
+            "source_sha256": "a872ed62ccc606bae090767f25777ddabfee9a2a62b99df08b5482f3637afeac"
           },
           {
             "complete_m15_bars": 2266,
@@ -206,7 +206,7 @@
             "last_bar_utc": "2026-06-30T23:45:00+00:00",
             "pair": "NZDUSD",
             "source_file": "NZDUSD_M1_BIDASK_2026-05-27_2026-06-30.csv.gz",
-            "source_sha256": "247f496e47b1734f618d5ac3c9aebf609b4248685fcfda7d56bb10c102083460"
+            "source_sha256": "cac726c6888f6191b5d2ca47106a63bf353a6ac9dcff082809598b00656efc9b"
           }
         ],
         "metrics": {
@@ -225,7 +225,7 @@
           "win_rate": 0.0,
           "wins": 0
         },
-        "minimum_trades": 1,
+        "minimum_trades": 10,
         "window": {
           "end_utc_exclusive": "2026-07-01T00:00:00+00:00",
           "start_utc": "2026-06-01T00:00:00+00:00"
@@ -669,6 +669,6 @@
     ]
   },
   "schema_version": 1,
-  "source_run_id": null,
-  "updated_at_utc": "2026-08-05T00:30:13+00:00"
+  "source_run_id": "b191411e51bf3700",
+  "updated_at_utc": "2026-08-05T01:01:24+00:00"
 }
