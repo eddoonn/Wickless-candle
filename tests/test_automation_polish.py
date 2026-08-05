@@ -122,6 +122,17 @@ class NotificationTests(unittest.TestCase):
         self.assertLess(len(refresh), 2000)
 
 
+class GuardTests(unittest.TestCase):
+    def test_protected_scope_guard_only_targets_autoresearch_experiments(self) -> None:
+        workflow = (ROOT / ".github/workflows/autoresearch.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("github.event_name == 'pull_request'", workflow)
+        self.assertIn("startsWith(github.head_ref, 'autoresearch/')", workflow)
+        self.assertIn("github.head_ref != 'autoresearch/framework-v1'", workflow)
+        self.assertNotIn("github.head_ref != 'autoresearch/framework-v1'\n        run:", workflow)
+
+
 class HealthTests(unittest.TestCase):
     def test_repository_health_has_no_critical_failures(self) -> None:
         report = audit(ROOT)
