@@ -138,7 +138,7 @@ class ProposalTests(unittest.TestCase):
         self.assertEqual(loaded.parameters["minimum_body_ratio"], 0.79)
         self.assertEqual(loaded.parameters["trend_filter"], "none")
 
-    def test_best_experiment_uses_policy_order_and_only_trade_changes(self) -> None:
+    def test_best_experiment_prioritizes_gate_and_trade_progress(self) -> None:
         policy = {
             "objective_order": [
                 "worst_fold_net_r",
@@ -148,54 +148,102 @@ class ProposalTests(unittest.TestCase):
                 "total_trades",
             ]
         }
-        no_effect = {
-            "candidate": "identical",
-            "effect": "no-effect",
-            "objective": {
-                "worst_fold_net_r": 99.0,
-                "total_net_r": 99.0,
-                "overall_profit_factor": 99.0,
-                "negative_overall_drawdown_r": 0.0,
-                "total_trades": 99,
-            },
-        }
-        funnel_only = {
-            "candidate": "funnel-only",
-            "effect": "funnel-only",
-            "objective": {
-                "worst_fold_net_r": 100.0,
-                "total_net_r": 100.0,
-                "overall_profit_factor": 100.0,
-                "negative_overall_drawdown_r": 0.0,
-                "total_trades": 100,
-            },
-        }
-        high_total_worse_fold = {
-            "candidate": "high-total",
-            "effect": "trade-changed",
-            "objective": {
-                "worst_fold_net_r": -3.0,
-                "total_net_r": 20.0,
-                "overall_profit_factor": 4.0,
-                "negative_overall_drawdown_r": -3.0,
-                "total_trades": 20,
-            },
-        }
-        stronger_worst_fold = {
-            "candidate": "stronger-fold",
-            "effect": "trade-changed",
-            "objective": {
-                "worst_fold_net_r": -2.0,
-                "total_net_r": 12.0,
-                "overall_profit_factor": 3.0,
-                "negative_overall_drawdown_r": -2.0,
-                "total_trades": 15,
-            },
-        }
-        selected = select_best_experiment(
-            [no_effect, funnel_only, high_total_worse_fold, stronger_worst_fold], policy
+
+        def row(
+            name: str,
+            effect: str,
+            *,
+            passed_gates: int,
+            june: int,
+            july: int,
+            total: int,
+            worst: float,
+            total_net: float,
+        ) -> dict:
+            return {
+                "candidate": name,
+                "effect": effect,
+                "acceptance_gates": {
+                    "checks": {
+                        f"gate_{index}": index < passed_gates
+                        for index in range(10)
+                    }
+                },
+                "folds": {
+                    "june_2026": {"trades": june},
+                    "july_2026": {"trades": july},
+                },
+                "overall": {"trades": total},
+                "objective": {
+                    "worst_fold_net_r": worst,
+                    "total_net_r": total_net,
+                    "overall_profit_factor": 2.0,
+                    "negative_overall_drawdown_r": -2.0,
+                    "total_trades": total,
+                },
+            }
+
+        no_effect = row(
+            "identical",
+            "no-effect",
+            passed_gates=10,
+            june=99,
+            july=99,
+            total=198,
+            worst=99.0,
+            total_net=198.0,
         )
-        self.assertEqual(selected["candidate"], "stronger-fold")
+        funnel_only = row(
+            "funnel-only",
+            "funnel-only",
+            passed_gates=10,
+            june=99,
+            july=99,
+            total=198,
+            worst=100.0,
+            total_net=200.0,
+        )
+        degenerate = row(
+            "zero-trade",
+            "trade-changed",
+            passed_gates=5,
+            june=0,
+            july=0,
+            total=0,
+            worst=0.0,
+            total_net=0.0,
+        )
+        lower_coverage = row(
+            "lower-coverage",
+            "trade-changed",
+            passed_gates=8,
+            june=3,
+            july=15,
+            total=18,
+            worst=-2.0,
+            total_net=10.0,
+        )
+        closer_to_monthly_gate = row(
+            "closer-to-monthly-gate",
+            "trade-changed",
+            passed_gates=8,
+            june=4,
+            july=14,
+            total=18,
+            worst=-3.0,
+            total_net=8.0,
+        )
+        selected = select_best_experiment(
+            [
+                no_effect,
+                funnel_only,
+                degenerate,
+                lower_coverage,
+                closer_to_monthly_gate,
+            ],
+            policy,
+        )
+        self.assertEqual(selected["candidate"], "closer-to-monthly-gate")
         self.assertIsNone(select_best_experiment([no_effect, funnel_only], policy))
 
     def test_discord_summary_reports_trade_funnel_and_no_effect_counts(self) -> None:

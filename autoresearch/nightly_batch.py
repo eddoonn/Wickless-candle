@@ -319,17 +319,39 @@ def _metric(value: float | None) -> str:
     return f"{value:+.2f}R"
 
 
+def _best_test_rank(
+    output: dict[str, Any], policy: dict[str, Any]
+) -> tuple[Any, ...]:
+    """Rank diagnostic tests by gate progress before the profit objective."""
+
+    checks = output.get("acceptance_gates", {}).get("checks", {})
+    passed_gates = sum(bool(value) for value in checks.values())
+    fold_trade_floor = min(
+        int(value["trades"]) for value in output["folds"].values()
+    )
+    total_trades = int(output["overall"]["trades"])
+    return (
+        passed_gates,
+        fold_trade_floor,
+        total_trades,
+        objective_tuple(output, policy),
+    )
+
+
 def select_best_experiment(
     outputs: list[dict[str, Any]], policy: dict[str, Any]
 ) -> dict[str, Any] | None:
-    """Return the strongest experiment that changed realized trades."""
+    """Return the trade-changing test closest to full acceptance."""
 
     trade_changed = [
         output for output in outputs if output.get("effect") == "trade-changed"
     ]
     if not trade_changed:
         return None
-    return max(trade_changed, key=lambda output: objective_tuple(output, policy))
+    return max(
+        trade_changed,
+        key=lambda output: _best_test_rank(output, policy),
+    )
 
 
 def _name(result: dict[str, Any]) -> str:
