@@ -92,6 +92,12 @@ def _append_ledger(path: Path, record: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
+def _validation_profile(report: dict[str, Any] | None) -> str | None:
+    if report is None:
+        return None
+    return report.get("validation", {}).get("profile_sha256")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", required=True, type=Path)
@@ -113,17 +119,27 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     policy = load_policy(args.policy)
     candidate = load_candidate(args.candidate)
+    existing_records: list[dict[str, Any]] = []
     if not args.dry_run:
         existing_records, _ = _read_ledger(args.ledger)
         sync_attempts_from_ledger(args.attempts, existing_records)
 
     baseline_created = not args.incumbent.exists()
-    incumbent_report = (
+    incumbent_payload = (
         None
         if baseline_created
-        else json.loads(args.incumbent.read_text(encoding="utf-8"))["report"]
+        else json.loads(args.incumbent.read_text(encoding="utf-8"))
     )
+    incumbent_report = None if incumbent_payload is None else incumbent_payload["report"]
     report = evaluate(candidate, data_root=args.data_root, policy=policy)
+    validation_profile = _validation_profile(report)
+    incumbent_profile = _validation_profile(incumbent_report)
+    if validation_profile is not None and incumbent_report is not None:
+        if incumbent_profile != validation_profile:
+            raise ValueError(
+                "Incumbent validation profile is stale; refresh the production reference first"
+            )
+
     report_behavior = behavior_digest(report)
     report_outcome = outcome_digest(report)
     incumbent_behavior = (
@@ -165,12 +181,14 @@ def main(argv: list[str] | None = None) -> int:
     run_id = hashlib.sha256(run_key.encode("utf-8")).hexdigest()[:16]
     category = idea_category(report["candidate"]["parameters"])
     score = format_score(report["objective"])
+    validation = report.get("validation")
     record = {
-        "schema_version": 2,
+        "schema_version": 3 if validation else 2,
         "run_id": run_id,
         "generated_at_utc": generated_at,
         "commit": commit,
         "production_release_sha": PRODUCTION_RELEASE_SHA,
+        "validation_profile_sha256": validation_profile,
         "candidate": report["candidate"],
         "category": category,
         "score": score,
@@ -181,6 +199,7 @@ def main(argv: list[str] | None = None) -> int:
         "report_sha256": report_digest(report),
         "objective": report["objective"],
         "acceptance_gates": report["acceptance_gates"],
+        "validation": validation,
         "incumbent_before": (
             incumbent_report["candidate"]["name"] if incumbent_report else None
         ),
@@ -193,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
         "status": status,
         "effect": effect,
         "production_release_sha": PRODUCTION_RELEASE_SHA,
+        "validation_profile_sha256": validation_profile,
         "behavior_sha256": report_behavior,
         "outcome_sha256": report_outcome,
         "candidate": candidate.name,
@@ -202,6 +222,7 @@ def main(argv: list[str] | None = None) -> int:
         "score": score,
         "objective": report["objective"],
         "acceptance_gates": report["acceptance_gates"],
+        "validation": validation,
         "overall": report["overall"],
         "folds": {
             name: value["metrics"] for name, value in report["folds"].items()
@@ -212,13 +233,15 @@ def main(argv: list[str] | None = None) -> int:
         _write_json_atomic(args.runs / f"{run_id}.json", report)
         _append_ledger(args.ledger, record)
         if selected_report is not None:
+            selected_profile = _validation_profile(selected_report)
             _write_json_atomic(
                 args.incumbent,
                 {
-                    "schema_version": 2,
+                    "schema_version": 3 if selected_profile else 2,
                     "updated_at_utc": generated_at,
                     "source_run_id": run_id if status == "keep" else None,
                     "production_release_sha": PRODUCTION_RELEASE_SHA,
+                    "validation_profile_sha256": selected_profile,
                     "report": selected_report,
                 },
             )
