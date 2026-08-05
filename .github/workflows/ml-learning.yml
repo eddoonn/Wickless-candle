@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: wickless-ml-learning
+  group: wickless-autoresearch-nightly
   cancel-in-progress: false
 
 jobs:
