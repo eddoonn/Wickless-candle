@@ -1,12 +1,11 @@
 name: Launch London and New York session update
 
-# Second revision intentionally triggers the already-registered workflow.
 on:
   push:
     branches:
       - main
     paths:
-      - .github/workflows/apply-session-union-launch.yml
+      - ops/session-union-launch.request
 
 permissions:
   contents: write
