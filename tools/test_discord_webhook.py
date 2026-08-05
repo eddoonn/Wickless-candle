@@ -8,10 +8,30 @@ import os
 import sys
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from time_display import LONDON, timestamp_label
 from wickless_bot import validate_webhook_url
+
+
+UTC = timezone.utc
+
+
+def connectivity_message(now: datetime | None = None) -> str:
+    """Return the labelled test message with paired UTC and London timestamps."""
+
+    instant = (now or datetime.now(UTC)).astimezone(UTC).replace(microsecond=0)
+    value = instant.isoformat()
+    return "\n".join(
+        (
+            "**Wickless 15m connectivity test**",
+            "The webhook is reachable. No trade signal was generated or placed.",
+            f"UTC: `{timestamp_label(value, zone=UTC)}`",
+            f"London: `{timestamp_label(value, zone=LONDON)}`",
+        )
+    )
 
 
 def main() -> int:
@@ -22,10 +42,7 @@ def main() -> int:
     payload = {
         "username": "Wickless 15m Signals",
         "allowed_mentions": {"parse": []},
-        "content": (
-            "**Wickless 15m connectivity test**\n"
-            "The webhook is reachable. No trade signal was generated or placed."
-        ),
+        "content": connectivity_message(),
     }
     request = urllib.request.Request(
         validate_webhook_url(raw_url),
