@@ -1,4 +1,5 @@
-requested_at_utc=2026-08-05T12:24:00Z
-requested_at_london=2026-08-05T13:24:00+01:00
-reason=refresh_production_report_with_locked_london_new_york_union
+requested_at_utc=2026-08-05T12:38:00+00:00
+requested_at_london=2026-08-05T13:38:00+01:00
+reason=refresh_report_after_full_system_polish_and_release_identity_alignment
 production_release_sha=9ddd1b44aee10467247fda4627bc472ed1ff4132
+required_session=08:00-17:00 Europe/London OR 05:00-13:30 America/New_York
