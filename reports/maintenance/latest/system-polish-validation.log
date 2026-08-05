@@ -1,7 +1,8 @@
 ## compile
 ## tests
-test_candidate_identity_does_not_change_behavior_digest (test_automation_polish.BehaviorTests.test_candidate_identity_does_not_change_behavior_digest) ... ok
-test_trade_or_counter_change_changes_behavior_digest (test_automation_polish.BehaviorTests.test_trade_or_counter_change_changes_behavior_digest) ... ok
+test_candidate_identity_does_not_change_fingerprints (test_automation_polish.BehaviorTests.test_candidate_identity_does_not_change_fingerprints) ... ok
+test_counter_change_is_funnel_only (test_automation_polish.BehaviorTests.test_counter_change_is_funnel_only) ... ok
+test_trade_change_updates_both_fingerprints (test_automation_polish.BehaviorTests.test_trade_change_updates_both_fingerprints) ... ok
 test_repository_health_has_no_critical_failures (test_automation_polish.HealthTests.test_repository_health_has_no_critical_failures) ... ok
 test_bootstrap_and_refresh_messages_are_bounded (test_automation_polish.NotificationTests.test_bootstrap_and_refresh_messages_are_bounded) ... ok
 test_stale_incumbent_is_automatically_rejected (test_automation_polish.ReleaseTests.test_stale_incumbent_is_automatically_rejected) ... ok
@@ -38,8 +39,8 @@ test_inconsistent_live_arrays_are_rejected (test_live_data.LiveDataTests.test_in
 test_live_fetch_uses_two_week_strategy_reconstruction_window (test_live_data.LiveDataTests.test_live_fetch_uses_two_week_strategy_reconstruction_window) ... ok
 test_refresh_reports_partial_failure_without_hiding_market (test_live_data.LiveDataTests.test_refresh_reports_partial_failure_without_hiding_market) ... ok
 test_refresh_writes_each_requested_market_atomically (test_live_data.LiveDataTests.test_refresh_writes_each_requested_market_atomically) ... ok
-test_best_experiment_uses_policy_order_and_ignores_no_effect (test_nightly_batch.ProposalTests.test_best_experiment_uses_policy_order_and_ignores_no_effect) ... ok
-test_discord_summary_reports_coverage_parameters_and_no_effect (test_nightly_batch.ProposalTests.test_discord_summary_reports_coverage_parameters_and_no_effect) ... ok
+test_best_experiment_uses_policy_order_and_only_trade_changes (test_nightly_batch.ProposalTests.test_best_experiment_uses_policy_order_and_only_trade_changes) ... ok
+test_discord_summary_reports_trade_funnel_and_no_effect_counts (test_nightly_batch.ProposalTests.test_discord_summary_reports_trade_funnel_and_no_effect_counts) ... ok
 test_rendered_candidate_passes_literal_contract (test_nightly_batch.ProposalTests.test_rendered_candidate_passes_literal_contract) ... ok
 test_selection_diversifies_categories_and_parameter_families (test_nightly_batch.ProposalTests.test_selection_diversifies_categories_and_parameter_families) ... ok
 test_selection_obeys_playbook_priorities_and_blocks (test_nightly_batch.ProposalTests.test_selection_obeys_playbook_priorities_and_blocks) ... ok
@@ -135,11 +136,11 @@ test_usdcad_bullish_wickless_is_buy_at_two_r (test_wickless_bot.WicklessDetectio
 Regression: a green USDCAD wickless marker maps to a 2R BUY. ... ok
 
 ----------------------------------------------------------------------
-Ran 129 tests in 0.232s
+Ran 130 tests in 0.412s
 
 OK
 {
-  "generated_at_utc": "2026-08-05T13:09:39+00:00",
+  "generated_at_utc": "2026-08-05T13:16:31+00:00",
   "passing": 2,
   "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
   "schema_version": 2,
