@@ -141,6 +141,7 @@ def main(argv: list[str] | None = None) -> int:
     policy = load_policy(args.policy)
     args.output.mkdir(parents=True, exist_ok=True)
     generated_at = datetime.now(UTC).replace(microsecond=0)
+    generated_at_utc = generated_at.isoformat()
     results: dict[str, Any] = {}
     for mode in MODES:
         report = evaluate_mode(mode, data_root=args.data_root, policy=policy)
@@ -166,8 +167,8 @@ def main(argv: list[str] | None = None) -> int:
         )
     summary = {
         "schema_version": 1,
-        "generated_at_utc": generated_at.isoformat(),
-        "generated_at_london": london_iso(generated_at),
+        "generated_at_utc": generated_at_utc,
+        "generated_at_london": london_iso(generated_at_utc),
         "production_parameters_changed": False,
         "comparison_only": True,
         "london_session": "08:00-17:00 Europe/London",
