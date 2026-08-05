@@ -1,5 +1,5 @@
-requested_at_utc=2026-08-05T13:26:00+00:00
-requested_at_london=2026-08-05T14:26:00+01:00
-framework_commit=c72bcc122e337ee0a2c9fe542244d86db889ce76
+requested_at_utc=2026-08-05T13:33:00+00:00
+requested_at_london=2026-08-05T14:33:00+01:00
+framework_commit=e39b8b9d9169377abe14ca07a76707eb84ad9e86
 target_branch=agent/system-polish-main
-reason=synchronized_three_level_effect_model_full_suite_health_and_release_validation
+reason=rerun_after_130_tests_passed_and_direct_health_entrypoint_was_fixed
