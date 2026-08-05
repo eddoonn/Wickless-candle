@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+  "deployment": {
+    "mode": "shadow",
+    "status": "NO_CHAMPION",
+    "canary_percent": 20,
+    "updated_at_utc": null,
+    "reason": "No historically validated champion exists yet."
+  },
+  "champion": null,
+  "challenger": null,
+  "history": []
+}
