@@ -37,7 +37,7 @@ stopBufferTicks = input.int(1, "Stop buffer (ticks)", minval = 0, group = groupR
 atrLength = input.int(14, "ATR length", minval = 1, group = groupRules)
 minimumStopAtr = input.float(0.40, "Minimum stop (ATR)", minval = 0.0, step = 0.05, group = groupRules)
 maximumStopAtr = input.float(1.50, "Maximum stop (ATR)", minval = 0.1, step = 0.05, group = groupRules)
-entrySession = input.session("0500-1330", "London + New York signal session", group = groupRules)
+entrySession = input.session("0500-1330", "New York signal session", group = groupRules)
 enforceFifteenMinutes = input.bool(true, "Require 15-minute chart", group = groupRules)
 enableLongs = input.bool(true, "Enable BUY signals", group = groupRules)
 enableShorts = input.bool(true, "Enable SELL signals", group = groupRules)
