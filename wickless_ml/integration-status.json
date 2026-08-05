@@ -1,0 +1,81 @@
+{
+  "generated_at_utc": "2026-08-05T21:12:18+00:00",
+  "jobs": [
+    {
+      "conclusion": "failure",
+      "id": 92446677054,
+      "name": "integrate",
+      "status": "completed",
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run actions/checkout@v4",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run actions/setup-python@v5",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Apply Phase 3 and Phase 4 integration",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Compile repository",
+          "status": "completed"
+        },
+        {
+          "conclusion": "failure",
+          "name": "Run complete unit suite",
+          "status": "completed"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Run system health audit",
+          "status": "completed"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Publish validated ML integration",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Upload validation diagnostics",
+          "status": "completed"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Post Run actions/setup-python@v5",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@v4",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job",
+          "status": "completed"
+        }
+      ]
+    }
+  ],
+  "run": {
+    "conclusion": "failure",
+    "head_sha": "30a9fbeff75d6dd07cc7b191f8057ee0a12ae7d4",
+    "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31047542768",
+    "id": 31047542768,
+    "status": "completed"
+  },
+  "schema_version": 1
+}
