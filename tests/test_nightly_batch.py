@@ -36,11 +36,22 @@ class ProposalTests(unittest.TestCase):
         self.assertIn("bootstrap_benchmark:", workflow)
         self.assertIn("autoresearch/baseline-refresh.request", workflow)
         self.assertIn("autoresearch/bootstrap-benchmark.request", workflow)
-        self.assertIn("Refresh unmodified production defaults", workflow)
-        self.assertIn("Bootstrap the first valid benchmark", workflow)
+        self.assertIn("autoresearch/nightly-run.request", workflow)
+        self.assertIn("Ensure production reference benchmark", workflow)
+        self.assertIn("python -m autoresearch.reference_benchmark", workflow)
+        self.assertIn("Refresh production reference benchmark", workflow)
+        self.assertIn("Bootstrap the strongest valid benchmark", workflow)
         self.assertIn('--max-candidates "$BOOTSTRAP_LIMIT"', workflow)
-        self.assertIn("Require a valid benchmark", workflow)
-        self.assertIn("rm -f autoresearch/incumbent.json", workflow)
+        self.assertIn("Run worker and coach experiment loop", workflow)
+        self.assertIn("--no-discord", workflow)
+        self.assertIn("Notify Discord of nightly benchmark and best test", workflow)
+        self.assertIn("discord_summary", workflow)
+        self.assertLess(
+            workflow.index("Publish audit history to the nightly branch only"),
+            workflow.index("Notify Discord of nightly benchmark and best test"),
+        )
+        self.assertNotIn("BENCHMARK_READY", workflow)
+        self.assertNotIn("Nightly research is paused", workflow)
         self.assertNotIn("git push origin main", workflow)
 
         policy = json.loads((ROOT / "autoresearch/policy.json").read_text(encoding="utf-8"))
