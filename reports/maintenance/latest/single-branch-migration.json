@@ -2,14 +2,14 @@
   "runs": [
     {
       "conclusion": "failure",
-      "created_at": "2026-08-05T15:33:52Z",
-      "head_sha": "a2d40c58359d0a7419304025b5e3058cc25cfa6c",
-      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31020930840",
-      "id": 31020930840,
+      "created_at": "2026-08-05T15:38:12Z",
+      "head_sha": "699a0fa4544273c21e77cc571c93b8ae87815a26",
+      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31021297426",
+      "id": 31021297426,
       "jobs": [
         {
           "conclusion": "failure",
-          "id": 92357124460,
+          "id": 92358372218,
           "name": "migrate",
           "status": "completed",
           "steps": [
@@ -65,74 +65,7 @@
         }
       ],
       "status": "completed",
-      "updated_at": "2026-08-05T15:34:05Z"
-    },
-    {
-      "conclusion": "failure",
-      "created_at": "2026-08-05T15:29:52Z",
-      "head_sha": "2d001e6dd07c9eb5b306327b4e2ee6c8579a6c6f",
-      "html_url": "https://github.com/eddoonn/Wickless-candle/actions/runs/31020584406",
-      "id": 31020584406,
-      "jobs": [
-        {
-          "conclusion": "failure",
-          "id": 92355957354,
-          "name": "migrate",
-          "status": "completed",
-          "steps": [
-            {
-              "conclusion": "success",
-              "name": "Set up job",
-              "number": 1,
-              "status": "completed"
-            },
-            {
-              "conclusion": "success",
-              "name": "Run actions/checkout@v4",
-              "number": 2,
-              "status": "completed"
-            },
-            {
-              "conclusion": "success",
-              "name": "Run actions/setup-python@v5",
-              "number": 3,
-              "status": "completed"
-            },
-            {
-              "conclusion": "success",
-              "name": "Compile migration runner",
-              "number": 4,
-              "status": "completed"
-            },
-            {
-              "conclusion": "failure",
-              "name": "Consolidate repository and remove old branches",
-              "number": 5,
-              "status": "completed"
-            },
-            {
-              "conclusion": "skipped",
-              "name": "Post Run actions/setup-python@v5",
-              "number": 9,
-              "status": "completed"
-            },
-            {
-              "conclusion": "success",
-              "name": "Post Run actions/checkout@v4",
-              "number": 10,
-              "status": "completed"
-            },
-            {
-              "conclusion": "success",
-              "name": "Complete job",
-              "number": 11,
-              "status": "completed"
-            }
-          ]
-        }
-      ],
-      "status": "completed",
-      "updated_at": "2026-08-05T15:30:13Z"
+      "updated_at": "2026-08-05T15:38:24Z"
     }
   ]
 }
