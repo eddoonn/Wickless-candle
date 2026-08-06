@@ -9,7 +9,7 @@ on:
       instruments:
         description: "Space-separated instrument keys to scan"
         required: false
-        default: "eurusd gbpusd usdjpy usdchf usdcad audusd nzdusd"
+        default: "xauusd eurusd gbpusd usdjpy usdchf usdcad audusd nzdusd"
 
 permissions:
   contents: read
@@ -26,7 +26,7 @@ jobs:
       LIVE_INSTRUMENTS: >-
         ${{ github.event.inputs.instruments ||
             vars.WICKLESS_LIVE_INSTRUMENTS ||
-            'eurusd gbpusd usdjpy usdchf usdcad audusd nzdusd' }}
+            'xauusd eurusd gbpusd usdjpy usdchf usdcad audusd nzdusd' }}
     steps:
       - uses: actions/checkout@v4
 
