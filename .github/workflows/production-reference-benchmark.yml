@@ -1,3 +1,4 @@
+# Retrigger after the pull request merge ref became available.
 name: Publish production reference benchmark
 
 on:
