@@ -167,13 +167,49 @@ class LiveDataTests(unittest.TestCase):
                 "live_data.fetch_current_day",
                 side_effect=RuntimeError("feed down"),
             ):
-                with self.assertRaisesRegex(RuntimeError, "eurusd"):
+                with self.assertRaisesRegex(RuntimeError, "no complete BID/ASK markets"):
                     refresh(
                         Path(directory),
                         instruments=["eurusd"],
                         now=now,
                         workers=1,
                     )
+
+    def test_refresh_keeps_healthy_markets_when_one_market_fails(self) -> None:
+        now = datetime(2026, 7, 30, 8, 10, tzinfo=UTC)
+        current = [
+            {
+                "timestamp": int(now.timestamp() * 1000),
+                "open": 1.0,
+                "high": 1.1,
+                "low": 0.9,
+                "close": 1.05,
+            }
+        ]
+
+        def fetch(profile, *, now, side):
+            if profile.key == "gbpusd" and side == "ASK":
+                raise RuntimeError("ask feed down")
+            return current
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            status_output = root / "live-data-status.json"
+            with patch("live_data.fetch_current_day", side_effect=fetch):
+                outputs = refresh(
+                    root,
+                    instruments=["eurusd", "gbpusd"],
+                    now=now,
+                    workers=1,
+                    status_output=status_output,
+                )
+            self.assertEqual(set(outputs), {"eurusd"})
+            status = json.loads(status_output.read_text(encoding="utf-8"))
+            self.assertEqual(status["requested_instruments"], ["eurusd", "gbpusd"])
+            self.assertEqual(status["successful_instruments"], ["eurusd"])
+            self.assertIn("gbpusd", status["failed_instruments"])
+            self.assertTrue((root / "eurusd-quote-live.json").exists())
+            self.assertFalse((root / "gbpusd-quote-live.json").exists())
 
 
 if __name__ == "__main__":

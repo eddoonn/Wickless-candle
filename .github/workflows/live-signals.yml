@@ -5,6 +5,11 @@ on:
     # GitHub cron is UTC. The scanner accepts only finalized 15-minute candles.
     - cron: "*/5 * * * *"
   workflow_dispatch:
+    inputs:
+      instruments:
+        description: "Space-separated instrument keys to scan"
+        required: false
+        default: "xauusd eurusd gbpusd usdjpy usdchf usdcad audusd nzdusd"
 
 permissions:
   contents: read
@@ -17,6 +22,11 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     timeout-minutes: 12
+    env:
+      LIVE_INSTRUMENTS: >-
+        ${{ github.event.inputs.instruments ||
+            vars.WICKLESS_LIVE_INSTRUMENTS ||
+            'xauusd eurusd gbpusd usdjpy usdchf usdcad audusd nzdusd' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,11 +45,42 @@ jobs:
       - name: Download indicator warm-up and risk history
         shell: bash
         run: |
+          mkdir -p .runtime-output
+          read -r -a configured_instruments <<< "$LIVE_INSTRUMENTS"
+          if [[ ${#configured_instruments[@]} -eq 0 ]]; then
+            echo "No live instruments were configured." >&2
+            exit 1
+          fi
           for attempt in 1 2 3; do
-            python live_data.py --data-dir .runtime-data && exit 0
+            python live_data.py \
+              --data-dir .runtime-data \
+              --status-output .runtime-output/live-data-status.json \
+              --instruments "${configured_instruments[@]}" && exit 0
             sleep $((attempt * 5))
           done
           exit 1
+
+      - name: Select markets with complete live data
+        shell: bash
+        run: |
+          mapfile -t scannable_instruments < <(
+            python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(
+              Path('.runtime-output/live-data-status.json').read_text(encoding='utf-8')
+          )
+          for instrument in payload.get('successful_instruments', []):
+              print(instrument)
+          PY
+          )
+          if [[ ${#scannable_instruments[@]} -eq 0 ]]; then
+            echo "No markets have complete BID/ASK data." >&2
+            exit 1
+          fi
+          printf 'SCANNABLE_INSTRUMENTS=%s\n' "${scannable_instruments[*]}" >> "$GITHUB_ENV"
+          printf 'Scanning markets: %s\n' "${scannable_instruments[*]}"
 
       - name: Post every unseen validated signal-close entry
         env:
@@ -47,6 +88,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p .runtime-output
+          read -r -a scannable_instruments <<< "$SCANNABLE_INSTRUMENTS"
           set -o pipefail
           python live_scan.py scan \
             --data-dir .runtime-data \
@@ -55,6 +97,7 @@ jobs:
             --max-quote-age-seconds 120 \
             --max-entry-deviation-r 0.25 \
             --research-lookback-seconds 2700 \
+            --instruments "${scannable_instruments[@]}" \
             2>&1 | tee .runtime-output/live-scan.log
 
       - name: Record scan metadata
@@ -78,6 +121,8 @@ jobs:
               "generated_at_utc": now.isoformat(),
               "generated_at_london": now.astimezone(ZoneInfo("Europe/London")).isoformat(),
               "run_url": os.environ["RUN_URL"],
+              "configured_instruments": os.environ.get("LIVE_INSTRUMENTS", "").split(),
+              "scanned_instruments": os.environ.get("SCANNABLE_INSTRUMENTS", "").split(),
           }
           with open(".runtime-output/live-scan.json", "w", encoding="utf-8") as handle:
               json.dump(payload, handle, indent=2, sort_keys=True)
@@ -97,6 +142,7 @@ jobs:
         with:
           name: live-scan-${{ github.run_id }}
           path: .runtime-output
+          include-hidden-files: true
           if-no-files-found: warn
           retention-days: 7
 
