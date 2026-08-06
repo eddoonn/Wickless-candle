@@ -171,21 +171,52 @@ def _write_json(path: Path, payload: dict[str, object]) -> None:
     temporary.replace(path)
 
 
+def _group_refresh_errors(
+    instruments: Sequence[str],
+    errors: dict[str, str],
+) -> dict[str, dict[str, str]]:
+    grouped: dict[str, dict[str, str]] = {}
+    for instrument in instruments:
+        prefix = f"{instrument}-"
+        instrument_errors = {
+            key.removeprefix(prefix): value
+            for key, value in sorted(errors.items())
+            if key.startswith(prefix)
+        }
+        if instrument_errors:
+            grouped[instrument] = instrument_errors
+    return grouped
+
+
 def refresh(
     data_dir: Path,
     *,
     instruments: Sequence[str] = LIVE_INSTRUMENTS,
     now: datetime | None = None,
     workers: int = 4,
+    status_output: Path | None = None,
+    strict: bool = False,
 ) -> dict[str, Path]:
-    """Fetch all instruments concurrently and write one atomic CSV per market."""
+    """Refresh markets independently and return every complete BID/ASK market.
+
+    A temporary failure for one instrument no longer blocks healthy markets.
+    The call still fails when no complete market is available, or when ``strict``
+    is enabled and any requested instrument fails. ``status_output`` provides a
+    machine-readable list that callers can pass directly to the scanner.
+    """
 
     now = (now or datetime.now(UTC)).astimezone(UTC)
+    instruments = tuple(dict.fromkeys(instruments))
     unknown = set(instruments) - set(INSTRUMENTS)
     if unknown:
         raise ValueError(f"Unsupported instruments: {sorted(unknown)}")
+    if not instruments:
+        raise ValueError("At least one instrument is required")
+
     outputs: dict[str, Path] = {}
     errors: dict[str, str] = {}
+    market_rows: dict[str, dict[str, list[dict[str, float | int]]]] = {}
+    observed_times: dict[str, dict[str, int]] = {}
 
     side_count = 2 * len(instruments)
     with ThreadPoolExecutor(max_workers=max(1, min(workers, side_count))) as pool:
@@ -199,8 +230,6 @@ def refresh(
             for key in instruments
             for side in ("BID", "ASK")
         }
-        market_rows: dict[str, dict[str, list[dict[str, float | int]]]] = {}
-        observed_times: dict[str, dict[str, int]] = {}
         for future in as_completed(futures):
             key, side = futures[future]
             try:
@@ -220,8 +249,6 @@ def refresh(
                 )
                 _write_csv(output, rows)
                 market_rows.setdefault(key, {})[side] = rows
-                if side == "BID":
-                    outputs[key] = output
                 newest = datetime.fromtimestamp(int(rows[-1]["timestamp"]) / 1000, UTC)
                 print(
                     f"{INSTRUMENTS[key].symbol} {side}: {len(rows)} bars through "
@@ -229,37 +256,78 @@ def refresh(
                 )
             except (OSError, ValueError, RuntimeError) as error:
                 errors[f"{key}-{side.lower()}"] = str(error)
-    if errors:
-        detail = "; ".join(f"{key}: {value}" for key, value in sorted(errors.items()))
-        raise RuntimeError(f"Live refresh failed for {len(errors)} market(s): {detail}")
+
     for key in instruments:
         sides = market_rows.get(key, {})
         if set(sides) != {"BID", "ASK"}:
-            raise RuntimeError(f"Live refresh did not return BID and ASK for {key}")
-        bid = sides["BID"][-1]
-        ask = sides["ASK"][-1]
-        if observed_times[key]["BID"] != observed_times[key]["ASK"]:
-            raise RuntimeError(
-                f"BID/ASK quote timestamps do not match for {INSTRUMENTS[key].symbol}"
+            errors.setdefault(
+                f"{key}-market",
+                "complete BID and ASK data was not available",
             )
-        observed_ms = observed_times[key]["BID"]
-        bid_close = float(bid["close"])
-        ask_close = float(ask["close"])
-        if ask_close < bid_close:
-            raise RuntimeError(f"Invalid negative spread for {INSTRUMENTS[key].symbol}")
-        _write_json(
-            data_dir / f"{key}-quote-live.json",
-            {
-                "instrument": key,
-                "observed_time_utc": datetime.fromtimestamp(
-                    observed_ms / 1000, UTC
-                ).isoformat(),
-                "bid": bid_close,
-                "ask": ask_close,
-                "spread": ask_close - bid_close,
-                "source": "Dukascopy Jetta BID/ASK minute candles",
-            },
+            continue
+        try:
+            if observed_times[key]["BID"] != observed_times[key]["ASK"]:
+                raise RuntimeError(
+                    f"BID/ASK quote timestamps do not match for {INSTRUMENTS[key].symbol}"
+                )
+            bid = sides["BID"][-1]
+            ask = sides["ASK"][-1]
+            observed_ms = observed_times[key]["BID"]
+            bid_close = float(bid["close"])
+            ask_close = float(ask["close"])
+            if ask_close < bid_close:
+                raise RuntimeError(
+                    f"Invalid negative spread for {INSTRUMENTS[key].symbol}"
+                )
+            _write_json(
+                data_dir / f"{key}-quote-live.json",
+                {
+                    "instrument": key,
+                    "observed_time_utc": datetime.fromtimestamp(
+                        observed_ms / 1000, UTC
+                    ).isoformat(),
+                    "bid": bid_close,
+                    "ask": ask_close,
+                    "spread": ask_close - bid_close,
+                    "source": "Dukascopy Jetta BID/ASK minute candles",
+                },
+            )
+            outputs[key] = data_dir / f"{key}-{DATA_TIMEFRAME}-bid-live.csv"
+        except (KeyError, OSError, ValueError, RuntimeError) as error:
+            errors[f"{key}-market"] = str(error)
+
+    grouped_errors = _group_refresh_errors(instruments, errors)
+    status = {
+        "schema_version": 1,
+        "generated_at_utc": now.isoformat(),
+        "requested_instruments": list(instruments),
+        "successful_instruments": [
+            instrument for instrument in instruments if instrument in outputs
+        ],
+        "failed_instruments": grouped_errors,
+    }
+    if status_output is not None:
+        _write_json(status_output, status)
+
+    if grouped_errors:
+        detail = "; ".join(
+            f"{instrument}: "
+            + ", ".join(
+                f"{component}={message}"
+                for component, message in components.items()
+            )
+            for instrument, components in grouped_errors.items()
         )
+        print(
+            f"warning: live refresh skipped {len(grouped_errors)} market(s): {detail}",
+            file=sys.stderr,
+        )
+        if strict:
+            raise RuntimeError(
+                f"Live refresh failed for {len(grouped_errors)} market(s): {detail}"
+            )
+    if not outputs:
+        raise RuntimeError("Live refresh produced no complete BID/ASK markets")
     return outputs
 
 
@@ -273,6 +341,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=list(LIVE_INSTRUMENTS),
     )
     parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument(
+        "--status-output",
+        type=Path,
+        help="Write requested, successful, and failed instruments as JSON",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail when any requested market is unavailable",
+    )
     return parser
 
 
@@ -283,6 +361,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.data_dir,
             instruments=args.instruments,
             workers=args.workers,
+            status_output=args.status_output,
+            strict=args.strict,
         )
     except (OSError, ValueError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
