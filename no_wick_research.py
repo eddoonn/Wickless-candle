@@ -460,6 +460,8 @@ def _order_from_signal(
         if pattern.signal_side == "BUY"
         else entry - config.reward_risk * risk
     )
+    stop = round(stop, config.profile.price_decimals)
+    target = round(target, config.profile.price_decimals)
     timestamp = bar.timestamp.astimezone(UTC).isoformat()
     order_id = (
         f"{config.instrument}-{index}-{pattern.kind.lower()}-"
