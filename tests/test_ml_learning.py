@@ -254,10 +254,16 @@ class MachineLearningTests(unittest.TestCase):
         self.assertEqual(rollback["status"], "ROLLED_BACK")
 
     def test_workflows_and_scanner_preserve_safety_boundaries(self) -> None:
-        live = (ROOT / ".github/workflows/live-signals.yml").read_text()
-        learning = (ROOT / ".github/workflows/ml-learning.yml").read_text()
-        monitor = (ROOT / ".github/workflows/ml-live-monitor.yml").read_text()
-        scanner = (ROOT / "wickless_bot.py").read_text()
+        live = (ROOT / ".github/workflows/live-signals.yml").read_text(
+            encoding="utf-8"
+        )
+        learning = (ROOT / ".github/workflows/ml-learning.yml").read_text(
+            encoding="utf-8"
+        )
+        monitor = (ROOT / ".github/workflows/ml-live-monitor.yml").read_text(
+            encoding="utf-8"
+        )
+        scanner = (ROOT / "wickless_bot.py").read_text(encoding="utf-8")
         self.assertIn("contents: read", live)
         self.assertNotIn("contents: write", live)
         self.assertIn("contents: write", learning)

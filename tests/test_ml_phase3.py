@@ -130,7 +130,9 @@ class PhaseThreeMachineLearningTests(unittest.TestCase):
         self.assertFalse(prediction.should_block)
 
     def test_workflow_uses_phase3_trainer(self) -> None:
-        workflow = (ROOT / ".github/workflows/ml-learning.yml").read_text()
+        workflow = (ROOT / ".github/workflows/ml-learning.yml").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("python -m wickless_ml.phase3_training", workflow)
         self.assertIn("Train and validate Phase 3 challengers", workflow)
 
