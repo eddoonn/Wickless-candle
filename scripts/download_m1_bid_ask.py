@@ -91,7 +91,7 @@ def fetch(job: Job, cache_dir: Path, retries: int, timeout: int) -> tuple[Job, P
             os.replace(temporary, target)
             return job, target, "downloaded"
         except urllib.error.HTTPError as error:
-            if error.code == 404:
+            if error.code == 404 or error.code in {301, 302, 303, 307, 308}:
                 target.write_bytes(b"")
                 return job, target, "empty"
             last_error = error
@@ -204,16 +204,25 @@ def main() -> None:
         for timestamp in market_hours(args.start, args.end)
     ]
     completed: dict[str, list[tuple[Job, Path]]] = {symbol: [] for symbol in symbols}
+    failures: list[str] = []
     with ThreadPoolExecutor(max_workers=args.workers) as executor:
         futures = {
             executor.submit(fetch, job, args.cache, args.retries, args.timeout): job
             for job in jobs
         }
         for number, future in enumerate(as_completed(futures), 1):
-            job, path, _ = future.result()
+            try:
+                job, path, _ = future.result()
+            except Exception as error:
+                failures.append(str(error))
+                continue
             completed[job.symbol].append((job, path))
             if number % 250 == 0 or number == len(jobs):
                 print(f"hours {number}/{len(jobs)}", flush=True)
+    if failures:
+        print(f"FAILED_HOURS {len(failures)}", flush=True)
+        for line in failures[:10]:
+            print(line, flush=True)
     manifests = []
     for symbol in symbols:
         filename = f"{symbol}_M1_BIDASK_{args.start}_{args.end}.csv.gz"
