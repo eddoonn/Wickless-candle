@@ -1,0 +1,14 @@
+{
+  "deployment": {
+    "canary_percent": 20,
+    "mode": "shadow",
+    "reason": "No historically validated champion exists yet.",
+    "status": "NO_CHAMPION",
+    "updated_at_utc": null
+  },
+  "generated_at_utc": "2026-08-26T20:36:38+00:00",
+  "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+  "resolved_outcomes": 0,
+  "schema_version": 1,
+  "status": "NO_CHAMPION"
+}
