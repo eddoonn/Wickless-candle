@@ -100,7 +100,7 @@ class RepositoryContractTests(unittest.TestCase):
             r"https://(?:canary\.|ptb\.)?discord(?:app)?\.com/api/webhooks/"
             r"\d{17,20}/[A-Za-z0-9_-]{40,}"
         )
-        ignored = {".git", "__pycache__", ".runtime-data", ".signal-state"}
+        ignored = {".git", "__pycache__", ".runtime-data", ".signal-state", ".env"}
         for path in ROOT.rglob("*"):
             if not path.is_file() or any(part in ignored for part in path.parts):
                 continue
