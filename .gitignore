@@ -8,6 +8,8 @@ htmlcov/
 .env.*
 !.env.example
 .runtime-data/
+.runtime-output/
+.runtime-reference.json
 .signal-state/
 signal.json
 

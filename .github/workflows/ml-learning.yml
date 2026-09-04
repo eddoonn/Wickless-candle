@@ -112,16 +112,30 @@ jobs:
         run: |
           git config user.name "wickless-ml[bot]"
           git config user.email "wickless-ml[bot]@users.noreply.github.com"
-          git add -- wickless_ml/registry.json wickless_ml/models wickless_ml/reports
+          # Only stage paths that exist. On an INSUFFICIENT_DATA run no model
+          # is trained, so wickless_ml/models is never created - and `git add`
+          # fails on a pathspec that matches no files.
+          for path in wickless_ml/registry.json wickless_ml/models wickless_ml/reports; do
+            if [[ -e "$path" ]]; then
+              git add -- "$path"
+            fi
+          done
           if git diff --cached --quiet; then
             echo "No ML audit changes to publish"
             exit 0
           fi
           git commit -m "ml: refresh challenger and registry"
-          for attempt in 1 2 3; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
+          # The daily ML live monitor also commits wickless_ml/registry.json,
+          # so a concurrent push can make this rebase conflict. Model and
+          # report files are never shared, so on conflict keep origin/main's
+          # registry (deployment counters and transitions) and let the next
+          # weekly run re-register any challenger recorded in the reports.
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase -X theirs origin main 2>/dev/null; then
+              git push origin HEAD:main && exit 0
+            fi
             git rebase --abort 2>/dev/null || true
-            sleep $((attempt * 3))
+            sleep $((attempt * 5))
           done
           exit 1
 
