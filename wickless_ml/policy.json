@@ -6,7 +6,7 @@
     "minimum_training_samples": 35,
     "minimum_calibration_samples": 10,
     "minimum_calibration_fit_samples": 5,
-    "minimum_model_selection_samples": 5,
+    "minimum_model_selection_samples": 2,
     "minimum_holdout_samples": 10,
     "model_families": [
       "logistic_regression",
