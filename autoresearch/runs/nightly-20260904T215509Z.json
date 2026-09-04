@@ -1,0 +1,5559 @@
+{
+  "attempts_total": 52,
+  "benchmark": {
+    "acceptance_gates": {
+      "checks": {
+        "april_2026_minimum_trades": true,
+        "april_2026_positive_net_r": true,
+        "august_2025_minimum_trades": true,
+        "august_2025_positive_net_r": true,
+        "december_2025_minimum_trades": true,
+        "december_2025_positive_net_r": true,
+        "february_2026_minimum_trades": true,
+        "february_2026_positive_net_r": true,
+        "january_2026_minimum_trades": true,
+        "january_2026_positive_net_r": true,
+        "july_2026_minimum_trades": true,
+        "july_2026_positive_net_r": true,
+        "june_2026_minimum_trades": false,
+        "june_2026_positive_net_r": true,
+        "march_2026_minimum_trades": true,
+        "march_2026_positive_net_r": true,
+        "maximum_ambiguous_exits": false,
+        "maximum_overall_drawdown_r": false,
+        "maximum_pair_trade_share": true,
+        "maximum_single_fold_profit_share": false,
+        "may_2026_minimum_trades": true,
+        "may_2026_positive_net_r": true,
+        "minimum_bootstrap_mean_fold_net_r_lower": false,
+        "minimum_bootstrap_probability_mean_positive": false,
+        "minimum_distinct_pairs": true,
+        "minimum_overall_profit_factor": false,
+        "minimum_profitable_fold_ratio": false,
+        "minimum_total_trades": true,
+        "minimum_worst_rolling_three_fold_net_r": false,
+        "neighbourhood_robustness": true,
+        "november_2025_minimum_trades": true,
+        "november_2025_positive_net_r": true,
+        "october_2025_minimum_trades": true,
+        "october_2025_positive_net_r": true,
+        "september_2025_minimum_trades": true,
+        "september_2025_positive_net_r": true
+      },
+      "passed": false
+    },
+    "behavior_sha256": "467978fb14047486d915804ff22a64712c030f200ee0ee259046d40ca76cdeff",
+    "description": "Immutable Wickless production defaults with the London-New York session union at 9ddd1b44.",
+    "folds": {
+      "april_2026": {
+        "distinct_pairs": 4,
+        "expectancy_r": -0.02268427777777778,
+        "losses": 12,
+        "maximum_drawdown_r": 8.212591999999999,
+        "maximum_pair_trade_share": 0.5,
+        "net_r": -0.40831700000000004,
+        "profit_factor": 0.9666573494047527,
+        "trades": 18,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 3,
+          "USDCHF": 2,
+          "USDJPY": 4
+        },
+        "win_rate": 0.3333333333333333,
+        "wins": 6
+      },
+      "august_2025": {
+        "distinct_pairs": 4,
+        "expectancy_r": 0.18023686666666666,
+        "losses": 9,
+        "maximum_drawdown_r": 7.134399999999999,
+        "maximum_pair_trade_share": 0.4,
+        "net_r": 2.7035530000000003,
+        "profit_factor": 1.294369460129263,
+        "trades": 15,
+        "trades_by_pair": {
+          "AUDUSD": 1,
+          "EURUSD": 6,
+          "GBPUSD": 4,
+          "USDJPY": 4
+        },
+        "win_rate": 0.4,
+        "wins": 6
+      },
+      "december_2025": {
+        "distinct_pairs": 3,
+        "expectancy_r": -0.4225891333333333,
+        "losses": 12,
+        "maximum_drawdown_r": 8.309425,
+        "maximum_pair_trade_share": 0.4666666666666667,
+        "net_r": -6.338837,
+        "profit_factor": 0.4829928915607818,
+        "trades": 15,
+        "trades_by_pair": {
+          "EURUSD": 7,
+          "GBPUSD": 3,
+          "USDJPY": 5
+        },
+        "win_rate": 0.2,
+        "wins": 3
+      },
+      "february_2026": {
+        "distinct_pairs": 4,
+        "expectancy_r": -0.21958966666666663,
+        "losses": 11,
+        "maximum_drawdown_r": 6.178813,
+        "maximum_pair_trade_share": 0.5333333333333333,
+        "net_r": -3.2938449999999992,
+        "profit_factor": 0.7061446929901685,
+        "trades": 15,
+        "trades_by_pair": {
+          "EURUSD": 4,
+          "GBPUSD": 8,
+          "USDCHF": 1,
+          "USDJPY": 2
+        },
+        "win_rate": 0.26666666666666666,
+        "wins": 4
+      },
+      "january_2026": {
+        "distinct_pairs": 5,
+        "expectancy_r": 0.051653071428571416,
+        "losses": 9,
+        "maximum_drawdown_r": 5.199313999999999,
+        "maximum_pair_trade_share": 0.35714285714285715,
+        "net_r": 0.7231429999999999,
+        "profit_factor": 1.078665184181003,
+        "trades": 14,
+        "trades_by_pair": {
+          "EURUSD": 4,
+          "GBPUSD": 3,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 5
+        },
+        "win_rate": 0.35714285714285715,
+        "wins": 5
+      },
+      "july_2026": {
+        "distinct_pairs": 5,
+        "expectancy_r": 0.6615620625,
+        "losses": 7,
+        "maximum_drawdown_r": 3.0908049999999996,
+        "maximum_pair_trade_share": 0.5,
+        "net_r": 10.584993,
+        "profit_factor": 2.4712863373911302,
+        "trades": 16,
+        "trades_by_pair": {
+          "EURUSD": 8,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 4
+        },
+        "win_rate": 0.5625,
+        "wins": 9
+      },
+      "june_2026": {
+        "distinct_pairs": 2,
+        "expectancy_r": -1.0289723333333334,
+        "losses": 3,
+        "maximum_drawdown_r": 3.0869169999999997,
+        "maximum_pair_trade_share": 0.6666666666666666,
+        "net_r": -3.086917,
+        "profit_factor": 0.0,
+        "trades": 3,
+        "trades_by_pair": {
+          "EURUSD": 1,
+          "USDJPY": 2
+        },
+        "win_rate": 0.0,
+        "wins": 0
+      },
+      "march_2026": {
+        "distinct_pairs": 6,
+        "expectancy_r": 0.24563363157894738,
+        "losses": 11,
+        "maximum_drawdown_r": 4.0677959999999995,
+        "maximum_pair_trade_share": 0.3684210526315789,
+        "net_r": 4.667039000000001,
+        "profit_factor": 1.417187051094126,
+        "trades": 19,
+        "trades_by_pair": {
+          "AUDUSD": 1,
+          "EURUSD": 6,
+          "GBPUSD": 2,
+          "NZDUSD": 1,
+          "USDCHF": 2,
+          "USDJPY": 7
+        },
+        "win_rate": 0.42105263157894735,
+        "wins": 8
+      },
+      "may_2026": {
+        "distinct_pairs": 2,
+        "expectancy_r": -1.019565,
+        "losses": 2,
+        "maximum_drawdown_r": 2.03913,
+        "maximum_pair_trade_share": 0.5,
+        "net_r": -2.03913,
+        "profit_factor": 0.0,
+        "trades": 2,
+        "trades_by_pair": {
+          "AUDUSD": 1,
+          "EURUSD": 1
+        },
+        "win_rate": 0.0,
+        "wins": 0
+      },
+      "november_2025": {
+        "distinct_pairs": 3,
+        "expectancy_r": -0.47668618181818184,
+        "losses": 9,
+        "maximum_drawdown_r": 8.159613,
+        "maximum_pair_trade_share": 0.36363636363636365,
+        "net_r": -5.2435480000000005,
+        "profit_factor": 0.42984151837897494,
+        "trades": 11,
+        "trades_by_pair": {
+          "EURUSD": 4,
+          "GBPUSD": 3,
+          "USDJPY": 4
+        },
+        "win_rate": 0.18181818181818182,
+        "wins": 2
+      },
+      "october_2025": {
+        "distinct_pairs": 4,
+        "expectancy_r": -0.4579903125,
+        "losses": 13,
+        "maximum_drawdown_r": 9.307226,
+        "maximum_pair_trade_share": 0.4375,
+        "net_r": -7.327845,
+        "profit_factor": 0.44690821720210705,
+        "trades": 16,
+        "trades_by_pair": {
+          "EURUSD": 7,
+          "GBPUSD": 5,
+          "USDCHF": 1,
+          "USDJPY": 3
+        },
+        "win_rate": 0.1875,
+        "wins": 3
+      },
+      "september_2025": {
+        "distinct_pairs": 3,
+        "expectancy_r": -0.35338916666666664,
+        "losses": 14,
+        "maximum_drawdown_r": 6.361005000000001,
+        "maximum_pair_trade_share": 0.3888888888888889,
+        "net_r": -6.3610050000000005,
+        "profit_factor": 0.5548439082140787,
+        "trades": 18,
+        "trades_by_pair": {
+          "EURUSD": 6,
+          "GBPUSD": 5,
+          "USDJPY": 7
+        },
+        "win_rate": 0.2222222222222222,
+        "wins": 4
+      }
+    },
+    "name": "production-baseline",
+    "objective": {
+      "negative_overall_drawdown_r": -31.38749000000001,
+      "overall_profit_factor": 0.8651268270672711,
+      "total_net_r": -15.420716,
+      "total_trades": 162,
+      "worst_fold_net_r": -7.327845
+    },
+    "overall": {
+      "ambiguous_exits": 1,
+      "distinct_pairs": 7,
+      "expectancy_r": -0.09518960493827161,
+      "losses": 112,
+      "maximum_drawdown_r": 31.38749000000001,
+      "maximum_pair_trade_share": 0.3888888888888889,
+      "net_r": -15.420716,
+      "profit_factor": 0.8651268270672711,
+      "trades": 162,
+      "trades_by_pair": {
+        "AUDUSD": 3,
+        "EURUSD": 63,
+        "GBPUSD": 38,
+        "NZDUSD": 1,
+        "USDCAD": 2,
+        "USDCHF": 8,
+        "USDJPY": 47
+      },
+      "win_rate": 0.30864197530864196,
+      "wins": 50
+    },
+    "parameters": {},
+    "validation": {
+      "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "diagnostics": {
+        "annualized_fold_sharpe": -0.8407539280116046,
+        "bootstrap": {
+          "block_size": 3,
+          "confidence_level": 0.9,
+          "mean_fold_net_r_lower": -3.97630945,
+          "mean_fold_net_r_upper": 1.250695183333333,
+          "method": "deterministic-circular-moving-block",
+          "probability_mean_positive": 0.207,
+          "samples": 2000
+        },
+        "fold_count": 12,
+        "fold_net_r": [
+          2.7035530000000003,
+          -6.3610050000000005,
+          -7.327845,
+          -5.2435480000000005,
+          -6.338837,
+          0.7231429999999999,
+          -3.2938449999999992,
+          4.667039000000001,
+          -0.40831700000000004,
+          -2.03913,
+          -3.086917,
+          10.584993
+        ],
+        "fold_net_r_stdev": 5.29474453646197,
+        "largest_profitable_fold_share": 0.5666870356482518,
+        "mean_fold_net_r": -1.2850596666666665,
+        "median_fold_net_r": -2.5630235,
+        "multiple_testing": {
+          "bonferroni_adjusted_confidence": 0.0,
+          "prior_candidate_trials": 37,
+          "promotion_gate": false,
+          "raw_probability_mean_positive": 0.207,
+          "selection_bias_risk": "high",
+          "trials_including_current": 38
+        },
+        "nonnegative_fold_ratio": 0.3333333333333333,
+        "one_sided_sign_test_p_value": 0.927001953125,
+        "profitable_fold_count": 4,
+        "profitable_fold_ratio": 0.3333333333333333,
+        "worst_rolling_three_fold_net_r": -18.932398
+      },
+      "neighbourhood_robustness": {
+        "passed": true,
+        "status": "not-applicable-production-reference"
+      },
+      "profile": "phase1-walk-forward-v1",
+      "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    }
+  },
+  "best_experiment": {
+    "acceptance_gates": {
+      "checks": {
+        "april_2026_minimum_trades": true,
+        "april_2026_positive_net_r": true,
+        "august_2025_minimum_trades": true,
+        "august_2025_positive_net_r": true,
+        "december_2025_minimum_trades": true,
+        "december_2025_positive_net_r": true,
+        "february_2026_minimum_trades": true,
+        "february_2026_positive_net_r": true,
+        "january_2026_minimum_trades": true,
+        "january_2026_positive_net_r": true,
+        "july_2026_minimum_trades": true,
+        "july_2026_positive_net_r": true,
+        "june_2026_minimum_trades": false,
+        "june_2026_positive_net_r": true,
+        "march_2026_minimum_trades": true,
+        "march_2026_positive_net_r": true,
+        "maximum_ambiguous_exits": false,
+        "maximum_overall_drawdown_r": false,
+        "maximum_pair_trade_share": true,
+        "maximum_single_fold_profit_share": false,
+        "may_2026_minimum_trades": true,
+        "may_2026_positive_net_r": true,
+        "minimum_bootstrap_mean_fold_net_r_lower": false,
+        "minimum_bootstrap_probability_mean_positive": false,
+        "minimum_distinct_pairs": true,
+        "minimum_overall_profit_factor": false,
+        "minimum_profitable_fold_ratio": false,
+        "minimum_total_trades": true,
+        "minimum_worst_rolling_three_fold_net_r": false,
+        "neighbourhood_robustness": false,
+        "november_2025_minimum_trades": true,
+        "november_2025_positive_net_r": true,
+        "october_2025_minimum_trades": true,
+        "october_2025_positive_net_r": true,
+        "september_2025_minimum_trades": true,
+        "september_2025_positive_net_r": true
+      },
+      "passed": false
+    },
+    "behavior_sha256": "4386f02143a6b17ffb14d05cd65e0917db128a5e1024d7adcfa2f3d44473015c",
+    "candidate": "grid-0029",
+    "category": "trend-filter",
+    "description": "Controlled test of ema_slope_lookback=3 against production defaults.",
+    "effect": "trade-changed",
+    "folds": {
+      "april_2026": {
+        "distinct_pairs": 4,
+        "expectancy_r": -0.022049500000000007,
+        "losses": 12,
+        "maximum_drawdown_r": 6.2350639999999995,
+        "maximum_pair_trade_share": 0.5,
+        "net_r": -0.3968910000000001,
+        "profit_factor": 0.9675903821359427,
+        "trades": 18,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 3,
+          "USDCHF": 2,
+          "USDJPY": 4
+        },
+        "win_rate": 0.3333333333333333,
+        "wins": 6
+      },
+      "august_2025": {
+        "distinct_pairs": 4,
+        "expectancy_r": 0.105464,
+        "losses": 10,
+        "maximum_drawdown_r": 8.150528999999999,
+        "maximum_pair_trade_share": 0.375,
+        "net_r": 1.687424,
+        "profit_factor": 1.1654281139090772,
+        "trades": 16,
+        "trades_by_pair": {
+          "AUDUSD": 1,
+          "EURUSD": 6,
+          "GBPUSD": 5,
+          "USDJPY": 4
+        },
+        "win_rate": 0.375,
+        "wins": 6
+      },
+      "december_2025": {
+        "distinct_pairs": 3,
+        "expectancy_r": -0.22264973333333335,
+        "losses": 11,
+        "maximum_drawdown_r": 7.217347,
+        "maximum_pair_trade_share": 0.4666666666666667,
+        "net_r": -3.339746,
+        "profit_factor": 0.7030531305026039,
+        "trades": 15,
+        "trades_by_pair": {
+          "EURUSD": 7,
+          "GBPUSD": 2,
+          "USDJPY": 6
+        },
+        "win_rate": 0.26666666666666666,
+        "wins": 4
+      },
+      "february_2026": {
+        "distinct_pairs": 4,
+        "expectancy_r": -0.3268458461538461,
+        "losses": 10,
+        "maximum_drawdown_r": 5.160631,
+        "maximum_pair_trade_share": 0.5384615384615384,
+        "net_r": -4.248996,
+        "profit_factor": 0.5830593385915596,
+        "trades": 13,
+        "trades_by_pair": {
+          "EURUSD": 4,
+          "GBPUSD": 7,
+          "USDCHF": 1,
+          "USDJPY": 1
+        },
+        "win_rate": 0.23076923076923078,
+        "wins": 3
+      },
+      "january_2026": {
+        "distinct_pairs": 5,
+        "expectancy_r": 0.051653071428571416,
+        "losses": 9,
+        "maximum_drawdown_r": 5.199313999999999,
+        "maximum_pair_trade_share": 0.35714285714285715,
+        "net_r": 0.7231429999999999,
+        "profit_factor": 1.078665184181003,
+        "trades": 14,
+        "trades_by_pair": {
+          "EURUSD": 4,
+          "GBPUSD": 3,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 5
+        },
+        "win_rate": 0.35714285714285715,
+        "wins": 5
+      },
+      "july_2026": {
+        "distinct_pairs": 5,
+        "expectancy_r": 0.6405104444444444,
+        "losses": 8,
+        "maximum_drawdown_r": 4.113277,
+        "maximum_pair_trade_share": 0.5555555555555556,
+        "net_r": 11.529188,
+        "profit_factor": 2.403114964222308,
+        "trades": 18,
+        "trades_by_pair": {
+          "EURUSD": 10,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 4
+        },
+        "win_rate": 0.5555555555555556,
+        "wins": 10
+      },
+      "june_2026": {
+        "distinct_pairs": 2,
+        "expectancy_r": -1.0289723333333334,
+        "losses": 3,
+        "maximum_drawdown_r": 3.0869169999999997,
+        "maximum_pair_trade_share": 0.6666666666666666,
+        "net_r": -3.086917,
+        "profit_factor": 0.0,
+        "trades": 3,
+        "trades_by_pair": {
+          "EURUSD": 1,
+          "USDJPY": 2
+        },
+        "win_rate": 0.0,
+        "wins": 0
+      },
+      "march_2026": {
+        "distinct_pairs": 6,
+        "expectancy_r": 0.24563363157894738,
+        "losses": 11,
+        "maximum_drawdown_r": 4.0677959999999995,
+        "maximum_pair_trade_share": 0.3684210526315789,
+        "net_r": 4.667039000000001,
+        "profit_factor": 1.417187051094126,
+        "trades": 19,
+        "trades_by_pair": {
+          "AUDUSD": 1,
+          "EURUSD": 6,
+          "GBPUSD": 2,
+          "NZDUSD": 1,
+          "USDCHF": 2,
+          "USDJPY": 7
+        },
+        "win_rate": 0.42105263157894735,
+        "wins": 8
+      },
+      "may_2026": {
+        "distinct_pairs": 3,
+        "expectancy_r": -0.26842374999999996,
+        "losses": 3,
+        "maximum_drawdown_r": 2.037612,
+        "maximum_pair_trade_share": 0.5,
+        "net_r": -1.0736949999999998,
+        "profit_factor": 0.6485453533106187,
+        "trades": 4,
+        "trades_by_pair": {
+          "AUDUSD": 1,
+          "EURUSD": 1,
+          "GBPUSD": 2
+        },
+        "win_rate": 0.25,
+        "wins": 1
+      },
+      "november_2025": {
+        "distinct_pairs": 3,
+        "expectancy_r": -0.4224317,
+        "losses": 8,
+        "maximum_drawdown_r": 7.140382,
+        "maximum_pair_trade_share": 0.4,
+        "net_r": -4.224317,
+        "profit_factor": 0.4834168335999415,
+        "trades": 10,
+        "trades_by_pair": {
+          "EURUSD": 4,
+          "GBPUSD": 3,
+          "USDJPY": 3
+        },
+        "win_rate": 0.2,
+        "wins": 2
+      },
+      "october_2025": {
+        "distinct_pairs": 4,
+        "expectancy_r": -0.457835625,
+        "losses": 13,
+        "maximum_drawdown_r": 9.304751000000001,
+        "maximum_pair_trade_share": 0.375,
+        "net_r": -7.32537,
+        "profit_factor": 0.4469917189588539,
+        "trades": 16,
+        "trades_by_pair": {
+          "EURUSD": 6,
+          "GBPUSD": 5,
+          "USDCHF": 1,
+          "USDJPY": 4
+        },
+        "win_rate": 0.1875,
+        "wins": 3
+      },
+      "september_2025": {
+        "distinct_pairs": 3,
+        "expectancy_r": -0.30666,
+        "losses": 16,
+        "maximum_drawdown_r": 8.412463,
+        "maximum_pair_trade_share": 0.42857142857142855,
+        "net_r": -6.4398599999999995,
+        "profit_factor": 0.6059039563390839,
+        "trades": 21,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 5,
+          "USDJPY": 7
+        },
+        "win_rate": 0.23809523809523808,
+        "wins": 5
+      }
+    },
+    "objective": {
+      "negative_overall_drawdown_r": -26.880931000000025,
+      "overall_profit_factor": 0.9009428116864957,
+      "total_net_r": -11.528998,
+      "total_trades": 167,
+      "worst_fold_net_r": -7.32537
+    },
+    "outcome_sha256": "d6d73abc4d7abda9d7b2b91238ec6ce46104755c9b1744e002726182672afcf3",
+    "overall": {
+      "ambiguous_exits": 1,
+      "distinct_pairs": 7,
+      "expectancy_r": -0.06903591616766468,
+      "losses": 114,
+      "maximum_drawdown_r": 26.880931000000025,
+      "maximum_pair_trade_share": 0.40119760479041916,
+      "net_r": -11.528998,
+      "profit_factor": 0.9009428116864957,
+      "trades": 167,
+      "trades_by_pair": {
+        "AUDUSD": 3,
+        "EURUSD": 67,
+        "GBPUSD": 39,
+        "NZDUSD": 1,
+        "USDCAD": 2,
+        "USDCHF": 8,
+        "USDJPY": 47
+      },
+      "win_rate": 0.31736526946107785,
+      "wins": 53
+    },
+    "parameters": {
+      "ema_slope_lookback": 3
+    },
+    "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+    "run_id": "a551c8e3c552620e",
+    "score": "worst_fold_net_r=-7.32537;total_net_r=-11.528998;overall_profit_factor=0.90094281;negative_overall_drawdown_r=-26.880931;total_trades=167",
+    "status": "discard",
+    "validation": {
+      "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "diagnostics": {
+        "annualized_fold_sharpe": -0.6372657129821799,
+        "bootstrap": {
+          "block_size": 3,
+          "confidence_level": 0.9,
+          "mean_fold_net_r_lower": -3.3907358041666664,
+          "mean_fold_net_r_upper": 1.4015694958333331,
+          "method": "deterministic-circular-moving-block",
+          "probability_mean_positive": 0.2515,
+          "samples": 2000
+        },
+        "fold_count": 12,
+        "fold_net_r": [
+          1.687424,
+          -6.4398599999999995,
+          -7.32537,
+          -4.224317,
+          -3.339746,
+          0.7231429999999999,
+          -4.248996,
+          4.667039000000001,
+          -0.3968910000000001,
+          -1.0736949999999998,
+          -3.086917,
+          11.529188
+        ],
+        "fold_net_r_stdev": 5.222523323620886,
+        "largest_profitable_fold_share": 0.6196224884308387,
+        "mean_fold_net_r": -0.9607498333333333,
+        "median_fold_net_r": -2.080306,
+        "multiple_testing": {
+          "bonferroni_adjusted_confidence": 0.0,
+          "prior_candidate_trials": 42,
+          "promotion_gate": false,
+          "raw_probability_mean_positive": 0.2515,
+          "selection_bias_risk": "high",
+          "trials_including_current": 43
+        },
+        "nonnegative_fold_ratio": 0.3333333333333333,
+        "one_sided_sign_test_p_value": 0.927001953125,
+        "profitable_fold_count": 4,
+        "profitable_fold_ratio": 0.3333333333333333,
+        "worst_rolling_three_fold_net_r": -17.989547
+      },
+      "neighbourhood_robustness": {
+        "passed": false,
+        "status": "not-run-base-gates-failed"
+      },
+      "profile": "phase1-walk-forward-v1",
+      "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    },
+    "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+  },
+  "category_counts": {
+    "entry-model": 3,
+    "trend-filter": 3,
+    "trend-filter+wick-detection": 3,
+    "wick-detection": 3
+  },
+  "coach_runs": [
+    {
+      "attempt_count": 40,
+      "categories_with_improvements": {},
+      "categories_without_improvements": {
+        "candle-quality": 18,
+        "entry-model": 5,
+        "trend-filter": 14,
+        "wick-detection": 13
+      },
+      "category_counts": {
+        "candle-quality": 18,
+        "entry-model": 5,
+        "trend-filter": 14,
+        "wick-detection": 13
+      },
+      "changed": true,
+      "do_not_try": [
+        "candle-quality",
+        "entry-model",
+        "trend-filter",
+        "wick-detection"
+      ],
+      "explanation": "The last 10 attempts produced no kept improvement, so exhausted categories were moved to Do not try. The playbook now prioritizes no remaining category as materially different search directions.",
+      "last_ten_improved": false,
+      "playbook_priorities": [],
+      "ran": true,
+      "untried_categories": []
+    }
+  ],
+  "experiments": [
+    {
+      "acceptance_gates": {
+        "checks": {
+          "april_2026_minimum_trades": true,
+          "april_2026_positive_net_r": true,
+          "august_2025_minimum_trades": true,
+          "august_2025_positive_net_r": true,
+          "december_2025_minimum_trades": true,
+          "december_2025_positive_net_r": true,
+          "february_2026_minimum_trades": true,
+          "february_2026_positive_net_r": true,
+          "january_2026_minimum_trades": true,
+          "january_2026_positive_net_r": true,
+          "july_2026_minimum_trades": false,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "march_2026_minimum_trades": true,
+          "march_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": true,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "maximum_single_fold_profit_share": false,
+          "may_2026_minimum_trades": true,
+          "may_2026_positive_net_r": true,
+          "minimum_bootstrap_mean_fold_net_r_lower": false,
+          "minimum_bootstrap_probability_mean_positive": false,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": false,
+          "minimum_profitable_fold_ratio": false,
+          "minimum_total_trades": false,
+          "minimum_worst_rolling_three_fold_net_r": false,
+          "neighbourhood_robustness": false,
+          "november_2025_minimum_trades": true,
+          "november_2025_positive_net_r": true,
+          "october_2025_minimum_trades": true,
+          "october_2025_positive_net_r": true,
+          "september_2025_minimum_trades": true,
+          "september_2025_positive_net_r": true
+        },
+        "passed": false
+      },
+      "behavior_sha256": "7c6158c1662357b964236b5ed039e876712c7c09e049a78b8a71f41dcf2362bc",
+      "candidate": "grid-0705",
+      "category": "entry-model",
+      "description": "Controlled test of entry_model=zone_reclaim, expiry_bars=6, origin_zone_atr_fraction=0.16, reclaim_buffer_ticks=1, maximum_entry_displacement_atr=0.34 against production defaults.",
+      "effect": "trade-changed",
+      "folds": {
+        "april_2026": {
+          "distinct_pairs": 0,
+          "expectancy_r": null,
+          "losses": 0,
+          "maximum_drawdown_r": 0.0,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": 0,
+          "profit_factor": null,
+          "trades": 0,
+          "trades_by_pair": {},
+          "win_rate": null,
+          "wins": 0
+        },
+        "august_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.013625666666666683,
+          "losses": 2,
+          "maximum_drawdown_r": 2.0267920000000004,
+          "maximum_pair_trade_share": 0.3333333333333333,
+          "net_r": -0.04087700000000005,
+          "profit_factor": 0.9798316748832636,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "GBPUSD": 1,
+            "USDJPY": 1
+          },
+          "win_rate": 0.3333333333333333,
+          "wins": 1
+        },
+        "december_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.26846775,
+          "losses": 3,
+          "maximum_drawdown_r": 2.030537,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -1.073871,
+          "profit_factor": 0.6487408102305243,
+          "trades": 4,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.25,
+          "wins": 1
+        },
+        "february_2026": {
+          "distinct_pairs": 0,
+          "expectancy_r": null,
+          "losses": 0,
+          "maximum_drawdown_r": 0.0,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": 0,
+          "profit_factor": null,
+          "trades": 0,
+          "trades_by_pair": {},
+          "win_rate": null,
+          "wins": 0
+        },
+        "january_2026": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.016877666666666718,
+          "losses": 2,
+          "maximum_drawdown_r": 2.038868,
+          "maximum_pair_trade_share": 0.3333333333333333,
+          "net_r": -0.05063300000000015,
+          "profit_factor": 0.9751661215929625,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "GBPUSD": 1,
+            "USDCAD": 1
+          },
+          "win_rate": 0.3333333333333333,
+          "wins": 1
+        },
+        "july_2026": {
+          "distinct_pairs": 3,
+          "expectancy_r": 0.7764298,
+          "losses": 2,
+          "maximum_drawdown_r": 2.059419,
+          "maximum_pair_trade_share": 0.4,
+          "net_r": 3.882149,
+          "profit_factor": 2.8850700124646806,
+          "trades": 5,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "USDCAD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.6,
+          "wins": 3
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0259369999999999,
+          "losses": 2,
+          "maximum_drawdown_r": 2.0518739999999998,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -2.0518739999999998,
+          "profit_factor": 0.0,
+          "trades": 2,
+          "trades_by_pair": {
+            "GBPUSD": 1,
+            "USDJPY": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "march_2026": {
+          "distinct_pairs": 1,
+          "expectancy_r": -1.013333,
+          "losses": 1,
+          "maximum_drawdown_r": 1.013333,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": -1.013333,
+          "profit_factor": 0.0,
+          "trades": 1,
+          "trades_by_pair": {
+            "USDJPY": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "may_2026": {
+          "distinct_pairs": 0,
+          "expectancy_r": null,
+          "losses": 0,
+          "maximum_drawdown_r": 0.0,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": 0,
+          "profit_factor": null,
+          "trades": 0,
+          "trades_by_pair": {},
+          "win_rate": null,
+          "wins": 0
+        },
+        "november_2025": {
+          "distinct_pairs": 1,
+          "expectancy_r": -1.021505,
+          "losses": 1,
+          "maximum_drawdown_r": 1.021505,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": -1.021505,
+          "profit_factor": 0.0,
+          "trades": 1,
+          "trades_by_pair": {
+            "EURUSD": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "october_2025": {
+          "distinct_pairs": 1,
+          "expectancy_r": -1.0164469999999999,
+          "losses": 3,
+          "maximum_drawdown_r": 3.049341,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": -3.049341,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "GBPUSD": 3
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "september_2025": {
+          "distinct_pairs": 0,
+          "expectancy_r": null,
+          "losses": 0,
+          "maximum_drawdown_r": 0.0,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": 0,
+          "profit_factor": null,
+          "trades": 0,
+          "trades_by_pair": {},
+          "win_rate": null,
+          "wins": 0
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -10.287349000000003,
+        "overall_profit_factor": 0.729182865213708,
+        "total_net_r": -4.419285,
+        "total_trades": 22,
+        "worst_fold_net_r": -3.049341
+      },
+      "outcome_sha256": "1b71c2a78c57cdd85650b23275d51f07068a59fa80ba496620860e3973bc57a0",
+      "overall": {
+        "ambiguous_exits": 0,
+        "distinct_pairs": 5,
+        "expectancy_r": -0.20087659090909094,
+        "losses": 16,
+        "maximum_drawdown_r": 10.287349000000003,
+        "maximum_pair_trade_share": 0.3181818181818182,
+        "net_r": -4.419285,
+        "profit_factor": 0.729182865213708,
+        "trades": 22,
+        "trades_by_pair": {
+          "EURUSD": 6,
+          "GBPUSD": 6,
+          "USDCAD": 2,
+          "USDCHF": 1,
+          "USDJPY": 7
+        },
+        "win_rate": 0.2727272727272727,
+        "wins": 6
+      },
+      "parameters": {
+        "entry_model": "zone_reclaim",
+        "expiry_bars": 6,
+        "maximum_entry_displacement_atr": 0.34,
+        "origin_zone_atr_fraction": 0.16,
+        "reclaim_buffer_ticks": 1
+      },
+      "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+      "run_id": "b55aeac23569cdde",
+      "score": "worst_fold_net_r=-3.049341;total_net_r=-4.419285;overall_profit_factor=0.72918287;negative_overall_drawdown_r=-10.287349;total_trades=22",
+      "status": "discard",
+      "validation": {
+        "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+        "diagnostics": {
+          "annualized_fold_sharpe": -0.7701905286463292,
+          "bootstrap": {
+            "block_size": 3,
+            "confidence_level": 0.9,
+            "mean_fold_net_r_lower": -1.0312420833333333,
+            "mean_fold_net_r_upper": 0.29611425,
+            "method": "deterministic-circular-moving-block",
+            "probability_mean_positive": 0.1895,
+            "samples": 2000
+          },
+          "fold_count": 12,
+          "fold_net_r": [
+            -0.04087700000000005,
+            0.0,
+            -3.049341,
+            -1.021505,
+            -1.073871,
+            -0.05063300000000015,
+            0.0,
+            -1.013333,
+            0.0,
+            0.0,
+            -2.0518739999999998,
+            3.882149
+          ],
+          "fold_net_r_stdev": 1.6563923402564396,
+          "largest_profitable_fold_share": 1.0,
+          "mean_fold_net_r": -0.36827375,
+          "median_fold_net_r": -0.0457550000000001,
+          "multiple_testing": {
+            "bonferroni_adjusted_confidence": 0.0,
+            "prior_candidate_trials": 37,
+            "promotion_gate": false,
+            "raw_probability_mean_positive": 0.1895,
+            "selection_bias_risk": "high",
+            "trials_including_current": 38
+          },
+          "nonnegative_fold_ratio": 0.4166666666666667,
+          "one_sided_sign_test_p_value": 0.999755859375,
+          "profitable_fold_count": 1,
+          "profitable_fold_ratio": 0.08333333333333333,
+          "worst_rolling_three_fold_net_r": -5.144717
+        },
+        "neighbourhood_robustness": {
+          "passed": false,
+          "status": "not-run-base-gates-failed"
+        },
+        "profile": "phase1-walk-forward-v1",
+        "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+      },
+      "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "april_2026_minimum_trades": true,
+          "april_2026_positive_net_r": true,
+          "august_2025_minimum_trades": true,
+          "august_2025_positive_net_r": true,
+          "december_2025_minimum_trades": true,
+          "december_2025_positive_net_r": true,
+          "february_2026_minimum_trades": true,
+          "february_2026_positive_net_r": true,
+          "january_2026_minimum_trades": true,
+          "january_2026_positive_net_r": true,
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "march_2026_minimum_trades": true,
+          "march_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": false,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "maximum_single_fold_profit_share": false,
+          "may_2026_minimum_trades": true,
+          "may_2026_positive_net_r": true,
+          "minimum_bootstrap_mean_fold_net_r_lower": false,
+          "minimum_bootstrap_probability_mean_positive": false,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": false,
+          "minimum_profitable_fold_ratio": false,
+          "minimum_total_trades": true,
+          "minimum_worst_rolling_three_fold_net_r": false,
+          "neighbourhood_robustness": false,
+          "november_2025_minimum_trades": true,
+          "november_2025_positive_net_r": true,
+          "october_2025_minimum_trades": true,
+          "october_2025_positive_net_r": true,
+          "september_2025_minimum_trades": true,
+          "september_2025_positive_net_r": true
+        },
+        "passed": false
+      },
+      "behavior_sha256": "02fce6429beb7d95b16d591211d189cb65ccf58e6096acd55b119f8570f908d9",
+      "candidate": "grid-0023",
+      "category": "trend-filter",
+      "description": "Controlled test of ema_length=40 against production defaults.",
+      "effect": "trade-changed",
+      "folds": {
+        "april_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.08248910526315789,
+          "losses": 12,
+          "maximum_drawdown_r": 8.212591999999999,
+          "maximum_pair_trade_share": 0.47368421052631576,
+          "net_r": 1.567293,
+          "profit_factor": 1.1279831671945497,
+          "trades": 19,
+          "trades_by_pair": {
+            "EURUSD": 9,
+            "GBPUSD": 4,
+            "USDCHF": 2,
+            "USDJPY": 4
+          },
+          "win_rate": 0.3684210526315789,
+          "wins": 7
+        },
+        "august_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.18023686666666666,
+          "losses": 9,
+          "maximum_drawdown_r": 7.134399999999999,
+          "maximum_pair_trade_share": 0.4,
+          "net_r": 2.7035530000000003,
+          "profit_factor": 1.294369460129263,
+          "trades": 15,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 6,
+            "GBPUSD": 4,
+            "USDJPY": 4
+          },
+          "win_rate": 0.4,
+          "wins": 6
+        },
+        "december_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.33020207692307696,
+          "losses": 10,
+          "maximum_drawdown_r": 7.217614,
+          "maximum_pair_trade_share": 0.46153846153846156,
+          "net_r": -4.292627,
+          "profit_factor": 0.5797486653192916,
+          "trades": 13,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 2,
+            "USDJPY": 5
+          },
+          "win_rate": 0.23076923076923078,
+          "wins": 3
+        },
+        "february_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.21960946666666664,
+          "losses": 11,
+          "maximum_drawdown_r": 5.161719,
+          "maximum_pair_trade_share": 0.4666666666666667,
+          "net_r": -3.2941419999999995,
+          "profit_factor": 0.7061259831954845,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 7,
+            "USDCHF": 1,
+            "USDJPY": 3
+          },
+          "win_rate": 0.26666666666666666,
+          "wins": 4
+        },
+        "january_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.18041293333333333,
+          "losses": 9,
+          "maximum_drawdown_r": 5.199313999999999,
+          "maximum_pair_trade_share": 0.3333333333333333,
+          "net_r": 2.706194,
+          "profit_factor": 1.2943861026650694,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 5,
+            "GBPUSD": 3,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 5
+          },
+          "win_rate": 0.4,
+          "wins": 6
+        },
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.5623525294117647,
+          "losses": 8,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.47058823529411764,
+          "net_r": 9.559993,
+          "profit_factor": 2.1631039080806578,
+          "trades": 17,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 3,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5294117647058824,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "march_2026": {
+          "distinct_pairs": 6,
+          "expectancy_r": 0.24563363157894738,
+          "losses": 11,
+          "maximum_drawdown_r": 4.0677959999999995,
+          "maximum_pair_trade_share": 0.3684210526315789,
+          "net_r": 4.667039000000001,
+          "profit_factor": 1.417187051094126,
+          "trades": 19,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 6,
+            "GBPUSD": 2,
+            "NZDUSD": 1,
+            "USDCHF": 2,
+            "USDJPY": 7
+          },
+          "win_rate": 0.42105263157894735,
+          "wins": 8
+        },
+        "may_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.019565,
+          "losses": 2,
+          "maximum_drawdown_r": 2.03913,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -2.03913,
+          "profit_factor": 0.0,
+          "trades": 2,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "november_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.4224317,
+          "losses": 8,
+          "maximum_drawdown_r": 7.140382,
+          "maximum_pair_trade_share": 0.4,
+          "net_r": -4.224317,
+          "profit_factor": 0.4834168335999415,
+          "trades": 10,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 3,
+            "USDJPY": 3
+          },
+          "win_rate": 0.2,
+          "wins": 2
+        },
+        "october_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.5906412142857143,
+          "losses": 12,
+          "maximum_drawdown_r": 10.248358,
+          "maximum_pair_trade_share": 0.35714285714285715,
+          "net_r": -8.268977,
+          "profit_factor": 0.3238780936301846,
+          "trades": 14,
+          "trades_by_pair": {
+            "EURUSD": 5,
+            "GBPUSD": 5,
+            "USDCHF": 1,
+            "USDJPY": 3
+          },
+          "win_rate": 0.14285714285714285,
+          "wins": 2
+        },
+        "september_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.35338916666666664,
+          "losses": 14,
+          "maximum_drawdown_r": 6.361005000000001,
+          "maximum_pair_trade_share": 0.3888888888888889,
+          "net_r": -6.3610050000000005,
+          "profit_factor": 0.5548439082140787,
+          "trades": 18,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 5,
+            "USDJPY": 7
+          },
+          "win_rate": 0.2222222222222222,
+          "wins": 4
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -28.346239999999998,
+        "overall_profit_factor": 0.9068707556127572,
+        "total_net_r": -10.363043,
+        "total_trades": 160,
+        "worst_fold_net_r": -8.268977
+      },
+      "outcome_sha256": "7531e2d46d74f8ae7159dae768a6bc1690beaa60a15c2fd811f01722433532a4",
+      "overall": {
+        "ambiguous_exits": 1,
+        "distinct_pairs": 7,
+        "expectancy_r": -0.06476901875,
+        "losses": 109,
+        "maximum_drawdown_r": 28.346239999999998,
+        "maximum_pair_trade_share": 0.38125,
+        "net_r": -10.363043,
+        "profit_factor": 0.9068707556127572,
+        "trades": 160,
+        "trades_by_pair": {
+          "AUDUSD": 3,
+          "EURUSD": 61,
+          "GBPUSD": 38,
+          "NZDUSD": 1,
+          "USDCAD": 2,
+          "USDCHF": 8,
+          "USDJPY": 47
+        },
+        "win_rate": 0.31875,
+        "wins": 51
+      },
+      "parameters": {
+        "ema_length": 40
+      },
+      "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+      "run_id": "2e25165d7edee4ee",
+      "score": "worst_fold_net_r=-8.268977;total_net_r=-10.363043;overall_profit_factor=0.90687076;negative_overall_drawdown_r=-28.34624;total_trades=160",
+      "status": "discard",
+      "validation": {
+        "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+        "diagnostics": {
+          "annualized_fold_sharpe": -0.5816668451745318,
+          "bootstrap": {
+            "block_size": 3,
+            "confidence_level": 0.9,
+            "mean_fold_net_r_lower": -3.2866880833333334,
+            "mean_fold_net_r_upper": 1.4147045,
+            "method": "deterministic-circular-moving-block",
+            "probability_mean_positive": 0.2835,
+            "samples": 2000
+          },
+          "fold_count": 12,
+          "fold_net_r": [
+            2.7035530000000003,
+            -6.3610050000000005,
+            -8.268977,
+            -4.224317,
+            -4.292627,
+            2.706194,
+            -3.2941419999999995,
+            4.667039000000001,
+            1.567293,
+            -2.03913,
+            -3.086917,
+            9.559993
+          ],
+          "fold_net_r_stdev": 5.143069194427274,
+          "largest_profitable_fold_share": 0.4508564675690594,
+          "mean_fold_net_r": -0.8635869166666665,
+          "median_fold_net_r": -2.5630235,
+          "multiple_testing": {
+            "bonferroni_adjusted_confidence": 0.0,
+            "prior_candidate_trials": 38,
+            "promotion_gate": false,
+            "raw_probability_mean_positive": 0.2835,
+            "selection_bias_risk": "high",
+            "trials_including_current": 39
+          },
+          "nonnegative_fold_ratio": 0.4166666666666667,
+          "one_sided_sign_test_p_value": 0.80615234375,
+          "profitable_fold_count": 5,
+          "profitable_fold_ratio": 0.4166666666666667,
+          "worst_rolling_three_fold_net_r": -18.854299
+        },
+        "neighbourhood_robustness": {
+          "passed": false,
+          "status": "not-run-base-gates-failed"
+        },
+        "profile": "phase1-walk-forward-v1",
+        "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+      },
+      "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "april_2026_minimum_trades": true,
+          "april_2026_positive_net_r": true,
+          "august_2025_minimum_trades": true,
+          "august_2025_positive_net_r": true,
+          "december_2025_minimum_trades": true,
+          "december_2025_positive_net_r": true,
+          "february_2026_minimum_trades": true,
+          "february_2026_positive_net_r": true,
+          "january_2026_minimum_trades": true,
+          "january_2026_positive_net_r": true,
+          "july_2026_minimum_trades": false,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "march_2026_minimum_trades": true,
+          "march_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": false,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "maximum_single_fold_profit_share": true,
+          "may_2026_minimum_trades": true,
+          "may_2026_positive_net_r": true,
+          "minimum_bootstrap_mean_fold_net_r_lower": false,
+          "minimum_bootstrap_probability_mean_positive": false,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": false,
+          "minimum_profitable_fold_ratio": false,
+          "minimum_total_trades": true,
+          "minimum_worst_rolling_three_fold_net_r": false,
+          "neighbourhood_robustness": false,
+          "november_2025_minimum_trades": true,
+          "november_2025_positive_net_r": true,
+          "october_2025_minimum_trades": true,
+          "october_2025_positive_net_r": true,
+          "september_2025_minimum_trades": true,
+          "september_2025_positive_net_r": true
+        },
+        "passed": false
+      },
+      "behavior_sha256": "0ea9509ea9ec8a1fa78435f9ce2c3cc4e8662b8e8e54eb4bc880b43f75cf4008",
+      "candidate": "grid-0612",
+      "category": "trend-filter+wick-detection",
+      "description": "Controlled test of ema_length=45, tolerance_ticks=0.5 against production defaults.",
+      "effect": "trade-changed",
+      "folds": {
+        "april_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.3411540909090909,
+          "losses": 6,
+          "maximum_drawdown_r": 4.1319040000000005,
+          "maximum_pair_trade_share": 0.45454545454545453,
+          "net_r": 3.752695,
+          "profit_factor": 1.6139778099252924,
+          "trades": 11,
+          "trades_by_pair": {
+            "EURUSD": 5,
+            "GBPUSD": 2,
+            "USDCHF": 2,
+            "USDJPY": 2
+          },
+          "win_rate": 0.45454545454545453,
+          "wins": 5
+        },
+        "august_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.23082791666666666,
+          "losses": 7,
+          "maximum_drawdown_r": 5.091828,
+          "maximum_pair_trade_share": 0.3333333333333333,
+          "net_r": 2.7699350000000003,
+          "profit_factor": 1.3878567192852627,
+          "trades": 12,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 4,
+            "GBPUSD": 4,
+            "USDJPY": 3
+          },
+          "win_rate": 0.4166666666666667,
+          "wins": 5
+        },
+        "december_2025": {
+          "distinct_pairs": 2,
+          "expectancy_r": -0.16394657142857144,
+          "losses": 5,
+          "maximum_drawdown_r": 3.118214,
+          "maximum_pair_trade_share": 0.5714285714285714,
+          "net_r": -1.147626,
+          "profit_factor": 0.7746891493373054,
+          "trades": 7,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "USDJPY": 3
+          },
+          "win_rate": 0.2857142857142857,
+          "wins": 2
+        },
+        "february_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.3535591111111111,
+          "losses": 7,
+          "maximum_drawdown_r": 6.124936,
+          "maximum_pair_trade_share": 0.4444444444444444,
+          "net_r": -3.1820319999999995,
+          "profit_factor": 0.5543647170202396,
+          "trades": 9,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 4,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.2222222222222222,
+          "wins": 2
+        },
+        "january_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.31522144444444444,
+          "losses": 5,
+          "maximum_drawdown_r": 2.0797929999999996,
+          "maximum_pair_trade_share": 0.4444444444444444,
+          "net_r": 2.836993,
+          "profit_factor": 1.5564235898294854,
+          "trades": 9,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 1,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.4444444444444444,
+          "wins": 4
+        },
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.9794965,
+          "losses": 2,
+          "maximum_drawdown_r": 2.0337240000000003,
+          "maximum_pair_trade_share": 0.3333333333333333,
+          "net_r": 5.876979,
+          "profit_factor": 3.8897623276314772,
+          "trades": 6,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "GBPUSD": 1,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.6666666666666666,
+          "wins": 4
+        },
+        "june_2026": {
+          "distinct_pairs": 0,
+          "expectancy_r": null,
+          "losses": 0,
+          "maximum_drawdown_r": 0.0,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": 0,
+          "profit_factor": null,
+          "trades": 0,
+          "trades_by_pair": {},
+          "win_rate": null,
+          "wins": 0
+        },
+        "march_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.650293888888889,
+          "losses": 4,
+          "maximum_drawdown_r": 2.028658,
+          "maximum_pair_trade_share": 0.3333333333333333,
+          "net_r": 5.852645,
+          "profit_factor": 2.4421868061842593,
+          "trades": 9,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 3,
+            "GBPUSD": 2,
+            "USDJPY": 3
+          },
+          "win_rate": 0.5555555555555556,
+          "wins": 5
+        },
+        "may_2026": {
+          "distinct_pairs": 1,
+          "expectancy_r": -1.017391,
+          "losses": 1,
+          "maximum_drawdown_r": 1.017391,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": -1.017391,
+          "profit_factor": 0.0,
+          "trades": 1,
+          "trades_by_pair": {
+            "AUDUSD": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "november_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.5197590000000001,
+          "losses": 5,
+          "maximum_drawdown_r": 5.102425,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -3.1185540000000005,
+          "profit_factor": 0.3888094386492697,
+          "trades": 6,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 1,
+            "USDJPY": 3
+          },
+          "win_rate": 0.16666666666666666,
+          "wins": 1
+        },
+        "october_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.5196885,
+          "losses": 5,
+          "maximum_drawdown_r": 5.097512,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -3.118131,
+          "profit_factor": 0.3883033526944125,
+          "trades": 6,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "GBPUSD": 2,
+            "USDCHF": 1
+          },
+          "win_rate": 0.16666666666666666,
+          "wins": 1
+        },
+        "september_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.32835015384615385,
+          "losses": 10,
+          "maximum_drawdown_r": 5.10339,
+          "maximum_pair_trade_share": 0.46153846153846156,
+          "net_r": -4.268552,
+          "profit_factor": 0.5821997840796419,
+          "trades": 13,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 1,
+            "USDJPY": 6
+          },
+          "win_rate": 0.23076923076923078,
+          "wins": 3
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -14.940806,
+        "overall_profit_factor": 1.090117964209531,
+        "total_net_r": 5.236961,
+        "total_trades": 89,
+        "worst_fold_net_r": -4.268552
+      },
+      "outcome_sha256": "650691e33360af949e071964c671d204963adb80f48859a5a053bbfd2ca97c2f",
+      "overall": {
+        "ambiguous_exits": 1,
+        "distinct_pairs": 6,
+        "expectancy_r": 0.0588422584269663,
+        "losses": 57,
+        "maximum_drawdown_r": 14.940806,
+        "maximum_pair_trade_share": 0.3595505617977528,
+        "net_r": 5.236961,
+        "profit_factor": 1.090117964209531,
+        "trades": 89,
+        "trades_by_pair": {
+          "AUDUSD": 3,
+          "EURUSD": 32,
+          "GBPUSD": 18,
+          "USDCAD": 2,
+          "USDCHF": 6,
+          "USDJPY": 28
+        },
+        "win_rate": 0.3595505617977528,
+        "wins": 32
+      },
+      "parameters": {
+        "ema_length": 45,
+        "tolerance_ticks": 0.5
+      },
+      "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+      "run_id": "7ec6d99c15fb3b0d",
+      "score": "worst_fold_net_r=-4.268552;total_net_r=5.236961;overall_profit_factor=1.090118;negative_overall_drawdown_r=-14.940806;total_trades=89",
+      "status": "discard",
+      "validation": {
+        "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+        "diagnostics": {
+          "annualized_fold_sharpe": 0.4143147078878775,
+          "bootstrap": {
+            "block_size": 3,
+            "confidence_level": 0.9,
+            "mean_fold_net_r_lower": -1.24886575,
+            "mean_fold_net_r_upper": 2.0242078666666665,
+            "method": "deterministic-circular-moving-block",
+            "probability_mean_positive": 0.6575,
+            "samples": 2000
+          },
+          "fold_count": 12,
+          "fold_net_r": [
+            2.7699350000000003,
+            -4.268552,
+            -3.118131,
+            -3.1185540000000005,
+            -1.147626,
+            2.836993,
+            -3.1820319999999995,
+            5.852645,
+            3.752695,
+            -1.017391,
+            0.0,
+            5.876979
+          ],
+          "fold_net_r_stdev": 3.648869790912435,
+          "largest_profitable_fold_share": 0.27867182740094987,
+          "mean_fold_net_r": 0.4364134166666668,
+          "median_fold_net_r": -0.5086955,
+          "multiple_testing": {
+            "bonferroni_adjusted_confidence": 0.0,
+            "prior_candidate_trials": 39,
+            "promotion_gate": false,
+            "raw_probability_mean_positive": 0.6575,
+            "selection_bias_risk": "high",
+            "trials_including_current": 40
+          },
+          "nonnegative_fold_ratio": 0.5,
+          "one_sided_sign_test_p_value": 0.80615234375,
+          "profitable_fold_count": 5,
+          "profitable_fold_ratio": 0.4166666666666667,
+          "worst_rolling_three_fold_net_r": -10.505237000000001
+        },
+        "neighbourhood_robustness": {
+          "passed": false,
+          "status": "not-run-base-gates-failed"
+        },
+        "profile": "phase1-walk-forward-v1",
+        "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+      },
+      "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "april_2026_minimum_trades": true,
+          "april_2026_positive_net_r": true,
+          "august_2025_minimum_trades": true,
+          "august_2025_positive_net_r": true,
+          "december_2025_minimum_trades": true,
+          "december_2025_positive_net_r": true,
+          "february_2026_minimum_trades": true,
+          "february_2026_positive_net_r": true,
+          "january_2026_minimum_trades": true,
+          "january_2026_positive_net_r": true,
+          "july_2026_minimum_trades": false,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "march_2026_minimum_trades": true,
+          "march_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": false,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "maximum_single_fold_profit_share": true,
+          "may_2026_minimum_trades": true,
+          "may_2026_positive_net_r": true,
+          "minimum_bootstrap_mean_fold_net_r_lower": false,
+          "minimum_bootstrap_probability_mean_positive": false,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": false,
+          "minimum_profitable_fold_ratio": false,
+          "minimum_total_trades": true,
+          "minimum_worst_rolling_three_fold_net_r": false,
+          "neighbourhood_robustness": false,
+          "november_2025_minimum_trades": true,
+          "november_2025_positive_net_r": true,
+          "october_2025_minimum_trades": true,
+          "october_2025_positive_net_r": true,
+          "september_2025_minimum_trades": true,
+          "september_2025_positive_net_r": true
+        },
+        "passed": false
+      },
+      "behavior_sha256": "40896af2a661bccc60faf00b1726284c03ab94cf0ad2846c523390e6e437a592",
+      "candidate": "grid-0036",
+      "category": "wick-detection",
+      "description": "Controlled test of tolerance_ticks=0.5 against production defaults.",
+      "effect": "trade-changed",
+      "folds": {
+        "april_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.3411540909090909,
+          "losses": 6,
+          "maximum_drawdown_r": 4.1319040000000005,
+          "maximum_pair_trade_share": 0.45454545454545453,
+          "net_r": 3.752695,
+          "profit_factor": 1.6139778099252924,
+          "trades": 11,
+          "trades_by_pair": {
+            "EURUSD": 5,
+            "GBPUSD": 2,
+            "USDCHF": 2,
+            "USDJPY": 2
+          },
+          "win_rate": 0.45454545454545453,
+          "wins": 5
+        },
+        "august_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.23082791666666666,
+          "losses": 7,
+          "maximum_drawdown_r": 5.091828,
+          "maximum_pair_trade_share": 0.3333333333333333,
+          "net_r": 2.7699350000000003,
+          "profit_factor": 1.3878567192852627,
+          "trades": 12,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 4,
+            "GBPUSD": 4,
+            "USDJPY": 3
+          },
+          "win_rate": 0.4166666666666667,
+          "wins": 5
+        },
+        "december_2025": {
+          "distinct_pairs": 2,
+          "expectancy_r": -0.16394657142857144,
+          "losses": 5,
+          "maximum_drawdown_r": 3.118214,
+          "maximum_pair_trade_share": 0.5714285714285714,
+          "net_r": -1.147626,
+          "profit_factor": 0.7746891493373054,
+          "trades": 7,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "USDJPY": 3
+          },
+          "win_rate": 0.2857142857142857,
+          "wins": 2
+        },
+        "february_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.3535591111111111,
+          "losses": 7,
+          "maximum_drawdown_r": 6.124936,
+          "maximum_pair_trade_share": 0.4444444444444444,
+          "net_r": -3.1820319999999995,
+          "profit_factor": 0.5543647170202396,
+          "trades": 9,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 4,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.2222222222222222,
+          "wins": 2
+        },
+        "january_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.31522144444444444,
+          "losses": 5,
+          "maximum_drawdown_r": 2.0797929999999996,
+          "maximum_pair_trade_share": 0.4444444444444444,
+          "net_r": 2.836993,
+          "profit_factor": 1.5564235898294854,
+          "trades": 9,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 1,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.4444444444444444,
+          "wins": 4
+        },
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.9794965,
+          "losses": 2,
+          "maximum_drawdown_r": 2.0337240000000003,
+          "maximum_pair_trade_share": 0.3333333333333333,
+          "net_r": 5.876979,
+          "profit_factor": 3.8897623276314772,
+          "trades": 6,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "GBPUSD": 1,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.6666666666666666,
+          "wins": 4
+        },
+        "june_2026": {
+          "distinct_pairs": 0,
+          "expectancy_r": null,
+          "losses": 0,
+          "maximum_drawdown_r": 0.0,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": 0,
+          "profit_factor": null,
+          "trades": 0,
+          "trades_by_pair": {},
+          "win_rate": null,
+          "wins": 0
+        },
+        "march_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.650293888888889,
+          "losses": 4,
+          "maximum_drawdown_r": 2.028658,
+          "maximum_pair_trade_share": 0.3333333333333333,
+          "net_r": 5.852645,
+          "profit_factor": 2.4421868061842593,
+          "trades": 9,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 3,
+            "GBPUSD": 2,
+            "USDJPY": 3
+          },
+          "win_rate": 0.5555555555555556,
+          "wins": 5
+        },
+        "may_2026": {
+          "distinct_pairs": 1,
+          "expectancy_r": -1.017391,
+          "losses": 1,
+          "maximum_drawdown_r": 1.017391,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": -1.017391,
+          "profit_factor": 0.0,
+          "trades": 1,
+          "trades_by_pair": {
+            "AUDUSD": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "november_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.5911121428571429,
+          "losses": 6,
+          "maximum_drawdown_r": 6.121656,
+          "maximum_pair_trade_share": 0.5714285714285714,
+          "net_r": -4.137785,
+          "profit_factor": 0.32407423742856506,
+          "trades": 7,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.14285714285714285,
+          "wins": 1
+        },
+        "october_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.5909998571428572,
+          "losses": 6,
+          "maximum_drawdown_r": 6.116380000000001,
+          "maximum_pair_trade_share": 0.5714285714285714,
+          "net_r": -4.136999,
+          "profit_factor": 0.3236196900781181,
+          "trades": 7,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 2,
+            "USDCHF": 1
+          },
+          "win_rate": 0.14285714285714285,
+          "wins": 1
+        },
+        "september_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.32835015384615385,
+          "losses": 10,
+          "maximum_drawdown_r": 5.10339,
+          "maximum_pair_trade_share": 0.46153846153846156,
+          "net_r": -4.268552,
+          "profit_factor": 0.5821997840796419,
+          "trades": 13,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 1,
+            "USDJPY": 6
+          },
+          "win_rate": 0.23076923076923078,
+          "wins": 3
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -16.978904999999997,
+        "overall_profit_factor": 1.0531810718554657,
+        "total_net_r": 3.198862,
+        "total_trades": 91,
+        "worst_fold_net_r": -4.268552
+      },
+      "outcome_sha256": "f28614612090952a108376d6d8b5baa2a8470051a32afc6d08a5a17e1a62c4be",
+      "overall": {
+        "ambiguous_exits": 1,
+        "distinct_pairs": 6,
+        "expectancy_r": 0.03515232967032967,
+        "losses": 59,
+        "maximum_drawdown_r": 16.978904999999997,
+        "maximum_pair_trade_share": 0.3626373626373626,
+        "net_r": 3.198862,
+        "profit_factor": 1.0531810718554657,
+        "trades": 91,
+        "trades_by_pair": {
+          "AUDUSD": 3,
+          "EURUSD": 33,
+          "GBPUSD": 18,
+          "USDCAD": 2,
+          "USDCHF": 6,
+          "USDJPY": 29
+        },
+        "win_rate": 0.3516483516483517,
+        "wins": 32
+      },
+      "parameters": {
+        "tolerance_ticks": 0.5
+      },
+      "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+      "run_id": "ba93346a390dcc61",
+      "score": "worst_fold_net_r=-4.268552;total_net_r=3.198862;overall_profit_factor=1.0531811;negative_overall_drawdown_r=-16.978905;total_trades=91",
+      "status": "discard",
+      "validation": {
+        "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+        "diagnostics": {
+          "annualized_fold_sharpe": 0.24012511733591504,
+          "bootstrap": {
+            "block_size": 3,
+            "confidence_level": 0.9,
+            "mean_fold_net_r_lower": -1.7566053333333334,
+            "mean_fold_net_r_upper": 2.0275888416666663,
+            "method": "deterministic-circular-moving-block",
+            "probability_mean_positive": 0.609,
+            "samples": 2000
+          },
+          "fold_count": 12,
+          "fold_net_r": [
+            2.7699350000000003,
+            -4.268552,
+            -4.136999,
+            -4.137785,
+            -1.147626,
+            2.836993,
+            -3.1820319999999995,
+            5.852645,
+            3.752695,
+            -1.017391,
+            0.0,
+            5.876979
+          ],
+          "fold_net_r_stdev": 3.8456281818633253,
+          "largest_profitable_fold_share": 0.27867182740094987,
+          "mean_fold_net_r": 0.26657183333333345,
+          "median_fold_net_r": -0.5086955,
+          "multiple_testing": {
+            "bonferroni_adjusted_confidence": 0.0,
+            "prior_candidate_trials": 40,
+            "promotion_gate": false,
+            "raw_probability_mean_positive": 0.609,
+            "selection_bias_risk": "high",
+            "trials_including_current": 41
+          },
+          "nonnegative_fold_ratio": 0.5,
+          "one_sided_sign_test_p_value": 0.80615234375,
+          "profitable_fold_count": 5,
+          "profitable_fold_ratio": 0.4166666666666667,
+          "worst_rolling_three_fold_net_r": -12.543336
+        },
+        "neighbourhood_robustness": {
+          "passed": false,
+          "status": "not-run-base-gates-failed"
+        },
+        "profile": "phase1-walk-forward-v1",
+        "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+      },
+      "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "april_2026_minimum_trades": true,
+          "april_2026_positive_net_r": true,
+          "august_2025_minimum_trades": true,
+          "august_2025_positive_net_r": true,
+          "december_2025_minimum_trades": true,
+          "december_2025_positive_net_r": true,
+          "february_2026_minimum_trades": true,
+          "february_2026_positive_net_r": true,
+          "january_2026_minimum_trades": true,
+          "january_2026_positive_net_r": true,
+          "july_2026_minimum_trades": false,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "march_2026_minimum_trades": true,
+          "march_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": false,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "maximum_single_fold_profit_share": false,
+          "may_2026_minimum_trades": true,
+          "may_2026_positive_net_r": true,
+          "minimum_bootstrap_mean_fold_net_r_lower": false,
+          "minimum_bootstrap_probability_mean_positive": false,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": false,
+          "minimum_profitable_fold_ratio": false,
+          "minimum_total_trades": true,
+          "minimum_worst_rolling_three_fold_net_r": false,
+          "neighbourhood_robustness": false,
+          "november_2025_minimum_trades": true,
+          "november_2025_positive_net_r": true,
+          "october_2025_minimum_trades": true,
+          "october_2025_positive_net_r": true,
+          "september_2025_minimum_trades": true,
+          "september_2025_positive_net_r": true
+        },
+        "passed": false
+      },
+      "behavior_sha256": "0f52163a80a7be7d6914e6fe5d9ad48e8ad86619e5b697f93200bbbc51b7a0f6",
+      "candidate": "grid-0708",
+      "category": "entry-model",
+      "description": "Controlled test of entry_model=origin_limit, expiry_bars=4, origin_zone_atr_fraction=0.12, origin_zone_minimum_ticks=2 against production defaults.",
+      "effect": "trade-changed",
+      "folds": {
+        "april_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.7208073,
+          "losses": 9,
+          "maximum_drawdown_r": 8.146718,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -7.208073000000001,
+          "profit_factor": 0.21501482395949134,
+          "trades": 10,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 5,
+            "GBPUSD": 3,
+            "USDJPY": 1
+          },
+          "win_rate": 0.1,
+          "wins": 1
+        },
+        "august_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": 0.47868625000000004,
+          "losses": 2,
+          "maximum_drawdown_r": 2.055009,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 1.9147450000000001,
+          "profit_factor": 1.931745311091095,
+          "trades": 4,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 1,
+            "USDJPY": 1
+          },
+          "win_rate": 0.5,
+          "wins": 2
+        },
+        "december_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.16319542857142857,
+          "losses": 5,
+          "maximum_drawdown_r": 3.114199,
+          "maximum_pair_trade_share": 0.5714285714285714,
+          "net_r": -1.142368,
+          "profit_factor": 0.7757145274853604,
+          "trades": 7,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.2857142857142857,
+          "wins": 2
+        },
+        "february_2026": {
+          "distinct_pairs": 3,
+          "expectancy_r": -1.0227845,
+          "losses": 6,
+          "maximum_drawdown_r": 6.136707,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -6.1367069999999995,
+          "profit_factor": 0.0,
+          "trades": 6,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 3,
+            "USDJPY": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "january_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.34506554545454543,
+          "losses": 6,
+          "maximum_drawdown_r": 5.116249,
+          "maximum_pair_trade_share": 0.36363636363636365,
+          "net_r": 3.7957209999999995,
+          "profit_factor": 1.6193687717941312,
+          "trades": 11,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "GBPUSD": 4,
+            "USDCAD": 1,
+            "USDJPY": 3
+          },
+          "win_rate": 0.45454545454545453,
+          "wins": 5
+        },
+        "july_2026": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.026078833333333346,
+          "losses": 4,
+          "maximum_drawdown_r": 3.080292,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -0.15647300000000008,
+          "profit_factor": 0.9618331447427122,
+          "trades": 6,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.3333333333333333,
+          "wins": 2
+        },
+        "june_2026": {
+          "distinct_pairs": 0,
+          "expectancy_r": null,
+          "losses": 0,
+          "maximum_drawdown_r": 0.0,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": 0,
+          "profit_factor": null,
+          "trades": 0,
+          "trades_by_pair": {},
+          "win_rate": null,
+          "wins": 0
+        },
+        "march_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.16127214285714286,
+          "losses": 5,
+          "maximum_drawdown_r": 2.044346,
+          "maximum_pair_trade_share": 0.42857142857142855,
+          "net_r": -1.128905,
+          "profit_factor": 0.7785902918676567,
+          "trades": 7,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "NZDUSD": 1,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.2857142857142857,
+          "wins": 2
+        },
+        "may_2026": {
+          "distinct_pairs": 1,
+          "expectancy_r": 1.978723,
+          "losses": 0,
+          "maximum_drawdown_r": 0.0,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": 1.978723,
+          "profit_factor": null,
+          "trades": 1,
+          "trades_by_pair": {
+            "EURUSD": 1
+          },
+          "win_rate": 1.0,
+          "wins": 1
+        },
+        "november_2025": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0265365,
+          "losses": 4,
+          "maximum_drawdown_r": 4.106146,
+          "maximum_pair_trade_share": 0.75,
+          "net_r": -4.106146,
+          "profit_factor": 0.0,
+          "trades": 4,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "USDJPY": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "october_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.01989883333333331,
+          "losses": 4,
+          "maximum_drawdown_r": 2.1031329999999997,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -0.11939299999999986,
+          "profit_factor": 0.9707724768301994,
+          "trades": 6,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "GBPUSD": 3,
+            "USDJPY": 2
+          },
+          "win_rate": 0.3333333333333333,
+          "wins": 2
+        },
+        "september_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.01825716666666662,
+          "losses": 4,
+          "maximum_drawdown_r": 3.0557279999999998,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -0.10954299999999972,
+          "profit_factor": 0.9731257740173537,
+          "trades": 6,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 1,
+            "USDJPY": 3
+          },
+          "win_rate": 0.3333333333333333,
+          "wins": 2
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -19.149068,
+        "overall_profit_factor": 0.75193694097431,
+        "total_net_r": -12.418419,
+        "total_trades": 68,
+        "worst_fold_net_r": -7.208073000000001
+      },
+      "outcome_sha256": "49431ad543a3871e15b9f7510d02661a37ab96b701d023d6fd0fddb068313261",
+      "overall": {
+        "ambiguous_exits": 6,
+        "distinct_pairs": 7,
+        "expectancy_r": -0.1826238088235294,
+        "losses": 49,
+        "maximum_drawdown_r": 19.149068,
+        "maximum_pair_trade_share": 0.39705882352941174,
+        "net_r": -12.418419,
+        "profit_factor": 0.75193694097431,
+        "trades": 68,
+        "trades_by_pair": {
+          "AUDUSD": 1,
+          "EURUSD": 27,
+          "GBPUSD": 16,
+          "NZDUSD": 1,
+          "USDCAD": 1,
+          "USDCHF": 2,
+          "USDJPY": 20
+        },
+        "win_rate": 0.27941176470588236,
+        "wins": 19
+      },
+      "parameters": {
+        "entry_model": "origin_limit",
+        "expiry_bars": 4,
+        "origin_zone_atr_fraction": 0.12,
+        "origin_zone_minimum_ticks": 2
+      },
+      "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+      "run_id": "111110a42e3c066d",
+      "score": "worst_fold_net_r=-7.208073;total_net_r=-12.418419;overall_profit_factor=0.75193694;negative_overall_drawdown_r=-19.149068;total_trades=68",
+      "status": "discard",
+      "validation": {
+        "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+        "diagnostics": {
+          "annualized_fold_sharpe": -1.0934096902162536,
+          "bootstrap": {
+            "block_size": 3,
+            "confidence_level": 0.9,
+            "mean_fold_net_r_lower": -2.389949166666667,
+            "mean_fold_net_r_upper": 0.1323077499999999,
+            "method": "deterministic-circular-moving-block",
+            "probability_mean_positive": 0.0795,
+            "samples": 2000
+          },
+          "fold_count": 12,
+          "fold_net_r": [
+            1.9147450000000001,
+            -0.10954299999999972,
+            -0.11939299999999986,
+            -4.106146,
+            -1.142368,
+            3.7957209999999995,
+            -6.1367069999999995,
+            -1.128905,
+            -7.208073000000001,
+            1.978723,
+            0.0,
+            -0.15647300000000008
+          ],
+          "fold_net_r_stdev": 3.278632710462594,
+          "largest_profitable_fold_share": 0.49364386803341676,
+          "mean_fold_net_r": -1.03486825,
+          "median_fold_net_r": -0.13793299999999997,
+          "multiple_testing": {
+            "bonferroni_adjusted_confidence": 0.0,
+            "prior_candidate_trials": 41,
+            "promotion_gate": false,
+            "raw_probability_mean_positive": 0.0795,
+            "selection_bias_risk": "high",
+            "trials_including_current": 42
+          },
+          "nonnegative_fold_ratio": 0.3333333333333333,
+          "one_sided_sign_test_p_value": 0.980712890625,
+          "profitable_fold_count": 3,
+          "profitable_fold_ratio": 0.25,
+          "worst_rolling_three_fold_net_r": -14.473685
+        },
+        "neighbourhood_robustness": {
+          "passed": false,
+          "status": "not-run-base-gates-failed"
+        },
+        "profile": "phase1-walk-forward-v1",
+        "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+      },
+      "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "april_2026_minimum_trades": true,
+          "april_2026_positive_net_r": true,
+          "august_2025_minimum_trades": true,
+          "august_2025_positive_net_r": true,
+          "december_2025_minimum_trades": true,
+          "december_2025_positive_net_r": true,
+          "february_2026_minimum_trades": true,
+          "february_2026_positive_net_r": true,
+          "january_2026_minimum_trades": true,
+          "january_2026_positive_net_r": true,
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "march_2026_minimum_trades": true,
+          "march_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": false,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "maximum_single_fold_profit_share": false,
+          "may_2026_minimum_trades": true,
+          "may_2026_positive_net_r": true,
+          "minimum_bootstrap_mean_fold_net_r_lower": false,
+          "minimum_bootstrap_probability_mean_positive": false,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": false,
+          "minimum_profitable_fold_ratio": false,
+          "minimum_total_trades": true,
+          "minimum_worst_rolling_three_fold_net_r": false,
+          "neighbourhood_robustness": false,
+          "november_2025_minimum_trades": true,
+          "november_2025_positive_net_r": true,
+          "october_2025_minimum_trades": true,
+          "october_2025_positive_net_r": true,
+          "september_2025_minimum_trades": true,
+          "september_2025_positive_net_r": true
+        },
+        "passed": false
+      },
+      "behavior_sha256": "4386f02143a6b17ffb14d05cd65e0917db128a5e1024d7adcfa2f3d44473015c",
+      "candidate": "grid-0029",
+      "category": "trend-filter",
+      "description": "Controlled test of ema_slope_lookback=3 against production defaults.",
+      "effect": "trade-changed",
+      "folds": {
+        "april_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.022049500000000007,
+          "losses": 12,
+          "maximum_drawdown_r": 6.2350639999999995,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -0.3968910000000001,
+          "profit_factor": 0.9675903821359427,
+          "trades": 18,
+          "trades_by_pair": {
+            "EURUSD": 9,
+            "GBPUSD": 3,
+            "USDCHF": 2,
+            "USDJPY": 4
+          },
+          "win_rate": 0.3333333333333333,
+          "wins": 6
+        },
+        "august_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.105464,
+          "losses": 10,
+          "maximum_drawdown_r": 8.150528999999999,
+          "maximum_pair_trade_share": 0.375,
+          "net_r": 1.687424,
+          "profit_factor": 1.1654281139090772,
+          "trades": 16,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 6,
+            "GBPUSD": 5,
+            "USDJPY": 4
+          },
+          "win_rate": 0.375,
+          "wins": 6
+        },
+        "december_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.22264973333333335,
+          "losses": 11,
+          "maximum_drawdown_r": 7.217347,
+          "maximum_pair_trade_share": 0.4666666666666667,
+          "net_r": -3.339746,
+          "profit_factor": 0.7030531305026039,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 7,
+            "GBPUSD": 2,
+            "USDJPY": 6
+          },
+          "win_rate": 0.26666666666666666,
+          "wins": 4
+        },
+        "february_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.3268458461538461,
+          "losses": 10,
+          "maximum_drawdown_r": 5.160631,
+          "maximum_pair_trade_share": 0.5384615384615384,
+          "net_r": -4.248996,
+          "profit_factor": 0.5830593385915596,
+          "trades": 13,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 7,
+            "USDCHF": 1,
+            "USDJPY": 1
+          },
+          "win_rate": 0.23076923076923078,
+          "wins": 3
+        },
+        "january_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.051653071428571416,
+          "losses": 9,
+          "maximum_drawdown_r": 5.199313999999999,
+          "maximum_pair_trade_share": 0.35714285714285715,
+          "net_r": 0.7231429999999999,
+          "profit_factor": 1.078665184181003,
+          "trades": 14,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 3,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 5
+          },
+          "win_rate": 0.35714285714285715,
+          "wins": 5
+        },
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6405104444444444,
+          "losses": 8,
+          "maximum_drawdown_r": 4.113277,
+          "maximum_pair_trade_share": 0.5555555555555556,
+          "net_r": 11.529188,
+          "profit_factor": 2.403114964222308,
+          "trades": 18,
+          "trades_by_pair": {
+            "EURUSD": 10,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5555555555555556,
+          "wins": 10
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "march_2026": {
+          "distinct_pairs": 6,
+          "expectancy_r": 0.24563363157894738,
+          "losses": 11,
+          "maximum_drawdown_r": 4.0677959999999995,
+          "maximum_pair_trade_share": 0.3684210526315789,
+          "net_r": 4.667039000000001,
+          "profit_factor": 1.417187051094126,
+          "trades": 19,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 6,
+            "GBPUSD": 2,
+            "NZDUSD": 1,
+            "USDCHF": 2,
+            "USDJPY": 7
+          },
+          "win_rate": 0.42105263157894735,
+          "wins": 8
+        },
+        "may_2026": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.26842374999999996,
+          "losses": 3,
+          "maximum_drawdown_r": 2.037612,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -1.0736949999999998,
+          "profit_factor": 0.6485453533106187,
+          "trades": 4,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 1,
+            "GBPUSD": 2
+          },
+          "win_rate": 0.25,
+          "wins": 1
+        },
+        "november_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.4224317,
+          "losses": 8,
+          "maximum_drawdown_r": 7.140382,
+          "maximum_pair_trade_share": 0.4,
+          "net_r": -4.224317,
+          "profit_factor": 0.4834168335999415,
+          "trades": 10,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 3,
+            "USDJPY": 3
+          },
+          "win_rate": 0.2,
+          "wins": 2
+        },
+        "october_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.457835625,
+          "losses": 13,
+          "maximum_drawdown_r": 9.304751000000001,
+          "maximum_pair_trade_share": 0.375,
+          "net_r": -7.32537,
+          "profit_factor": 0.4469917189588539,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 5,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.1875,
+          "wins": 3
+        },
+        "september_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.30666,
+          "losses": 16,
+          "maximum_drawdown_r": 8.412463,
+          "maximum_pair_trade_share": 0.42857142857142855,
+          "net_r": -6.4398599999999995,
+          "profit_factor": 0.6059039563390839,
+          "trades": 21,
+          "trades_by_pair": {
+            "EURUSD": 9,
+            "GBPUSD": 5,
+            "USDJPY": 7
+          },
+          "win_rate": 0.23809523809523808,
+          "wins": 5
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -26.880931000000025,
+        "overall_profit_factor": 0.9009428116864957,
+        "total_net_r": -11.528998,
+        "total_trades": 167,
+        "worst_fold_net_r": -7.32537
+      },
+      "outcome_sha256": "d6d73abc4d7abda9d7b2b91238ec6ce46104755c9b1744e002726182672afcf3",
+      "overall": {
+        "ambiguous_exits": 1,
+        "distinct_pairs": 7,
+        "expectancy_r": -0.06903591616766468,
+        "losses": 114,
+        "maximum_drawdown_r": 26.880931000000025,
+        "maximum_pair_trade_share": 0.40119760479041916,
+        "net_r": -11.528998,
+        "profit_factor": 0.9009428116864957,
+        "trades": 167,
+        "trades_by_pair": {
+          "AUDUSD": 3,
+          "EURUSD": 67,
+          "GBPUSD": 39,
+          "NZDUSD": 1,
+          "USDCAD": 2,
+          "USDCHF": 8,
+          "USDJPY": 47
+        },
+        "win_rate": 0.31736526946107785,
+        "wins": 53
+      },
+      "parameters": {
+        "ema_slope_lookback": 3
+      },
+      "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+      "run_id": "a551c8e3c552620e",
+      "score": "worst_fold_net_r=-7.32537;total_net_r=-11.528998;overall_profit_factor=0.90094281;negative_overall_drawdown_r=-26.880931;total_trades=167",
+      "status": "discard",
+      "validation": {
+        "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+        "diagnostics": {
+          "annualized_fold_sharpe": -0.6372657129821799,
+          "bootstrap": {
+            "block_size": 3,
+            "confidence_level": 0.9,
+            "mean_fold_net_r_lower": -3.3907358041666664,
+            "mean_fold_net_r_upper": 1.4015694958333331,
+            "method": "deterministic-circular-moving-block",
+            "probability_mean_positive": 0.2515,
+            "samples": 2000
+          },
+          "fold_count": 12,
+          "fold_net_r": [
+            1.687424,
+            -6.4398599999999995,
+            -7.32537,
+            -4.224317,
+            -3.339746,
+            0.7231429999999999,
+            -4.248996,
+            4.667039000000001,
+            -0.3968910000000001,
+            -1.0736949999999998,
+            -3.086917,
+            11.529188
+          ],
+          "fold_net_r_stdev": 5.222523323620886,
+          "largest_profitable_fold_share": 0.6196224884308387,
+          "mean_fold_net_r": -0.9607498333333333,
+          "median_fold_net_r": -2.080306,
+          "multiple_testing": {
+            "bonferroni_adjusted_confidence": 0.0,
+            "prior_candidate_trials": 42,
+            "promotion_gate": false,
+            "raw_probability_mean_positive": 0.2515,
+            "selection_bias_risk": "high",
+            "trials_including_current": 43
+          },
+          "nonnegative_fold_ratio": 0.3333333333333333,
+          "one_sided_sign_test_p_value": 0.927001953125,
+          "profitable_fold_count": 4,
+          "profitable_fold_ratio": 0.3333333333333333,
+          "worst_rolling_three_fold_net_r": -17.989547
+        },
+        "neighbourhood_robustness": {
+          "passed": false,
+          "status": "not-run-base-gates-failed"
+        },
+        "profile": "phase1-walk-forward-v1",
+        "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+      },
+      "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "april_2026_minimum_trades": true,
+          "april_2026_positive_net_r": true,
+          "august_2025_minimum_trades": true,
+          "august_2025_positive_net_r": true,
+          "december_2025_minimum_trades": true,
+          "december_2025_positive_net_r": true,
+          "february_2026_minimum_trades": true,
+          "february_2026_positive_net_r": true,
+          "january_2026_minimum_trades": true,
+          "january_2026_positive_net_r": true,
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "march_2026_minimum_trades": true,
+          "march_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": false,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "maximum_single_fold_profit_share": false,
+          "may_2026_minimum_trades": true,
+          "may_2026_positive_net_r": true,
+          "minimum_bootstrap_mean_fold_net_r_lower": false,
+          "minimum_bootstrap_probability_mean_positive": false,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": false,
+          "minimum_profitable_fold_ratio": false,
+          "minimum_total_trades": true,
+          "minimum_worst_rolling_three_fold_net_r": false,
+          "neighbourhood_robustness": false,
+          "november_2025_minimum_trades": true,
+          "november_2025_positive_net_r": true,
+          "october_2025_minimum_trades": true,
+          "october_2025_positive_net_r": true,
+          "september_2025_minimum_trades": true,
+          "september_2025_positive_net_r": true
+        },
+        "passed": false
+      },
+      "behavior_sha256": "74f0641ca081d9118b078bd51332257d4ef693ee25312a1f6349e799320439a4",
+      "candidate": "grid-0630",
+      "category": "trend-filter+wick-detection",
+      "description": "Controlled test of ema_length=45, maximum_wick_ticks=1.25 against production defaults.",
+      "effect": "trade-changed",
+      "folds": {
+        "april_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.10252399999999999,
+          "losses": 10,
+          "maximum_drawdown_r": 6.163891,
+          "maximum_pair_trade_share": 0.4375,
+          "net_r": 1.6403839999999998,
+          "profit_factor": 1.1608631859184304,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 7,
+            "GBPUSD": 3,
+            "USDCHF": 2,
+            "USDJPY": 4
+          },
+          "win_rate": 0.375,
+          "wins": 6
+        },
+        "august_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.1347502307692308,
+          "losses": 8,
+          "maximum_drawdown_r": 6.110009999999999,
+          "maximum_pair_trade_share": 0.3076923076923077,
+          "net_r": 1.7517530000000001,
+          "profit_factor": 1.2146801641750493,
+          "trades": 13,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 4,
+            "GBPUSD": 4,
+            "USDJPY": 4
+          },
+          "win_rate": 0.38461538461538464,
+          "wins": 5
+        },
+        "december_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.2707884166666667,
+          "losses": 9,
+          "maximum_drawdown_r": 6.174448,
+          "maximum_pair_trade_share": 0.4166666666666667,
+          "net_r": -3.249461,
+          "profit_factor": 0.645690963795386,
+          "trades": 12,
+          "trades_by_pair": {
+            "EURUSD": 5,
+            "GBPUSD": 2,
+            "USDJPY": 5
+          },
+          "win_rate": 0.25,
+          "wins": 3
+        },
+        "february_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.16254735714285712,
+          "losses": 10,
+          "maximum_drawdown_r": 5.160631,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -2.2756629999999998,
+          "profit_factor": 0.7766963215868606,
+          "trades": 14,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 7,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.2857142857142857,
+          "wins": 4
+        },
+        "january_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.051856857142857135,
+          "losses": 9,
+          "maximum_drawdown_r": 5.234902999999999,
+          "maximum_pair_trade_share": 0.35714285714285715,
+          "net_r": 0.7259959999999999,
+          "profit_factor": 1.078975540183161,
+          "trades": 14,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 3,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 5
+          },
+          "win_rate": 0.35714285714285715,
+          "wins": 5
+        },
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.5737513333333333,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.4666666666666667,
+          "net_r": 8.60627,
+          "profit_factor": 2.196249016593508,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 7,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5333333333333333,
+          "wins": 8
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "march_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.3946642941176471,
+          "losses": 9,
+          "maximum_drawdown_r": 4.0677959999999995,
+          "maximum_pair_trade_share": 0.4117647058823529,
+          "net_r": 6.709293000000001,
+          "profit_factor": 1.733683606665655,
+          "trades": 17,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 5,
+            "GBPUSD": 2,
+            "USDCHF": 2,
+            "USDJPY": 7
+          },
+          "win_rate": 0.47058823529411764,
+          "wins": 8
+        },
+        "may_2026": {
+          "distinct_pairs": 1,
+          "expectancy_r": -1.017391,
+          "losses": 1,
+          "maximum_drawdown_r": 1.017391,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": -1.017391,
+          "profit_factor": 0.0,
+          "trades": 1,
+          "trades_by_pair": {
+            "AUDUSD": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "november_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.645768875,
+          "losses": 7,
+          "maximum_drawdown_r": 7.150022,
+          "maximum_pair_trade_share": 0.375,
+          "net_r": -5.166151,
+          "profit_factor": 0.27746362179025463,
+          "trades": 8,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "GBPUSD": 2,
+            "USDJPY": 3
+          },
+          "win_rate": 0.125,
+          "wins": 1
+        },
+        "october_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.4758528181818182,
+          "losses": 9,
+          "maximum_drawdown_r": 7.213762000000001,
+          "maximum_pair_trade_share": 0.36363636363636365,
+          "net_r": -5.234381,
+          "profit_factor": 0.4294182691898918,
+          "trades": 11,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 4,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.18181818181818182,
+          "wins": 2
+        },
+        "september_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.4205470666666667,
+          "losses": 12,
+          "maximum_drawdown_r": 6.308206000000001,
+          "maximum_pair_trade_share": 0.4666666666666667,
+          "net_r": -6.308206,
+          "profit_factor": 0.485312633807818,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 2,
+            "USDJPY": 7
+          },
+          "win_rate": 0.2,
+          "wins": 3
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -25.193102000000003,
+        "overall_profit_factor": 0.9280300837780093,
+        "total_net_r": -6.9044740000000004,
+        "total_trades": 139,
+        "worst_fold_net_r": -6.308206
+      },
+      "outcome_sha256": "73f7d7cb07bd968336a7a38a0f75d2e00d509cb5dd5d90d1682fa0f6340d41e6",
+      "overall": {
+        "ambiguous_exits": 1,
+        "distinct_pairs": 6,
+        "expectancy_r": -0.049672474820143885,
+        "losses": 94,
+        "maximum_drawdown_r": 25.193102000000003,
+        "maximum_pair_trade_share": 0.3597122302158273,
+        "net_r": -6.9044740000000004,
+        "profit_factor": 0.9280300837780093,
+        "trades": 139,
+        "trades_by_pair": {
+          "AUDUSD": 3,
+          "EURUSD": 50,
+          "GBPUSD": 31,
+          "USDCAD": 2,
+          "USDCHF": 8,
+          "USDJPY": 45
+        },
+        "win_rate": 0.3237410071942446,
+        "wins": 45
+      },
+      "parameters": {
+        "ema_length": 45,
+        "maximum_wick_ticks": 1.25
+      },
+      "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+      "run_id": "7e6e4830684a8cef",
+      "score": "worst_fold_net_r=-6.308206;total_net_r=-6.904474;overall_profit_factor=0.92803008;negative_overall_drawdown_r=-25.193102;total_trades=139",
+      "status": "discard",
+      "validation": {
+        "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+        "diagnostics": {
+          "annualized_fold_sharpe": -0.42531065234908294,
+          "bootstrap": {
+            "block_size": 3,
+            "confidence_level": 0.9,
+            "mean_fold_net_r_lower": -3.0081603333333335,
+            "mean_fold_net_r_upper": 1.7412690000000002,
+            "method": "deterministic-circular-moving-block",
+            "probability_mean_positive": 0.3615,
+            "samples": 2000
+          },
+          "fold_count": 12,
+          "fold_net_r": [
+            1.7517530000000001,
+            -6.308206,
+            -5.234381,
+            -5.166151,
+            -3.249461,
+            0.7259959999999999,
+            -2.2756629999999998,
+            6.709293000000001,
+            1.6403839999999998,
+            -1.017391,
+            -3.086917,
+            8.60627
+          ],
+          "fold_net_r_stdev": 4.686339150566266,
+          "largest_profitable_fold_share": 0.44285297042827054,
+          "mean_fold_net_r": -0.5753728333333333,
+          "median_fold_net_r": -1.6465269999999999,
+          "multiple_testing": {
+            "bonferroni_adjusted_confidence": 0.0,
+            "prior_candidate_trials": 43,
+            "promotion_gate": false,
+            "raw_probability_mean_positive": 0.3615,
+            "selection_bias_risk": "high",
+            "trials_including_current": 44
+          },
+          "nonnegative_fold_ratio": 0.4166666666666667,
+          "one_sided_sign_test_p_value": 0.80615234375,
+          "profitable_fold_count": 5,
+          "profitable_fold_ratio": 0.4166666666666667,
+          "worst_rolling_three_fold_net_r": -16.708738
+        },
+        "neighbourhood_robustness": {
+          "passed": false,
+          "status": "not-run-base-gates-failed"
+        },
+        "profile": "phase1-walk-forward-v1",
+        "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+      },
+      "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "april_2026_minimum_trades": true,
+          "april_2026_positive_net_r": true,
+          "august_2025_minimum_trades": true,
+          "august_2025_positive_net_r": true,
+          "december_2025_minimum_trades": true,
+          "december_2025_positive_net_r": true,
+          "february_2026_minimum_trades": true,
+          "february_2026_positive_net_r": true,
+          "january_2026_minimum_trades": true,
+          "january_2026_positive_net_r": true,
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "march_2026_minimum_trades": true,
+          "march_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": false,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "maximum_single_fold_profit_share": false,
+          "may_2026_minimum_trades": true,
+          "may_2026_positive_net_r": true,
+          "minimum_bootstrap_mean_fold_net_r_lower": false,
+          "minimum_bootstrap_probability_mean_positive": false,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": false,
+          "minimum_profitable_fold_ratio": false,
+          "minimum_total_trades": true,
+          "minimum_worst_rolling_three_fold_net_r": false,
+          "neighbourhood_robustness": false,
+          "november_2025_minimum_trades": true,
+          "november_2025_positive_net_r": true,
+          "october_2025_minimum_trades": true,
+          "october_2025_positive_net_r": true,
+          "september_2025_minimum_trades": true,
+          "september_2025_positive_net_r": true
+        },
+        "passed": false
+      },
+      "behavior_sha256": "5eeca0f8bec7afb28a685b84f11f822e94c0b58175b434d90c6c287cf1c4c62f",
+      "candidate": "grid-0038",
+      "category": "wick-detection",
+      "description": "Controlled test of maximum_wick_ticks=1.5 against production defaults.",
+      "effect": "trade-changed",
+      "folds": {
+        "april_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.10252399999999999,
+          "losses": 10,
+          "maximum_drawdown_r": 6.163891,
+          "maximum_pair_trade_share": 0.4375,
+          "net_r": 1.6403839999999998,
+          "profit_factor": 1.1608631859184304,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 7,
+            "GBPUSD": 3,
+            "USDCHF": 2,
+            "USDJPY": 4
+          },
+          "win_rate": 0.375,
+          "wins": 6
+        },
+        "august_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.1347502307692308,
+          "losses": 8,
+          "maximum_drawdown_r": 6.110009999999999,
+          "maximum_pair_trade_share": 0.3076923076923077,
+          "net_r": 1.7517530000000001,
+          "profit_factor": 1.2146801641750493,
+          "trades": 13,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 4,
+            "GBPUSD": 4,
+            "USDJPY": 4
+          },
+          "win_rate": 0.38461538461538464,
+          "wins": 5
+        },
+        "december_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.2707884166666667,
+          "losses": 9,
+          "maximum_drawdown_r": 6.174448,
+          "maximum_pair_trade_share": 0.4166666666666667,
+          "net_r": -3.249461,
+          "profit_factor": 0.645690963795386,
+          "trades": 12,
+          "trades_by_pair": {
+            "EURUSD": 5,
+            "GBPUSD": 2,
+            "USDJPY": 5
+          },
+          "win_rate": 0.25,
+          "wins": 3
+        },
+        "february_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.16254735714285712,
+          "losses": 10,
+          "maximum_drawdown_r": 5.160631,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -2.2756629999999998,
+          "profit_factor": 0.7766963215868606,
+          "trades": 14,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 7,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.2857142857142857,
+          "wins": 4
+        },
+        "january_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": -0.09669653846153846,
+          "losses": 9,
+          "maximum_drawdown_r": 5.234902999999999,
+          "maximum_pair_trade_share": 0.38461538461538464,
+          "net_r": -1.257055,
+          "profit_factor": 0.8632546216990952,
+          "trades": 13,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "GBPUSD": 3,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 5
+          },
+          "win_rate": 0.3076923076923077,
+          "wins": 4
+        },
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.5737513333333333,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.4666666666666667,
+          "net_r": 8.60627,
+          "profit_factor": 2.196249016593508,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 7,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5333333333333333,
+          "wins": 8
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "march_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.3946642941176471,
+          "losses": 9,
+          "maximum_drawdown_r": 4.0677959999999995,
+          "maximum_pair_trade_share": 0.4117647058823529,
+          "net_r": 6.709293000000001,
+          "profit_factor": 1.733683606665655,
+          "trades": 17,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 5,
+            "GBPUSD": 2,
+            "USDCHF": 2,
+            "USDJPY": 7
+          },
+          "win_rate": 0.47058823529411764,
+          "wins": 8
+        },
+        "may_2026": {
+          "distinct_pairs": 1,
+          "expectancy_r": -1.017391,
+          "losses": 1,
+          "maximum_drawdown_r": 1.017391,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": -1.017391,
+          "profit_factor": 0.0,
+          "trades": 1,
+          "trades_by_pair": {
+            "AUDUSD": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "november_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.6872646666666666,
+          "losses": 8,
+          "maximum_drawdown_r": 8.169253000000001,
+          "maximum_pair_trade_share": 0.4444444444444444,
+          "net_r": -6.185382000000001,
+          "profit_factor": 0.24284607172773326,
+          "trades": 9,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "GBPUSD": 2,
+            "USDJPY": 4
+          },
+          "win_rate": 0.1111111111111111,
+          "wins": 1
+        },
+        "october_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.5211040833333334,
+          "losses": 10,
+          "maximum_drawdown_r": 8.23263,
+          "maximum_pair_trade_share": 0.4166666666666667,
+          "net_r": -6.253249,
+          "profit_factor": 0.3864930837281447,
+          "trades": 12,
+          "trades_by_pair": {
+            "EURUSD": 5,
+            "GBPUSD": 4,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.16666666666666666,
+          "wins": 2
+        },
+        "september_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.4205470666666667,
+          "losses": 12,
+          "maximum_drawdown_r": 6.308206000000001,
+          "maximum_pair_trade_share": 0.4666666666666667,
+          "net_r": -6.308206,
+          "profit_factor": 0.485312633807818,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 2,
+            "USDJPY": 7
+          },
+          "win_rate": 0.2,
+          "wins": 3
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -28.413984000000003,
+        "overall_profit_factor": 0.8884840635119302,
+        "total_net_r": -10.925624,
+        "total_trades": 140,
+        "worst_fold_net_r": -6.308206
+      },
+      "outcome_sha256": "e15807b906589b0eb20bb05ab16b382c6bee63990a0f325bf2027752d0d5c951",
+      "overall": {
+        "ambiguous_exits": 1,
+        "distinct_pairs": 6,
+        "expectancy_r": -0.07804017142857143,
+        "losses": 96,
+        "maximum_drawdown_r": 28.413984000000003,
+        "maximum_pair_trade_share": 0.35714285714285715,
+        "net_r": -10.925624,
+        "profit_factor": 0.8884840635119302,
+        "trades": 140,
+        "trades_by_pair": {
+          "AUDUSD": 3,
+          "EURUSD": 50,
+          "GBPUSD": 31,
+          "USDCAD": 2,
+          "USDCHF": 8,
+          "USDJPY": 46
+        },
+        "win_rate": 0.3142857142857143,
+        "wins": 44
+      },
+      "parameters": {
+        "maximum_wick_ticks": 1.5
+      },
+      "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+      "run_id": "c84753b96b687508",
+      "score": "worst_fold_net_r=-6.308206;total_net_r=-10.925624;overall_profit_factor=0.88848406;negative_overall_drawdown_r=-28.413984;total_trades=140",
+      "status": "discard",
+      "validation": {
+        "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+        "diagnostics": {
+          "annualized_fold_sharpe": -0.6488167394021302,
+          "bootstrap": {
+            "block_size": 3,
+            "confidence_level": 0.9,
+            "mean_fold_net_r_lower": -3.385896266666667,
+            "mean_fold_net_r_upper": 1.4782173958333331,
+            "method": "deterministic-circular-moving-block",
+            "probability_mean_positive": 0.289,
+            "samples": 2000
+          },
+          "fold_count": 12,
+          "fold_net_r": [
+            1.7517530000000001,
+            -6.308206,
+            -6.253249,
+            -6.185382000000001,
+            -3.249461,
+            -1.257055,
+            -2.2756629999999998,
+            6.709293000000001,
+            1.6403839999999998,
+            -1.017391,
+            -3.086917,
+            8.60627
+          ],
+          "fold_net_r_stdev": 4.861089098346347,
+          "largest_profitable_fold_share": 0.46003891445768313,
+          "mean_fold_net_r": -0.9104686666666667,
+          "median_fold_net_r": -1.766359,
+          "multiple_testing": {
+            "bonferroni_adjusted_confidence": 0.0,
+            "prior_candidate_trials": 44,
+            "promotion_gate": false,
+            "raw_probability_mean_positive": 0.289,
+            "selection_bias_risk": "high",
+            "trials_including_current": 45
+          },
+          "nonnegative_fold_ratio": 0.3333333333333333,
+          "one_sided_sign_test_p_value": 0.927001953125,
+          "profitable_fold_count": 4,
+          "profitable_fold_ratio": 0.3333333333333333,
+          "worst_rolling_three_fold_net_r": -18.746837
+        },
+        "neighbourhood_robustness": {
+          "passed": false,
+          "status": "not-run-base-gates-failed"
+        },
+        "profile": "phase1-walk-forward-v1",
+        "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+      },
+      "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "april_2026_minimum_trades": true,
+          "april_2026_positive_net_r": true,
+          "august_2025_minimum_trades": true,
+          "august_2025_positive_net_r": true,
+          "december_2025_minimum_trades": true,
+          "december_2025_positive_net_r": true,
+          "february_2026_minimum_trades": true,
+          "february_2026_positive_net_r": true,
+          "january_2026_minimum_trades": true,
+          "january_2026_positive_net_r": true,
+          "july_2026_minimum_trades": false,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "march_2026_minimum_trades": true,
+          "march_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": false,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "maximum_single_fold_profit_share": false,
+          "may_2026_minimum_trades": true,
+          "may_2026_positive_net_r": true,
+          "minimum_bootstrap_mean_fold_net_r_lower": false,
+          "minimum_bootstrap_probability_mean_positive": false,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": false,
+          "minimum_profitable_fold_ratio": false,
+          "minimum_total_trades": false,
+          "minimum_worst_rolling_three_fold_net_r": false,
+          "neighbourhood_robustness": false,
+          "november_2025_minimum_trades": true,
+          "november_2025_positive_net_r": true,
+          "october_2025_minimum_trades": true,
+          "october_2025_positive_net_r": true,
+          "september_2025_minimum_trades": true,
+          "september_2025_positive_net_r": true
+        },
+        "passed": false
+      },
+      "behavior_sha256": "a4d376e48aca2df5f6f8011a7eefb4a1f36cea1b4dab56adeca85284600c9033",
+      "candidate": "grid-0710",
+      "category": "entry-model",
+      "description": "Controlled test of entry_model=origin_limit, expiry_bars=3, origin_zone_atr_fraction=0.1, origin_zone_minimum_ticks=3, invalidate_on_trend_change=False against production defaults.",
+      "effect": "trade-changed",
+      "folds": {
+        "april_2026": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.5944157142857144,
+          "losses": 6,
+          "maximum_drawdown_r": 5.0995550000000005,
+          "maximum_pair_trade_share": 0.5714285714285714,
+          "net_r": -4.16091,
+          "profit_factor": 0.3218047978010418,
+          "trades": 7,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 2,
+            "USDJPY": 1
+          },
+          "win_rate": 0.14285714285714285,
+          "wins": 1
+        },
+        "august_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": 0.47868625000000004,
+          "losses": 2,
+          "maximum_drawdown_r": 2.055009,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 1.9147450000000001,
+          "profit_factor": 1.931745311091095,
+          "trades": 4,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 1,
+            "USDJPY": 1
+          },
+          "win_rate": 0.5,
+          "wins": 2
+        },
+        "december_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.16319542857142857,
+          "losses": 5,
+          "maximum_drawdown_r": 3.114199,
+          "maximum_pair_trade_share": 0.5714285714285714,
+          "net_r": -1.142368,
+          "profit_factor": 0.7757145274853604,
+          "trades": 7,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.2857142857142857,
+          "wins": 2
+        },
+        "february_2026": {
+          "distinct_pairs": 3,
+          "expectancy_r": -1.0227845,
+          "losses": 6,
+          "maximum_drawdown_r": 6.136707,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -6.1367069999999995,
+          "profit_factor": 0.0,
+          "trades": 6,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 3,
+            "USDJPY": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "january_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.3154755555555555,
+          "losses": 5,
+          "maximum_drawdown_r": 4.091558000000001,
+          "maximum_pair_trade_share": 0.3333333333333333,
+          "net_r": 2.8392799999999996,
+          "profit_factor": 1.5563202544674146,
+          "trades": 9,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 3,
+            "USDCAD": 1,
+            "USDJPY": 3
+          },
+          "win_rate": 0.4444444444444444,
+          "wins": 4
+        },
+        "july_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -0.02094000000000003,
+          "losses": 2,
+          "maximum_drawdown_r": 1.019417,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -0.0628200000000001,
+          "profit_factor": 0.9691308582329013,
+          "trades": 3,
+          "trades_by_pair": {
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.3333333333333333,
+          "wins": 1
+        },
+        "june_2026": {
+          "distinct_pairs": 0,
+          "expectancy_r": null,
+          "losses": 0,
+          "maximum_drawdown_r": 0.0,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": 0,
+          "profit_factor": null,
+          "trades": 0,
+          "trades_by_pair": {},
+          "win_rate": null,
+          "wins": 0
+        },
+        "march_2026": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.01913666666666669,
+          "losses": 4,
+          "maximum_drawdown_r": 2.044346,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -0.11482000000000014,
+          "profit_factor": 0.9718897427673988,
+          "trades": 6,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "NZDUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.3333333333333333,
+          "wins": 2
+        },
+        "may_2026": {
+          "distinct_pairs": 1,
+          "expectancy_r": 1.978723,
+          "losses": 0,
+          "maximum_drawdown_r": 0.0,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": 1.978723,
+          "profit_factor": null,
+          "trades": 1,
+          "trades_by_pair": {
+            "EURUSD": 1
+          },
+          "win_rate": 1.0,
+          "wins": 1
+        },
+        "november_2025": {
+          "distinct_pairs": 2,
+          "expectancy_r": -0.27783424999999995,
+          "losses": 3,
+          "maximum_drawdown_r": 2.059655,
+          "maximum_pair_trade_share": 0.75,
+          "net_r": -1.1113369999999998,
+          "profit_factor": 0.6406914608139443,
+          "trades": 4,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "USDJPY": 1
+          },
+          "win_rate": 0.25,
+          "wins": 1
+        },
+        "october_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.16255885714285712,
+          "losses": 5,
+          "maximum_drawdown_r": 3.121652,
+          "maximum_pair_trade_share": 0.42857142857142855,
+          "net_r": -1.1379119999999998,
+          "profit_factor": 0.7770317058785494,
+          "trades": 7,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 3,
+            "USDJPY": 2
+          },
+          "win_rate": 0.2857142857142857,
+          "wins": 2
+        },
+        "september_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.26738575,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0475649999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -1.069543,
+          "profit_factor": 0.6490499792457257,
+          "trades": 4,
+          "trades_by_pair": {
+            "EURUSD": 2,
+            "GBPUSD": 1,
+            "USDJPY": 1
+          },
+          "win_rate": 0.25,
+          "wins": 1
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -15.027971,
+        "overall_profit_factor": 0.8041510012778206,
+        "total_net_r": -8.203669,
+        "total_trades": 58,
+        "worst_fold_net_r": -6.1367069999999995
+      },
+      "outcome_sha256": "4d78e702c4f1975038a2932beebaa6207e1c7fcfbf2dd4a3277dd2969221aad6",
+      "overall": {
+        "ambiguous_exits": 5,
+        "distinct_pairs": 6,
+        "expectancy_r": -0.14144256896551724,
+        "losses": 41,
+        "maximum_drawdown_r": 15.027971,
+        "maximum_pair_trade_share": 0.39655172413793105,
+        "net_r": -8.203669,
+        "profit_factor": 0.8041510012778206,
+        "trades": 58,
+        "trades_by_pair": {
+          "EURUSD": 23,
+          "GBPUSD": 14,
+          "NZDUSD": 1,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 18
+        },
+        "win_rate": 0.29310344827586204,
+        "wins": 17
+      },
+      "parameters": {
+        "entry_model": "origin_limit",
+        "expiry_bars": 3,
+        "invalidate_on_trend_change": false,
+        "origin_zone_atr_fraction": 0.1,
+        "origin_zone_minimum_ticks": 3
+      },
+      "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+      "run_id": "4ff03a1f3ba88b58",
+      "score": "worst_fold_net_r=-6.136707;total_net_r=-8.203669;overall_profit_factor=0.804151;negative_overall_drawdown_r=-15.027971;total_trades=58",
+      "status": "discard",
+      "validation": {
+        "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+        "diagnostics": {
+          "annualized_fold_sharpe": -0.9387615720633216,
+          "bootstrap": {
+            "block_size": 3,
+            "confidence_level": 0.9,
+            "mean_fold_net_r_lower": -1.629608595833335,
+            "mean_fold_net_r_upper": 0.13840183333333334,
+            "method": "deterministic-circular-moving-block",
+            "probability_mean_positive": 0.096,
+            "samples": 2000
+          },
+          "fold_count": 12,
+          "fold_net_r": [
+            1.9147450000000001,
+            -1.069543,
+            -1.1379119999999998,
+            -1.1113369999999998,
+            -1.142368,
+            2.8392799999999996,
+            -6.1367069999999995,
+            -0.11482000000000014,
+            -4.16091,
+            1.978723,
+            0.0,
+            -0.0628200000000001
+          ],
+          "fold_net_r_stdev": 2.522680223841282,
+          "largest_profitable_fold_share": 0.4217119072331238,
+          "mean_fold_net_r": -0.6836390833333333,
+          "median_fold_net_r": -0.5921815,
+          "multiple_testing": {
+            "bonferroni_adjusted_confidence": 0.0,
+            "prior_candidate_trials": 45,
+            "promotion_gate": false,
+            "raw_probability_mean_positive": 0.096,
+            "selection_bias_risk": "high",
+            "trials_including_current": 46
+          },
+          "nonnegative_fold_ratio": 0.3333333333333333,
+          "one_sided_sign_test_p_value": 0.980712890625,
+          "profitable_fold_count": 3,
+          "profitable_fold_ratio": 0.25,
+          "worst_rolling_three_fold_net_r": -10.412437
+        },
+        "neighbourhood_robustness": {
+          "passed": false,
+          "status": "not-run-base-gates-failed"
+        },
+        "profile": "phase1-walk-forward-v1",
+        "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+      },
+      "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "april_2026_minimum_trades": true,
+          "april_2026_positive_net_r": true,
+          "august_2025_minimum_trades": true,
+          "august_2025_positive_net_r": true,
+          "december_2025_minimum_trades": true,
+          "december_2025_positive_net_r": true,
+          "february_2026_minimum_trades": true,
+          "february_2026_positive_net_r": true,
+          "january_2026_minimum_trades": true,
+          "january_2026_positive_net_r": true,
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "march_2026_minimum_trades": true,
+          "march_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": false,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "maximum_single_fold_profit_share": false,
+          "may_2026_minimum_trades": true,
+          "may_2026_positive_net_r": true,
+          "minimum_bootstrap_mean_fold_net_r_lower": false,
+          "minimum_bootstrap_probability_mean_positive": false,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": false,
+          "minimum_profitable_fold_ratio": false,
+          "minimum_total_trades": true,
+          "minimum_worst_rolling_three_fold_net_r": false,
+          "neighbourhood_robustness": false,
+          "november_2025_minimum_trades": true,
+          "november_2025_positive_net_r": true,
+          "october_2025_minimum_trades": true,
+          "october_2025_positive_net_r": true,
+          "september_2025_minimum_trades": true,
+          "september_2025_positive_net_r": true
+        },
+        "passed": false
+      },
+      "behavior_sha256": "b0f0569e77ab659905018f3948779c52e1eeb70c6bf54319118365d9597d044a",
+      "candidate": "grid-0568",
+      "category": "trend-filter",
+      "description": "Controlled test of ema_length=45, ema_slope_lookback=4 against production defaults.",
+      "effect": "trade-changed",
+      "folds": {
+        "april_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.022049500000000007,
+          "losses": 12,
+          "maximum_drawdown_r": 6.2350639999999995,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -0.3968910000000001,
+          "profit_factor": 0.9675903821359427,
+          "trades": 18,
+          "trades_by_pair": {
+            "EURUSD": 9,
+            "GBPUSD": 3,
+            "USDCHF": 2,
+            "USDJPY": 4
+          },
+          "win_rate": 0.3333333333333333,
+          "wins": 6
+        },
+        "august_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.18023686666666666,
+          "losses": 9,
+          "maximum_drawdown_r": 7.134399999999999,
+          "maximum_pair_trade_share": 0.4,
+          "net_r": 2.7035530000000003,
+          "profit_factor": 1.294369460129263,
+          "trades": 15,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 6,
+            "GBPUSD": 4,
+            "USDJPY": 4
+          },
+          "win_rate": 0.4,
+          "wins": 6
+        },
+        "december_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.33132553846153845,
+          "losses": 10,
+          "maximum_drawdown_r": 6.277820000000001,
+          "maximum_pair_trade_share": 0.46153846153846156,
+          "net_r": -4.307232,
+          "profit_factor": 0.5789209009297359,
+          "trades": 13,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 2,
+            "USDJPY": 5
+          },
+          "win_rate": 0.23076923076923078,
+          "wins": 3
+        },
+        "february_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.21958966666666663,
+          "losses": 11,
+          "maximum_drawdown_r": 6.178813,
+          "maximum_pair_trade_share": 0.5333333333333333,
+          "net_r": -3.2938449999999992,
+          "profit_factor": 0.7061446929901685,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 8,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.26666666666666666,
+          "wins": 4
+        },
+        "january_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.18041293333333333,
+          "losses": 9,
+          "maximum_drawdown_r": 5.199313999999999,
+          "maximum_pair_trade_share": 0.3333333333333333,
+          "net_r": 2.706194,
+          "profit_factor": 1.2943861026650694,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 5,
+            "GBPUSD": 3,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 5
+          },
+          "win_rate": 0.4,
+          "wins": 6
+        },
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.6615620625,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": 10.584993,
+          "profit_factor": 2.4712863373911302,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 8,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5625,
+          "wins": 9
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "march_2026": {
+          "distinct_pairs": 6,
+          "expectancy_r": 0.24563363157894738,
+          "losses": 11,
+          "maximum_drawdown_r": 4.0677959999999995,
+          "maximum_pair_trade_share": 0.3684210526315789,
+          "net_r": 4.667039000000001,
+          "profit_factor": 1.417187051094126,
+          "trades": 19,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 6,
+            "GBPUSD": 2,
+            "NZDUSD": 1,
+            "USDCHF": 2,
+            "USDJPY": 7
+          },
+          "win_rate": 0.42105263157894735,
+          "wins": 8
+        },
+        "may_2026": {
+          "distinct_pairs": 3,
+          "expectancy_r": -1.0183343333333332,
+          "losses": 3,
+          "maximum_drawdown_r": 3.055003,
+          "maximum_pair_trade_share": 0.3333333333333333,
+          "net_r": -3.055003,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 1,
+            "GBPUSD": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "november_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.4224317,
+          "losses": 8,
+          "maximum_drawdown_r": 7.140382,
+          "maximum_pair_trade_share": 0.4,
+          "net_r": -4.224317,
+          "profit_factor": 0.4834168335999415,
+          "trades": 10,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 3,
+            "USDJPY": 3
+          },
+          "win_rate": 0.2,
+          "wins": 2
+        },
+        "october_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.457835625,
+          "losses": 13,
+          "maximum_drawdown_r": 9.304751000000001,
+          "maximum_pair_trade_share": 0.375,
+          "net_r": -7.32537,
+          "profit_factor": 0.4469917189588539,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 5,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.1875,
+          "wins": 3
+        },
+        "september_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.35338916666666664,
+          "losses": 14,
+          "maximum_drawdown_r": 6.361005000000001,
+          "maximum_pair_trade_share": 0.3888888888888889,
+          "net_r": -6.3610050000000005,
+          "profit_factor": 0.5548439082140787,
+          "trades": 18,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 5,
+            "USDJPY": 7
+          },
+          "win_rate": 0.2222222222222222,
+          "wins": 4
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -27.417238,
+        "overall_profit_factor": 0.8985836648315085,
+        "total_net_r": -11.388801,
+        "total_trades": 161,
+        "worst_fold_net_r": -7.32537
+      },
+      "outcome_sha256": "3717d8091bc7651a398ccfbf0281616acec9412604df7009504f352a73b85e1b",
+      "overall": {
+        "ambiguous_exits": 1,
+        "distinct_pairs": 7,
+        "expectancy_r": -0.07073789440993788,
+        "losses": 110,
+        "maximum_drawdown_r": 27.417238,
+        "maximum_pair_trade_share": 0.38509316770186336,
+        "net_r": -11.388801,
+        "profit_factor": 0.8985836648315085,
+        "trades": 161,
+        "trades_by_pair": {
+          "AUDUSD": 3,
+          "EURUSD": 62,
+          "GBPUSD": 38,
+          "NZDUSD": 1,
+          "USDCAD": 2,
+          "USDCHF": 8,
+          "USDJPY": 47
+        },
+        "win_rate": 0.3167701863354037,
+        "wins": 51
+      },
+      "parameters": {
+        "ema_length": 45,
+        "ema_slope_lookback": 4
+      },
+      "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+      "run_id": "6421232a9fa7dc84",
+      "score": "worst_fold_net_r=-7.32537;total_net_r=-11.388801;overall_profit_factor=0.89858366;negative_overall_drawdown_r=-27.417238;total_trades=161",
+      "status": "discard",
+      "validation": {
+        "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+        "diagnostics": {
+          "annualized_fold_sharpe": -0.6316096266877126,
+          "bootstrap": {
+            "block_size": 3,
+            "confidence_level": 0.9,
+            "mean_fold_net_r_lower": -3.477741329166667,
+            "mean_fold_net_r_upper": 1.3897800000000002,
+            "method": "deterministic-circular-moving-block",
+            "probability_mean_positive": 0.269,
+            "samples": 2000
+          },
+          "fold_count": 12,
+          "fold_net_r": [
+            2.7035530000000003,
+            -6.3610050000000005,
+            -7.32537,
+            -4.224317,
+            -4.307232,
+            2.706194,
+            -3.2938449999999992,
+            4.667039000000001,
+            -0.3968910000000001,
+            -3.055003,
+            -3.086917,
+            10.584993
+          ],
+          "fold_net_r_stdev": 5.205214617753224,
+          "largest_profitable_fold_share": 0.5122982391787271,
+          "mean_fold_net_r": -0.9490667499999998,
+          "median_fold_net_r": -3.0709600000000004,
+          "multiple_testing": {
+            "bonferroni_adjusted_confidence": 0.0,
+            "prior_candidate_trials": 46,
+            "promotion_gate": false,
+            "raw_probability_mean_positive": 0.269,
+            "selection_bias_risk": "high",
+            "trials_including_current": 47
+          },
+          "nonnegative_fold_ratio": 0.3333333333333333,
+          "one_sided_sign_test_p_value": 0.927001953125,
+          "profitable_fold_count": 4,
+          "profitable_fold_ratio": 0.3333333333333333,
+          "worst_rolling_three_fold_net_r": -17.910692
+        },
+        "neighbourhood_robustness": {
+          "passed": false,
+          "status": "not-run-base-gates-failed"
+        },
+        "profile": "phase1-walk-forward-v1",
+        "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+      },
+      "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "april_2026_minimum_trades": true,
+          "april_2026_positive_net_r": true,
+          "august_2025_minimum_trades": true,
+          "august_2025_positive_net_r": true,
+          "december_2025_minimum_trades": true,
+          "december_2025_positive_net_r": true,
+          "february_2026_minimum_trades": true,
+          "february_2026_positive_net_r": true,
+          "january_2026_minimum_trades": true,
+          "january_2026_positive_net_r": true,
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "march_2026_minimum_trades": true,
+          "march_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": false,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "maximum_single_fold_profit_share": false,
+          "may_2026_minimum_trades": true,
+          "may_2026_positive_net_r": true,
+          "minimum_bootstrap_mean_fold_net_r_lower": false,
+          "minimum_bootstrap_probability_mean_positive": false,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": false,
+          "minimum_profitable_fold_ratio": false,
+          "minimum_total_trades": true,
+          "minimum_worst_rolling_three_fold_net_r": false,
+          "neighbourhood_robustness": false,
+          "november_2025_minimum_trades": true,
+          "november_2025_positive_net_r": true,
+          "october_2025_minimum_trades": true,
+          "october_2025_positive_net_r": true,
+          "september_2025_minimum_trades": true,
+          "september_2025_positive_net_r": true
+        },
+        "passed": false
+      },
+      "behavior_sha256": "62491fd892f85118d01cf5da9a12f4b485d505bd767935a2c2850c7f966e64ff",
+      "candidate": "grid-0653",
+      "category": "trend-filter+wick-detection",
+      "description": "Controlled test of ema_slope_lookback=4, tolerance_ticks=1.0 against production defaults.",
+      "effect": "trade-changed",
+      "folds": {
+        "april_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.021714533333333345,
+          "losses": 10,
+          "maximum_drawdown_r": 6.163891,
+          "maximum_pair_trade_share": 0.4,
+          "net_r": -0.3257180000000002,
+          "profit_factor": 0.9680586769982032,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 3,
+            "USDCHF": 2,
+            "USDJPY": 4
+          },
+          "win_rate": 0.3333333333333333,
+          "wins": 5
+        },
+        "august_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.052544571428571434,
+          "losses": 9,
+          "maximum_drawdown_r": 7.1261389999999984,
+          "maximum_pair_trade_share": 0.35714285714285715,
+          "net_r": 0.7356240000000001,
+          "profit_factor": 1.0801686494573428,
+          "trades": 14,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 4,
+            "GBPUSD": 5,
+            "USDJPY": 4
+          },
+          "win_rate": 0.35714285714285715,
+          "wins": 5
+        },
+        "december_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": 0.06977681818181815,
+          "losses": 7,
+          "maximum_drawdown_r": 4.142843,
+          "maximum_pair_trade_share": 0.45454545454545453,
+          "net_r": 0.7675449999999997,
+          "profit_factor": 1.1075044641500285,
+          "trades": 11,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 2,
+            "USDJPY": 5
+          },
+          "win_rate": 0.36363636363636365,
+          "wins": 4
+        },
+        "february_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.16254735714285712,
+          "losses": 10,
+          "maximum_drawdown_r": 5.160631,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -2.2756629999999998,
+          "profit_factor": 0.7766963215868606,
+          "trades": 14,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 7,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.2857142857142857,
+          "wins": 4
+        },
+        "january_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.051856857142857135,
+          "losses": 9,
+          "maximum_drawdown_r": 5.234902999999999,
+          "maximum_pair_trade_share": 0.35714285714285715,
+          "net_r": 0.7259959999999999,
+          "profit_factor": 1.078975540183161,
+          "trades": 14,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 3,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 5
+          },
+          "win_rate": 0.35714285714285715,
+          "wins": 5
+        },
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.5737513333333333,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.4666666666666667,
+          "net_r": 8.60627,
+          "profit_factor": 2.196249016593508,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 7,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5333333333333333,
+          "wins": 8
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "march_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.3946642941176471,
+          "losses": 9,
+          "maximum_drawdown_r": 4.0677959999999995,
+          "maximum_pair_trade_share": 0.4117647058823529,
+          "net_r": 6.709293000000001,
+          "profit_factor": 1.733683606665655,
+          "trades": 17,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 5,
+            "GBPUSD": 2,
+            "USDCHF": 2,
+            "USDJPY": 7
+          },
+          "win_rate": 0.47058823529411764,
+          "wins": 8
+        },
+        "may_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.016632,
+          "losses": 2,
+          "maximum_drawdown_r": 2.033264,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -2.033264,
+          "profit_factor": 0.0,
+          "trades": 2,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "GBPUSD": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "november_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.645768875,
+          "losses": 7,
+          "maximum_drawdown_r": 7.150022,
+          "maximum_pair_trade_share": 0.375,
+          "net_r": -5.166151,
+          "profit_factor": 0.27746362179025463,
+          "trades": 8,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "GBPUSD": 2,
+            "USDJPY": 3
+          },
+          "win_rate": 0.125,
+          "wins": 1
+        },
+        "october_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.5211040833333334,
+          "losses": 10,
+          "maximum_drawdown_r": 8.23263,
+          "maximum_pair_trade_share": 0.4166666666666667,
+          "net_r": -6.253249,
+          "profit_factor": 0.3864930837281447,
+          "trades": 12,
+          "trades_by_pair": {
+            "EURUSD": 5,
+            "GBPUSD": 4,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.16666666666666666,
+          "wins": 2
+        },
+        "september_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.4205470666666667,
+          "losses": 12,
+          "maximum_drawdown_r": 6.308206000000001,
+          "maximum_pair_trade_share": 0.4666666666666667,
+          "net_r": -6.308206,
+          "profit_factor": 0.485312633807818,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 2,
+            "USDJPY": 7
+          },
+          "win_rate": 0.2,
+          "wins": 3
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -22.194964000000006,
+        "overall_profit_factor": 0.9184729564043755,
+        "total_net_r": -7.90444,
+        "total_trades": 140,
+        "worst_fold_net_r": -6.308206
+      },
+      "outcome_sha256": "3d8a5ef0e5aabfa1014b715842c689053da6bb4fdfe64f6cd1572ebd48200b39",
+      "overall": {
+        "ambiguous_exits": 1,
+        "distinct_pairs": 6,
+        "expectancy_r": -0.05646028571428572,
+        "losses": 95,
+        "maximum_drawdown_r": 22.194964000000006,
+        "maximum_pair_trade_share": 0.35,
+        "net_r": -7.90444,
+        "profit_factor": 0.9184729564043755,
+        "trades": 140,
+        "trades_by_pair": {
+          "AUDUSD": 3,
+          "EURUSD": 49,
+          "GBPUSD": 33,
+          "USDCAD": 2,
+          "USDCHF": 8,
+          "USDJPY": 45
+        },
+        "win_rate": 0.32142857142857145,
+        "wins": 45
+      },
+      "parameters": {
+        "ema_slope_lookback": 4,
+        "tolerance_ticks": 1.0
+      },
+      "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+      "run_id": "9d5a773496a32ac9",
+      "score": "worst_fold_net_r=-6.308206;total_net_r=-7.90444;overall_profit_factor=0.91847296;negative_overall_drawdown_r=-22.194964;total_trades=140",
+      "status": "discard",
+      "validation": {
+        "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+        "diagnostics": {
+          "annualized_fold_sharpe": -0.48843948789708574,
+          "bootstrap": {
+            "block_size": 3,
+            "confidence_level": 0.9,
+            "mean_fold_net_r_lower": -2.826132966666667,
+            "mean_fold_net_r_upper": 1.2779095000000003,
+            "method": "deterministic-circular-moving-block",
+            "probability_mean_positive": 0.32,
+            "samples": 2000
+          },
+          "fold_count": 12,
+          "fold_net_r": [
+            0.7356240000000001,
+            -6.308206,
+            -6.253249,
+            -5.166151,
+            0.7675449999999997,
+            0.7259959999999999,
+            -2.2756629999999998,
+            6.709293000000001,
+            -0.3257180000000002,
+            -2.033264,
+            -3.086917,
+            8.60627
+          ],
+          "fold_net_r_stdev": 4.671643750018428,
+          "largest_profitable_fold_share": 0.4905331105731591,
+          "mean_fold_net_r": -0.6587033333333333,
+          "median_fold_net_r": -1.179491,
+          "multiple_testing": {
+            "bonferroni_adjusted_confidence": 0.0,
+            "prior_candidate_trials": 47,
+            "promotion_gate": false,
+            "raw_probability_mean_positive": 0.32,
+            "selection_bias_risk": "high",
+            "trials_including_current": 48
+          },
+          "nonnegative_fold_ratio": 0.4166666666666667,
+          "one_sided_sign_test_p_value": 0.80615234375,
+          "profitable_fold_count": 5,
+          "profitable_fold_ratio": 0.4166666666666667,
+          "worst_rolling_three_fold_net_r": -17.727606
+        },
+        "neighbourhood_robustness": {
+          "passed": false,
+          "status": "not-run-base-gates-failed"
+        },
+        "profile": "phase1-walk-forward-v1",
+        "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+      },
+      "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    },
+    {
+      "acceptance_gates": {
+        "checks": {
+          "april_2026_minimum_trades": true,
+          "april_2026_positive_net_r": true,
+          "august_2025_minimum_trades": true,
+          "august_2025_positive_net_r": true,
+          "december_2025_minimum_trades": true,
+          "december_2025_positive_net_r": true,
+          "february_2026_minimum_trades": true,
+          "february_2026_positive_net_r": true,
+          "january_2026_minimum_trades": true,
+          "january_2026_positive_net_r": true,
+          "july_2026_minimum_trades": true,
+          "july_2026_positive_net_r": true,
+          "june_2026_minimum_trades": false,
+          "june_2026_positive_net_r": true,
+          "march_2026_minimum_trades": true,
+          "march_2026_positive_net_r": true,
+          "maximum_ambiguous_exits": false,
+          "maximum_overall_drawdown_r": false,
+          "maximum_pair_trade_share": true,
+          "maximum_single_fold_profit_share": false,
+          "may_2026_minimum_trades": true,
+          "may_2026_positive_net_r": true,
+          "minimum_bootstrap_mean_fold_net_r_lower": false,
+          "minimum_bootstrap_probability_mean_positive": false,
+          "minimum_distinct_pairs": true,
+          "minimum_overall_profit_factor": false,
+          "minimum_profitable_fold_ratio": false,
+          "minimum_total_trades": true,
+          "minimum_worst_rolling_three_fold_net_r": false,
+          "neighbourhood_robustness": false,
+          "november_2025_minimum_trades": true,
+          "november_2025_positive_net_r": true,
+          "october_2025_minimum_trades": true,
+          "october_2025_positive_net_r": true,
+          "september_2025_minimum_trades": true,
+          "september_2025_positive_net_r": true
+        },
+        "passed": false
+      },
+      "behavior_sha256": "edede21599ad4c963303bdc5495dc5a98d4300bc423a8969cedc1d34eb66d2db",
+      "candidate": "grid-0695",
+      "category": "wick-detection",
+      "description": "Controlled test of tolerance_ticks=1.5, maximum_wick_ticks=1.5 against production defaults.",
+      "effect": "trade-changed",
+      "folds": {
+        "april_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.10252399999999999,
+          "losses": 10,
+          "maximum_drawdown_r": 6.163891,
+          "maximum_pair_trade_share": 0.4375,
+          "net_r": 1.6403839999999998,
+          "profit_factor": 1.1608631859184304,
+          "trades": 16,
+          "trades_by_pair": {
+            "EURUSD": 7,
+            "GBPUSD": 3,
+            "USDCHF": 2,
+            "USDJPY": 4
+          },
+          "win_rate": 0.375,
+          "wins": 6
+        },
+        "august_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": 0.1347502307692308,
+          "losses": 8,
+          "maximum_drawdown_r": 6.110009999999999,
+          "maximum_pair_trade_share": 0.3076923076923077,
+          "net_r": 1.7517530000000001,
+          "profit_factor": 1.2146801641750493,
+          "trades": 13,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 4,
+            "GBPUSD": 4,
+            "USDJPY": 4
+          },
+          "win_rate": 0.38461538461538464,
+          "wins": 5
+        },
+        "december_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.2707884166666667,
+          "losses": 9,
+          "maximum_drawdown_r": 6.174448,
+          "maximum_pair_trade_share": 0.4166666666666667,
+          "net_r": -3.249461,
+          "profit_factor": 0.645690963795386,
+          "trades": 12,
+          "trades_by_pair": {
+            "EURUSD": 5,
+            "GBPUSD": 2,
+            "USDJPY": 5
+          },
+          "win_rate": 0.25,
+          "wins": 3
+        },
+        "february_2026": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.16254735714285712,
+          "losses": 10,
+          "maximum_drawdown_r": 5.160631,
+          "maximum_pair_trade_share": 0.5,
+          "net_r": -2.2756629999999998,
+          "profit_factor": 0.7766963215868606,
+          "trades": 14,
+          "trades_by_pair": {
+            "EURUSD": 4,
+            "GBPUSD": 7,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.2857142857142857,
+          "wins": 4
+        },
+        "january_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": -0.09669653846153846,
+          "losses": 9,
+          "maximum_drawdown_r": 5.234902999999999,
+          "maximum_pair_trade_share": 0.38461538461538464,
+          "net_r": -1.257055,
+          "profit_factor": 0.8632546216990952,
+          "trades": 13,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "GBPUSD": 3,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 5
+          },
+          "win_rate": 0.3076923076923077,
+          "wins": 4
+        },
+        "july_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.5737513333333333,
+          "losses": 7,
+          "maximum_drawdown_r": 3.0908049999999996,
+          "maximum_pair_trade_share": 0.4666666666666667,
+          "net_r": 8.60627,
+          "profit_factor": 2.196249016593508,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 7,
+            "GBPUSD": 2,
+            "USDCAD": 1,
+            "USDCHF": 1,
+            "USDJPY": 4
+          },
+          "win_rate": 0.5333333333333333,
+          "wins": 8
+        },
+        "june_2026": {
+          "distinct_pairs": 2,
+          "expectancy_r": -1.0289723333333334,
+          "losses": 3,
+          "maximum_drawdown_r": 3.0869169999999997,
+          "maximum_pair_trade_share": 0.6666666666666666,
+          "net_r": -3.086917,
+          "profit_factor": 0.0,
+          "trades": 3,
+          "trades_by_pair": {
+            "EURUSD": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "march_2026": {
+          "distinct_pairs": 5,
+          "expectancy_r": 0.3946642941176471,
+          "losses": 9,
+          "maximum_drawdown_r": 4.0677959999999995,
+          "maximum_pair_trade_share": 0.4117647058823529,
+          "net_r": 6.709293000000001,
+          "profit_factor": 1.733683606665655,
+          "trades": 17,
+          "trades_by_pair": {
+            "AUDUSD": 1,
+            "EURUSD": 5,
+            "GBPUSD": 2,
+            "USDCHF": 2,
+            "USDJPY": 7
+          },
+          "win_rate": 0.47058823529411764,
+          "wins": 8
+        },
+        "may_2026": {
+          "distinct_pairs": 1,
+          "expectancy_r": -1.017391,
+          "losses": 1,
+          "maximum_drawdown_r": 1.017391,
+          "maximum_pair_trade_share": 1.0,
+          "net_r": -1.017391,
+          "profit_factor": 0.0,
+          "trades": 1,
+          "trades_by_pair": {
+            "AUDUSD": 1
+          },
+          "win_rate": 0.0,
+          "wins": 0
+        },
+        "november_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.6872646666666666,
+          "losses": 8,
+          "maximum_drawdown_r": 8.169253000000001,
+          "maximum_pair_trade_share": 0.4444444444444444,
+          "net_r": -6.185382000000001,
+          "profit_factor": 0.24284607172773326,
+          "trades": 9,
+          "trades_by_pair": {
+            "EURUSD": 3,
+            "GBPUSD": 2,
+            "USDJPY": 4
+          },
+          "win_rate": 0.1111111111111111,
+          "wins": 1
+        },
+        "october_2025": {
+          "distinct_pairs": 4,
+          "expectancy_r": -0.5211040833333334,
+          "losses": 10,
+          "maximum_drawdown_r": 8.23263,
+          "maximum_pair_trade_share": 0.4166666666666667,
+          "net_r": -6.253249,
+          "profit_factor": 0.3864930837281447,
+          "trades": 12,
+          "trades_by_pair": {
+            "EURUSD": 5,
+            "GBPUSD": 4,
+            "USDCHF": 1,
+            "USDJPY": 2
+          },
+          "win_rate": 0.16666666666666666,
+          "wins": 2
+        },
+        "september_2025": {
+          "distinct_pairs": 3,
+          "expectancy_r": -0.4205470666666667,
+          "losses": 12,
+          "maximum_drawdown_r": 6.308206000000001,
+          "maximum_pair_trade_share": 0.4666666666666667,
+          "net_r": -6.308206,
+          "profit_factor": 0.485312633807818,
+          "trades": 15,
+          "trades_by_pair": {
+            "EURUSD": 6,
+            "GBPUSD": 2,
+            "USDJPY": 7
+          },
+          "win_rate": 0.2,
+          "wins": 3
+        }
+      },
+      "objective": {
+        "negative_overall_drawdown_r": -28.413984000000003,
+        "overall_profit_factor": 0.8884840635119302,
+        "total_net_r": -10.925624,
+        "total_trades": 140,
+        "worst_fold_net_r": -6.308206
+      },
+      "outcome_sha256": "e15807b906589b0eb20bb05ab16b382c6bee63990a0f325bf2027752d0d5c951",
+      "overall": {
+        "ambiguous_exits": 1,
+        "distinct_pairs": 6,
+        "expectancy_r": -0.07804017142857143,
+        "losses": 96,
+        "maximum_drawdown_r": 28.413984000000003,
+        "maximum_pair_trade_share": 0.35714285714285715,
+        "net_r": -10.925624,
+        "profit_factor": 0.8884840635119302,
+        "trades": 140,
+        "trades_by_pair": {
+          "AUDUSD": 3,
+          "EURUSD": 50,
+          "GBPUSD": 31,
+          "USDCAD": 2,
+          "USDCHF": 8,
+          "USDJPY": 46
+        },
+        "win_rate": 0.3142857142857143,
+        "wins": 44
+      },
+      "parameters": {
+        "maximum_wick_ticks": 1.5,
+        "tolerance_ticks": 1.5
+      },
+      "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+      "run_id": "c22ac3ee3545ff64",
+      "score": "worst_fold_net_r=-6.308206;total_net_r=-10.925624;overall_profit_factor=0.88848406;negative_overall_drawdown_r=-28.413984;total_trades=140",
+      "status": "discard",
+      "validation": {
+        "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+        "diagnostics": {
+          "annualized_fold_sharpe": -0.6488167394021302,
+          "bootstrap": {
+            "block_size": 3,
+            "confidence_level": 0.9,
+            "mean_fold_net_r_lower": -3.385896266666667,
+            "mean_fold_net_r_upper": 1.4782173958333331,
+            "method": "deterministic-circular-moving-block",
+            "probability_mean_positive": 0.289,
+            "samples": 2000
+          },
+          "fold_count": 12,
+          "fold_net_r": [
+            1.7517530000000001,
+            -6.308206,
+            -6.253249,
+            -6.185382000000001,
+            -3.249461,
+            -1.257055,
+            -2.2756629999999998,
+            6.709293000000001,
+            1.6403839999999998,
+            -1.017391,
+            -3.086917,
+            8.60627
+          ],
+          "fold_net_r_stdev": 4.861089098346347,
+          "largest_profitable_fold_share": 0.46003891445768313,
+          "mean_fold_net_r": -0.9104686666666667,
+          "median_fold_net_r": -1.766359,
+          "multiple_testing": {
+            "bonferroni_adjusted_confidence": 0.0,
+            "prior_candidate_trials": 48,
+            "promotion_gate": false,
+            "raw_probability_mean_positive": 0.289,
+            "selection_bias_risk": "high",
+            "trials_including_current": 49
+          },
+          "nonnegative_fold_ratio": 0.3333333333333333,
+          "one_sided_sign_test_p_value": 0.927001953125,
+          "profitable_fold_count": 4,
+          "profitable_fold_ratio": 0.3333333333333333,
+          "worst_rolling_three_fold_net_r": -18.746837
+        },
+        "neighbourhood_robustness": {
+          "passed": false,
+          "status": "not-run-base-gates-failed"
+        },
+        "profile": "phase1-walk-forward-v1",
+        "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+      },
+      "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    }
+  ],
+  "funnel_only": 0,
+  "generated_at_london": "2026-09-04T22:55:09+01:00",
+  "generated_at_utc": "2026-09-04T21:55:09+00:00",
+  "incumbent": {
+    "acceptance_gates": {
+      "checks": {
+        "april_2026_minimum_trades": true,
+        "april_2026_positive_net_r": true,
+        "august_2025_minimum_trades": true,
+        "august_2025_positive_net_r": true,
+        "december_2025_minimum_trades": true,
+        "december_2025_positive_net_r": true,
+        "february_2026_minimum_trades": true,
+        "february_2026_positive_net_r": true,
+        "january_2026_minimum_trades": true,
+        "january_2026_positive_net_r": true,
+        "july_2026_minimum_trades": true,
+        "july_2026_positive_net_r": true,
+        "june_2026_minimum_trades": false,
+        "june_2026_positive_net_r": true,
+        "march_2026_minimum_trades": true,
+        "march_2026_positive_net_r": true,
+        "maximum_ambiguous_exits": false,
+        "maximum_overall_drawdown_r": false,
+        "maximum_pair_trade_share": true,
+        "maximum_single_fold_profit_share": false,
+        "may_2026_minimum_trades": true,
+        "may_2026_positive_net_r": true,
+        "minimum_bootstrap_mean_fold_net_r_lower": false,
+        "minimum_bootstrap_probability_mean_positive": false,
+        "minimum_distinct_pairs": true,
+        "minimum_overall_profit_factor": false,
+        "minimum_profitable_fold_ratio": false,
+        "minimum_total_trades": true,
+        "minimum_worst_rolling_three_fold_net_r": false,
+        "neighbourhood_robustness": true,
+        "november_2025_minimum_trades": true,
+        "november_2025_positive_net_r": true,
+        "october_2025_minimum_trades": true,
+        "october_2025_positive_net_r": true,
+        "september_2025_minimum_trades": true,
+        "september_2025_positive_net_r": true
+      },
+      "passed": false
+    },
+    "behavior_sha256": "467978fb14047486d915804ff22a64712c030f200ee0ee259046d40ca76cdeff",
+    "description": "Immutable Wickless production defaults with the London-New York session union at 9ddd1b44.",
+    "folds": {
+      "april_2026": {
+        "distinct_pairs": 4,
+        "expectancy_r": -0.02268427777777778,
+        "losses": 12,
+        "maximum_drawdown_r": 8.212591999999999,
+        "maximum_pair_trade_share": 0.5,
+        "net_r": -0.40831700000000004,
+        "profit_factor": 0.9666573494047527,
+        "trades": 18,
+        "trades_by_pair": {
+          "EURUSD": 9,
+          "GBPUSD": 3,
+          "USDCHF": 2,
+          "USDJPY": 4
+        },
+        "win_rate": 0.3333333333333333,
+        "wins": 6
+      },
+      "august_2025": {
+        "distinct_pairs": 4,
+        "expectancy_r": 0.18023686666666666,
+        "losses": 9,
+        "maximum_drawdown_r": 7.134399999999999,
+        "maximum_pair_trade_share": 0.4,
+        "net_r": 2.7035530000000003,
+        "profit_factor": 1.294369460129263,
+        "trades": 15,
+        "trades_by_pair": {
+          "AUDUSD": 1,
+          "EURUSD": 6,
+          "GBPUSD": 4,
+          "USDJPY": 4
+        },
+        "win_rate": 0.4,
+        "wins": 6
+      },
+      "december_2025": {
+        "distinct_pairs": 3,
+        "expectancy_r": -0.4225891333333333,
+        "losses": 12,
+        "maximum_drawdown_r": 8.309425,
+        "maximum_pair_trade_share": 0.4666666666666667,
+        "net_r": -6.338837,
+        "profit_factor": 0.4829928915607818,
+        "trades": 15,
+        "trades_by_pair": {
+          "EURUSD": 7,
+          "GBPUSD": 3,
+          "USDJPY": 5
+        },
+        "win_rate": 0.2,
+        "wins": 3
+      },
+      "february_2026": {
+        "distinct_pairs": 4,
+        "expectancy_r": -0.21958966666666663,
+        "losses": 11,
+        "maximum_drawdown_r": 6.178813,
+        "maximum_pair_trade_share": 0.5333333333333333,
+        "net_r": -3.2938449999999992,
+        "profit_factor": 0.7061446929901685,
+        "trades": 15,
+        "trades_by_pair": {
+          "EURUSD": 4,
+          "GBPUSD": 8,
+          "USDCHF": 1,
+          "USDJPY": 2
+        },
+        "win_rate": 0.26666666666666666,
+        "wins": 4
+      },
+      "january_2026": {
+        "distinct_pairs": 5,
+        "expectancy_r": 0.051653071428571416,
+        "losses": 9,
+        "maximum_drawdown_r": 5.199313999999999,
+        "maximum_pair_trade_share": 0.35714285714285715,
+        "net_r": 0.7231429999999999,
+        "profit_factor": 1.078665184181003,
+        "trades": 14,
+        "trades_by_pair": {
+          "EURUSD": 4,
+          "GBPUSD": 3,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 5
+        },
+        "win_rate": 0.35714285714285715,
+        "wins": 5
+      },
+      "july_2026": {
+        "distinct_pairs": 5,
+        "expectancy_r": 0.6615620625,
+        "losses": 7,
+        "maximum_drawdown_r": 3.0908049999999996,
+        "maximum_pair_trade_share": 0.5,
+        "net_r": 10.584993,
+        "profit_factor": 2.4712863373911302,
+        "trades": 16,
+        "trades_by_pair": {
+          "EURUSD": 8,
+          "GBPUSD": 2,
+          "USDCAD": 1,
+          "USDCHF": 1,
+          "USDJPY": 4
+        },
+        "win_rate": 0.5625,
+        "wins": 9
+      },
+      "june_2026": {
+        "distinct_pairs": 2,
+        "expectancy_r": -1.0289723333333334,
+        "losses": 3,
+        "maximum_drawdown_r": 3.0869169999999997,
+        "maximum_pair_trade_share": 0.6666666666666666,
+        "net_r": -3.086917,
+        "profit_factor": 0.0,
+        "trades": 3,
+        "trades_by_pair": {
+          "EURUSD": 1,
+          "USDJPY": 2
+        },
+        "win_rate": 0.0,
+        "wins": 0
+      },
+      "march_2026": {
+        "distinct_pairs": 6,
+        "expectancy_r": 0.24563363157894738,
+        "losses": 11,
+        "maximum_drawdown_r": 4.0677959999999995,
+        "maximum_pair_trade_share": 0.3684210526315789,
+        "net_r": 4.667039000000001,
+        "profit_factor": 1.417187051094126,
+        "trades": 19,
+        "trades_by_pair": {
+          "AUDUSD": 1,
+          "EURUSD": 6,
+          "GBPUSD": 2,
+          "NZDUSD": 1,
+          "USDCHF": 2,
+          "USDJPY": 7
+        },
+        "win_rate": 0.42105263157894735,
+        "wins": 8
+      },
+      "may_2026": {
+        "distinct_pairs": 2,
+        "expectancy_r": -1.019565,
+        "losses": 2,
+        "maximum_drawdown_r": 2.03913,
+        "maximum_pair_trade_share": 0.5,
+        "net_r": -2.03913,
+        "profit_factor": 0.0,
+        "trades": 2,
+        "trades_by_pair": {
+          "AUDUSD": 1,
+          "EURUSD": 1
+        },
+        "win_rate": 0.0,
+        "wins": 0
+      },
+      "november_2025": {
+        "distinct_pairs": 3,
+        "expectancy_r": -0.47668618181818184,
+        "losses": 9,
+        "maximum_drawdown_r": 8.159613,
+        "maximum_pair_trade_share": 0.36363636363636365,
+        "net_r": -5.2435480000000005,
+        "profit_factor": 0.42984151837897494,
+        "trades": 11,
+        "trades_by_pair": {
+          "EURUSD": 4,
+          "GBPUSD": 3,
+          "USDJPY": 4
+        },
+        "win_rate": 0.18181818181818182,
+        "wins": 2
+      },
+      "october_2025": {
+        "distinct_pairs": 4,
+        "expectancy_r": -0.4579903125,
+        "losses": 13,
+        "maximum_drawdown_r": 9.307226,
+        "maximum_pair_trade_share": 0.4375,
+        "net_r": -7.327845,
+        "profit_factor": 0.44690821720210705,
+        "trades": 16,
+        "trades_by_pair": {
+          "EURUSD": 7,
+          "GBPUSD": 5,
+          "USDCHF": 1,
+          "USDJPY": 3
+        },
+        "win_rate": 0.1875,
+        "wins": 3
+      },
+      "september_2025": {
+        "distinct_pairs": 3,
+        "expectancy_r": -0.35338916666666664,
+        "losses": 14,
+        "maximum_drawdown_r": 6.361005000000001,
+        "maximum_pair_trade_share": 0.3888888888888889,
+        "net_r": -6.3610050000000005,
+        "profit_factor": 0.5548439082140787,
+        "trades": 18,
+        "trades_by_pair": {
+          "EURUSD": 6,
+          "GBPUSD": 5,
+          "USDJPY": 7
+        },
+        "win_rate": 0.2222222222222222,
+        "wins": 4
+      }
+    },
+    "name": "production-baseline",
+    "objective": {
+      "negative_overall_drawdown_r": -31.38749000000001,
+      "overall_profit_factor": 0.8651268270672711,
+      "total_net_r": -15.420716,
+      "total_trades": 162,
+      "worst_fold_net_r": -7.327845
+    },
+    "overall": {
+      "ambiguous_exits": 1,
+      "distinct_pairs": 7,
+      "expectancy_r": -0.09518960493827161,
+      "losses": 112,
+      "maximum_drawdown_r": 31.38749000000001,
+      "maximum_pair_trade_share": 0.3888888888888889,
+      "net_r": -15.420716,
+      "profit_factor": 0.8651268270672711,
+      "trades": 162,
+      "trades_by_pair": {
+        "AUDUSD": 3,
+        "EURUSD": 63,
+        "GBPUSD": 38,
+        "NZDUSD": 1,
+        "USDCAD": 2,
+        "USDCHF": 8,
+        "USDJPY": 47
+      },
+      "win_rate": 0.30864197530864196,
+      "wins": 50
+    },
+    "parameters": {},
+    "validation": {
+      "dataset_directory": "dukascopy_m1_bidask_2025-05_2026-07",
+      "diagnostics": {
+        "annualized_fold_sharpe": -0.8407539280116046,
+        "bootstrap": {
+          "block_size": 3,
+          "confidence_level": 0.9,
+          "mean_fold_net_r_lower": -3.97630945,
+          "mean_fold_net_r_upper": 1.250695183333333,
+          "method": "deterministic-circular-moving-block",
+          "probability_mean_positive": 0.207,
+          "samples": 2000
+        },
+        "fold_count": 12,
+        "fold_net_r": [
+          2.7035530000000003,
+          -6.3610050000000005,
+          -7.327845,
+          -5.2435480000000005,
+          -6.338837,
+          0.7231429999999999,
+          -3.2938449999999992,
+          4.667039000000001,
+          -0.40831700000000004,
+          -2.03913,
+          -3.086917,
+          10.584993
+        ],
+        "fold_net_r_stdev": 5.29474453646197,
+        "largest_profitable_fold_share": 0.5666870356482518,
+        "mean_fold_net_r": -1.2850596666666665,
+        "median_fold_net_r": -2.5630235,
+        "multiple_testing": {
+          "bonferroni_adjusted_confidence": 0.0,
+          "prior_candidate_trials": 37,
+          "promotion_gate": false,
+          "raw_probability_mean_positive": 0.207,
+          "selection_bias_risk": "high",
+          "trials_including_current": 38
+        },
+        "nonnegative_fold_ratio": 0.3333333333333333,
+        "one_sided_sign_test_p_value": 0.927001953125,
+        "profitable_fold_count": 4,
+        "profitable_fold_ratio": 0.3333333333333333,
+        "worst_rolling_three_fold_net_r": -18.932398
+      },
+      "neighbourhood_robustness": {
+        "passed": true,
+        "status": "not-applicable-production-reference"
+      },
+      "profile": "phase1-walk-forward-v1",
+      "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+    }
+  },
+  "kept": 0,
+  "london_date": "2026-09-04",
+  "no_effect": 0,
+  "optimizer": {
+    "candidate_pool": 144,
+    "exploit_count": 0,
+    "exploration_fraction": 0.2,
+    "explore_count": 12,
+    "generated_at_london": "2026-09-04T22:55:09+01:00",
+    "generated_at_utc": "2026-09-04T21:55:09+00:00",
+    "minimum_observations": 8,
+    "mode": "diversified-fallback",
+    "model_version": "phase2-constrained-kernel-v1",
+    "observations": 1,
+    "outcomes": [
+      {
+        "acceptance_passed": false,
+        "candidate": "grid-0705",
+        "effect": "trade-changed",
+        "objective": {
+          "negative_overall_drawdown_r": -10.287349000000003,
+          "overall_profit_factor": 0.729182865213708,
+          "total_net_r": -4.419285,
+          "total_trades": 22,
+          "worst_fold_net_r": -3.049341
+        },
+        "status": "discard"
+      },
+      {
+        "acceptance_passed": false,
+        "candidate": "grid-0023",
+        "effect": "trade-changed",
+        "objective": {
+          "negative_overall_drawdown_r": -28.346239999999998,
+          "overall_profit_factor": 0.9068707556127572,
+          "total_net_r": -10.363043,
+          "total_trades": 160,
+          "worst_fold_net_r": -8.268977
+        },
+        "status": "discard"
+      },
+      {
+        "acceptance_passed": false,
+        "candidate": "grid-0612",
+        "effect": "trade-changed",
+        "objective": {
+          "negative_overall_drawdown_r": -14.940806,
+          "overall_profit_factor": 1.090117964209531,
+          "total_net_r": 5.236961,
+          "total_trades": 89,
+          "worst_fold_net_r": -4.268552
+        },
+        "status": "discard"
+      },
+      {
+        "acceptance_passed": false,
+        "candidate": "grid-0036",
+        "effect": "trade-changed",
+        "objective": {
+          "negative_overall_drawdown_r": -16.978904999999997,
+          "overall_profit_factor": 1.0531810718554657,
+          "total_net_r": 3.198862,
+          "total_trades": 91,
+          "worst_fold_net_r": -4.268552
+        },
+        "status": "discard"
+      },
+      {
+        "acceptance_passed": false,
+        "candidate": "grid-0708",
+        "effect": "trade-changed",
+        "objective": {
+          "negative_overall_drawdown_r": -19.149068,
+          "overall_profit_factor": 0.75193694097431,
+          "total_net_r": -12.418419,
+          "total_trades": 68,
+          "worst_fold_net_r": -7.208073000000001
+        },
+        "status": "discard"
+      },
+      {
+        "acceptance_passed": false,
+        "candidate": "grid-0029",
+        "effect": "trade-changed",
+        "objective": {
+          "negative_overall_drawdown_r": -26.880931000000025,
+          "overall_profit_factor": 0.9009428116864957,
+          "total_net_r": -11.528998,
+          "total_trades": 167,
+          "worst_fold_net_r": -7.32537
+        },
+        "status": "discard"
+      },
+      {
+        "acceptance_passed": false,
+        "candidate": "grid-0630",
+        "effect": "trade-changed",
+        "objective": {
+          "negative_overall_drawdown_r": -25.193102000000003,
+          "overall_profit_factor": 0.9280300837780093,
+          "total_net_r": -6.9044740000000004,
+          "total_trades": 139,
+          "worst_fold_net_r": -6.308206
+        },
+        "status": "discard"
+      },
+      {
+        "acceptance_passed": false,
+        "candidate": "grid-0038",
+        "effect": "trade-changed",
+        "objective": {
+          "negative_overall_drawdown_r": -28.413984000000003,
+          "overall_profit_factor": 0.8884840635119302,
+          "total_net_r": -10.925624,
+          "total_trades": 140,
+          "worst_fold_net_r": -6.308206
+        },
+        "status": "discard"
+      },
+      {
+        "acceptance_passed": false,
+        "candidate": "grid-0710",
+        "effect": "trade-changed",
+        "objective": {
+          "negative_overall_drawdown_r": -15.027971,
+          "overall_profit_factor": 0.8041510012778206,
+          "total_net_r": -8.203669,
+          "total_trades": 58,
+          "worst_fold_net_r": -6.1367069999999995
+        },
+        "status": "discard"
+      },
+      {
+        "acceptance_passed": false,
+        "candidate": "grid-0568",
+        "effect": "trade-changed",
+        "objective": {
+          "negative_overall_drawdown_r": -27.417238,
+          "overall_profit_factor": 0.8985836648315085,
+          "total_net_r": -11.388801,
+          "total_trades": 161,
+          "worst_fold_net_r": -7.32537
+        },
+        "status": "discard"
+      },
+      {
+        "acceptance_passed": false,
+        "candidate": "grid-0653",
+        "effect": "trade-changed",
+        "objective": {
+          "negative_overall_drawdown_r": -22.194964000000006,
+          "overall_profit_factor": 0.9184729564043755,
+          "total_net_r": -7.90444,
+          "total_trades": 140,
+          "worst_fold_net_r": -6.308206
+        },
+        "status": "discard"
+      },
+      {
+        "acceptance_passed": false,
+        "candidate": "grid-0695",
+        "effect": "trade-changed",
+        "objective": {
+          "negative_overall_drawdown_r": -28.413984000000003,
+          "overall_profit_factor": 0.8884840635119302,
+          "total_net_r": -10.925624,
+          "total_trades": 140,
+          "worst_fold_net_r": -6.308206
+        },
+        "status": "discard"
+      }
+    ],
+    "planned_candidates": [
+      {
+        "name": "grid-0705",
+        "parameters": {
+          "entry_model": "zone_reclaim",
+          "expiry_bars": 6,
+          "maximum_entry_displacement_atr": 0.34,
+          "origin_zone_atr_fraction": 0.16,
+          "reclaim_buffer_ticks": 1
+        },
+        "selection": "diversified"
+      },
+      {
+        "name": "grid-0023",
+        "parameters": {
+          "ema_length": 40
+        },
+        "selection": "diversified"
+      },
+      {
+        "name": "grid-0612",
+        "parameters": {
+          "ema_length": 45,
+          "tolerance_ticks": 0.5
+        },
+        "selection": "diversified"
+      },
+      {
+        "name": "grid-0036",
+        "parameters": {
+          "tolerance_ticks": 0.5
+        },
+        "selection": "diversified"
+      },
+      {
+        "name": "grid-0708",
+        "parameters": {
+          "entry_model": "origin_limit",
+          "expiry_bars": 4,
+          "origin_zone_atr_fraction": 0.12,
+          "origin_zone_minimum_ticks": 2
+        },
+        "selection": "diversified"
+      },
+      {
+        "name": "grid-0029",
+        "parameters": {
+          "ema_slope_lookback": 3
+        },
+        "selection": "diversified"
+      },
+      {
+        "name": "grid-0630",
+        "parameters": {
+          "ema_length": 45,
+          "maximum_wick_ticks": 1.25
+        },
+        "selection": "diversified"
+      },
+      {
+        "name": "grid-0038",
+        "parameters": {
+          "maximum_wick_ticks": 1.5
+        },
+        "selection": "diversified"
+      },
+      {
+        "name": "grid-0710",
+        "parameters": {
+          "entry_model": "origin_limit",
+          "expiry_bars": 3,
+          "invalidate_on_trend_change": false,
+          "origin_zone_atr_fraction": 0.1,
+          "origin_zone_minimum_ticks": 3
+        },
+        "selection": "diversified"
+      },
+      {
+        "name": "grid-0568",
+        "parameters": {
+          "ema_length": 45,
+          "ema_slope_lookback": 4
+        },
+        "selection": "diversified"
+      },
+      {
+        "name": "grid-0653",
+        "parameters": {
+          "ema_slope_lookback": 4,
+          "tolerance_ticks": 1.0
+        },
+        "selection": "diversified"
+      },
+      {
+        "name": "grid-0695",
+        "parameters": {
+          "maximum_wick_ticks": 1.5,
+          "tolerance_ticks": 1.5
+        },
+        "selection": "diversified"
+      }
+    ],
+    "profile": "phase2-constrained-surrogate-v1",
+    "profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb",
+    "reason": "need 8 exact-profile observations; found 1",
+    "schema_version": 1,
+    "selected": []
+  },
+  "planned_candidates": [
+    "grid-0705",
+    "grid-0023",
+    "grid-0612",
+    "grid-0036",
+    "grid-0708",
+    "grid-0029",
+    "grid-0630",
+    "grid-0038",
+    "grid-0710",
+    "grid-0568",
+    "grid-0653",
+    "grid-0695"
+  ],
+  "rejected": 12,
+  "schema_version": 2,
+  "tested": 12,
+  "trade_changed": 12,
+  "worker_attempts_total": 48
+}
