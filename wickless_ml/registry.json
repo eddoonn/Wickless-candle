@@ -1,14 +1,90 @@
 {
-  "schema_version": 1,
-  "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
-  "deployment": {
-    "mode": "shadow",
-    "status": "NO_CHAMPION",
-    "canary_percent": 20,
-    "updated_at_utc": null,
-    "reason": "No historically validated champion exists yet."
+  "challenger": {
+    "dataset_sha256": "93c256caaf4db1f86dceb69a9bff100cab0da4c807cbbfb208b9880e1be23a51",
+    "feature_schema": "wickless-meta-label-features-v2",
+    "historical": {
+      "gates": {
+        "brier_not_worse_than_constant": true,
+        "drawdown_not_worse": true,
+        "expectancy_improves": false,
+        "log_loss_not_worse_than_constant": true,
+        "maximum_abstention_rate": true,
+        "maximum_expected_calibration_error": true,
+        "maximum_filter_coverage": true,
+        "minimum_filter_coverage": false,
+        "minimum_filtered_holdout_trades": false,
+        "profit_factor_not_worse": false
+      },
+      "holdout_baseline_classification": {
+        "brier_score": 0.2850781524503307,
+        "expected_calibration_error": 0.18913136499786048,
+        "log_loss": 0.7715790554678497,
+        "positive_rate": 0.47368421052631576,
+        "samples": 19
+      },
+      "holdout_classification": {
+        "brier_score": 0.2653920515574651,
+        "expected_calibration_error": 0.14586466165413534,
+        "log_loss": 0.7271979104010485,
+        "positive_rate": 0.47368421052631576,
+        "samples": 19
+      },
+      "holdout_filtered": {
+        "abstained": 1,
+        "abstention_rate": 0.05263157894736842,
+        "coverage": 0.0,
+        "expectancy_r": null,
+        "losses": 0,
+        "maximum_drawdown_r": 0.0,
+        "net_r": 0,
+        "profit_factor": null,
+        "trades": 0,
+        "wins": 0
+      },
+      "holdout_unfiltered": {
+        "expectancy_r": 0.3946355789473684,
+        "losses": 10,
+        "maximum_drawdown_r": 5.222238,
+        "net_r": 7.498075999999999,
+        "profit_factor": 1.7292928119866589,
+        "trades": 19,
+        "wins": 9
+      },
+      "passed": false,
+      "training_positive_rate": 0.2845528455284553
+    },
+    "historical_status": "REJECT",
+    "model_family": "gradient_boosted_stumps",
+    "model_id": "543c6de0c8e87376",
+    "model_path": "models/543c6de0c8e87376.json",
+    "promotion_score": [
+      -1000000000.3946356,
+      -0.2653920515574651,
+      -0.14586466165413534,
+      0.0,
+      -0.0
+    ],
+    "threshold": 0.5,
+    "trained_at_utc": "2026-09-04T22:20:09+00:00",
+    "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
   },
   "champion": null,
-  "challenger": null,
-  "history": []
+  "deployment": {
+    "canary_percent": 20,
+    "mode": "shadow",
+    "reason": "No historically validated champion exists yet.",
+    "status": "NO_CHAMPION",
+    "updated_at_utc": null
+  },
+  "history": [
+    {
+      "at_utc": "2026-09-04T22:20:09+00:00",
+      "event": "CHALLENGER_EVALUATED",
+      "historical_status": "REJECT",
+      "model_family": "gradient_boosted_stumps",
+      "model_id": "543c6de0c8e87376"
+    }
+  ],
+  "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+  "schema_version": 1
 }
