@@ -15,7 +15,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: wickless-live-signals
+  # A recovery dispatch from the scanner heartbeat must not be cancelled by
+  # the next scheduled tick (and vice versa); overlapping scans of the same
+  # event type still cancel so scan state stays single-flight per event.
+  group: wickless-live-signals-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:

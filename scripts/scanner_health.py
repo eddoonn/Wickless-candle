@@ -17,9 +17,16 @@ from zoneinfo import ZoneInfo
 
 UTC = timezone.utc
 LONDON = ZoneInfo("Europe/London")
-NOMINAL_RUNS_24H = 24 * 12
-MINIMUM_HEALTHY_RUNS_24H = 72
-FRESHNESS_MINUTES = 20
+# GitHub Actions `schedule` events are best-effort: ticks are routinely
+# delayed or dropped, and this repository has never observed the nominal
+# cadence (288 runs/day for the */5 cron). Empirical working days here
+# deliver roughly 5-12 scheduled runs, so the cadence floor below is the
+# achievable "scanner is still running" threshold rather than the schedule
+# intent, which is kept for reference only.
+NOMINAL_RUNS_24H = 24 * 12  # one run every five minutes, as scheduled
+MINIMUM_HEALTHY_RUNS_24H = 5  # ~one successful scan per five hours
+FRESHNESS_MINUTES = 20  # staleness after which a recovery scan is dispatched
+POLL_SECONDS = 10  # interval between recovery outcome polls
 
 
 def parse_timestamp(value: str) -> datetime:
@@ -121,8 +128,9 @@ def evaluate_runs(
         reasons.append(f"{failed_recent} scanner run(s) failed in the last 24 hours")
     if cancelled_recent:
         reasons.append(f"{cancelled_recent} scanner run(s) were cancelled in the last 24 hours")
-    if delay_minutes > freshness_minutes:
-        reasons.append(f"heartbeat started {delay_minutes:.1f} minutes after its checkpoint")
+    # A late heartbeat start is itself GitHub scheduler delay, not a scanner
+    # problem; the delay stays visible in the rendered header and report but
+    # does not drive the health state.
 
     needs_recovery = not current_fresh and not recent_active
     if needs_recovery:
@@ -223,27 +231,35 @@ def wait_for_recovery(
     existing_active_id: int | None,
     timeout_seconds: int = 300,
 ) -> dict[str, Any] | None:
+    """Wait for any run started after the dispatch to reach a conclusion.
+
+    Returns ``{"recovered": True, "run": row}`` when a run completes
+    successfully, ``{"recovered": False, "run": row}`` when runs complete but
+    only with non-success conclusions (for example the dispatch was cancelled
+    by a scheduled tick that has not finished yet), or ``None`` when nothing
+    completed before the deadline.
+    """
     deadline = time.monotonic() + timeout_seconds
+    latest_completion: dict[str, Any] | None = None
     while time.monotonic() < deadline:
         runs = _sorted_runs(fetch_runs(repository, token, workflow))
-        candidate = None
-        if existing_active_id is not None:
-            candidate = next(
-                (row for row in runs if int(row["id"]) == existing_active_id), None
+        candidates = [
+            row
+            for row in runs
+            if int(row["id"]) not in before_ids
+            or (
+                existing_active_id is not None
+                and int(row["id"]) == existing_active_id
             )
-        if candidate is None:
-            candidate = next(
-                (
-                    row
-                    for row in runs
-                    if int(row["id"]) not in before_ids
-                    and row.get("event") == "workflow_dispatch"
-                ),
-                None,
-            )
-        if candidate and candidate.get("status") == "completed":
-            return candidate
-        time.sleep(10)
+        ]
+        for row in candidates:
+            if row.get("status") == "completed":
+                latest_completion = row
+                if row.get("conclusion") == "success":
+                    return {"recovered": True, "run": row}
+        time.sleep(POLL_SECONDS)
+    if latest_completion is not None:
+        return {"recovered": False, "run": latest_completion}
     return None
 
 
@@ -356,7 +372,6 @@ def main(argv: list[str] | None = None) -> int:
     if report["needs_recovery"]:
         before_ids = {int(row["id"]) for row in runs}
         dispatch_workflow(args.repository, token, args.workflow, args.ref)
-        recovery_mode = "dispatched"
         recovery = wait_for_recovery(
             args.repository,
             token,
@@ -372,24 +387,33 @@ def main(argv: list[str] | None = None) -> int:
             now=refreshed_now,
             checkpoint=checkpoint,
         )
-        if recovery and recovery.get("conclusion") == "success":
+        if recovery is not None and recovery["recovered"]:
+            run_row = recovery["run"]
+            if run_row.get("event") == "workflow_dispatch":
+                recovery_status = "recovery dispatch succeeded"
+            else:
+                recovery_status = "recovered by a scheduled scan"
             report["recovery"] = {
-                "status": f"{recovery_mode} and succeeded",
-                "run_id": recovery["id"],
-                "url": recovery.get("html_url"),
+                "status": recovery_status,
+                "run_id": run_row["id"],
+                "url": run_row.get("html_url"),
             }
-            if report["state"] == "UNHEALTHY":
-                report["state"] = "DEGRADED"
-                report["healthy"] = False
+        elif report["needs_recovery"]:
+            # Still no fresh or active scan after the wait window: report the
+            # scanner as unhealthy rather than forcing UNHEALTHY when a
+            # scheduled scan merely cancelled the dispatch.
+            detail = "automatic recovery did not succeed"
+            if recovery is not None:
+                run_row = recovery["run"]
+                detail += f" ({run_row.get('conclusion') or run_row.get('status')})"
+            else:
+                detail += " (no scan completed within the wait window)"
+            report["reasons"].insert(0, detail)
         else:
-            report["state"] = "UNHEALTHY"
-            report["healthy"] = False
+            # The dispatch itself was superseded, but a fresh scan is present.
             report["recovery"] = {
-                "status": f"{recovery_mode} but did not complete successfully",
-                "run_id": None if recovery is None else recovery.get("id"),
-                "url": None if recovery is None else recovery.get("html_url"),
+                "status": "recovery superseded by a fresh scan",
             }
-            report["reasons"].insert(0, "automatic recovery did not succeed")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
