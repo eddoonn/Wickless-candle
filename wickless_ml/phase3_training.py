@@ -202,6 +202,13 @@ def train_and_register(*, data_root, validation_policy_path, learning_policy_pat
         "calibration_fit": len(calibration_fit), "model_selection": len(selection),
         "holdout": len(holdout),
     }
+    # The model-selection fold is one fixed calendar month (May 2026 in the
+    # twelve-fold profile) that yields only two fills under the production
+    # strategy, so the policy floor for selection is deliberately 2 rather than
+    # 5. Threshold tuning already refuses to engage below five trades and falls
+    # back to the neutral 0.5 threshold, so a higher floor would only block
+    # training without changing the model. Promotion still requires the full
+    # holdout gate chain on the June/July folds.
     minimums = {
         "total": int(settings["minimum_total_samples"]),
         "training": int(settings["minimum_training_samples"]),
