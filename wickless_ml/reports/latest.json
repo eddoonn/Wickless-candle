@@ -1,0 +1,118 @@
+{
+  "data_qa": [
+    {
+      "complete_m15_bars": 29237,
+      "first_bar_utc": "2025-05-01T01:00:00+00:00",
+      "incomplete_m15_buckets_rejected": 1074,
+      "last_bar_utc": "2026-07-31T20:45:00+00:00",
+      "pair": "EURUSD",
+      "source_file": "EURUSD_M1_BIDASK_2025-05-01_2026-07-31.csv.gz",
+      "source_sha256": "d28d1ae7a19b84fc294b808f2665c52e66fe343c724592e7c92775d53ccb8f9c"
+    },
+    {
+      "complete_m15_bars": 28675,
+      "first_bar_utc": "2025-05-01T00:00:00+00:00",
+      "incomplete_m15_buckets_rejected": 1336,
+      "last_bar_utc": "2026-07-31T20:45:00+00:00",
+      "pair": "GBPUSD",
+      "source_file": "GBPUSD_M1_BIDASK_2025-05-01_2026-07-31.csv.gz",
+      "source_sha256": "02b27efb4cb9def381abe312480485a60de2138504c8662eb402a5d4ecc3ae1f"
+    },
+    {
+      "complete_m15_bars": 28913,
+      "first_bar_utc": "2025-05-01T00:00:00+00:00",
+      "incomplete_m15_buckets_rejected": 954,
+      "last_bar_utc": "2026-07-31T20:45:00+00:00",
+      "pair": "USDJPY",
+      "source_file": "USDJPY_M1_BIDASK_2025-05-01_2026-07-31.csv.gz",
+      "source_sha256": "504b07d29461871928becdde0df7959f983ead50ee6ed34ee617aa8c452c81a8"
+    },
+    {
+      "complete_m15_bars": 28633,
+      "first_bar_utc": "2025-05-01T00:00:00+00:00",
+      "incomplete_m15_buckets_rejected": 1392,
+      "last_bar_utc": "2026-07-31T20:45:00+00:00",
+      "pair": "USDCHF",
+      "source_file": "USDCHF_M1_BIDASK_2025-05-01_2026-07-31.csv.gz",
+      "source_sha256": "4bb5b4403a52945a206493dc35293549b002706d87ad1bf319452aa1ce51dedc"
+    },
+    {
+      "complete_m15_bars": 28860,
+      "first_bar_utc": "2025-05-01T00:00:00+00:00",
+      "incomplete_m15_buckets_rejected": 972,
+      "last_bar_utc": "2026-07-31T20:45:00+00:00",
+      "pair": "USDCAD",
+      "source_file": "USDCAD_M1_BIDASK_2025-05-01_2026-07-31.csv.gz",
+      "source_sha256": "c01cb4c485b1ffb64c4903d1822e4853bf4a41e1bb1d9b02865989964e4f26b2"
+    },
+    {
+      "complete_m15_bars": 28390,
+      "first_bar_utc": "2025-05-01T00:00:00+00:00",
+      "incomplete_m15_buckets_rejected": 1228,
+      "last_bar_utc": "2026-07-31T20:45:00+00:00",
+      "pair": "AUDUSD",
+      "source_file": "AUDUSD_M1_BIDASK_2025-05-01_2026-07-31.csv.gz",
+      "source_sha256": "5ea0254604410cdd2cea787e5f41c89f6708af883ec35753c1e14c4fb2f12d5d"
+    },
+    {
+      "complete_m15_bars": 28128,
+      "first_bar_utc": "2025-05-01T00:00:00+00:00",
+      "incomplete_m15_buckets_rejected": 1454,
+      "last_bar_utc": "2026-07-31T20:45:00+00:00",
+      "pair": "NZDUSD",
+      "source_file": "NZDUSD_M1_BIDASK_2025-05-01_2026-07-31.csv.gz",
+      "source_sha256": "992182075efe49736a2da88e2332ca21ed5e0f4afdd6ce40b437f71da70540ac"
+    }
+  ],
+  "dataset_sha256": "93c256caaf4db1f86dceb69a9bff100cab0da4c807cbbfb208b9880e1be23a51",
+  "feature_schema": "wickless-meta-label-features-v2",
+  "generated_at_utc": "2026-09-04T21:55:34+00:00",
+  "learning_profile": "wickless-meta-label-learning-v1",
+  "minimum_samples": {
+    "calibration": 10,
+    "calibration_fit": 5,
+    "holdout": 10,
+    "model_selection": 5,
+    "total": 60,
+    "training": 35
+  },
+  "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
+  "reason": "The chronological dataset does not yet meet Phase 3 minima.",
+  "sample_counts": {
+    "calibration": 20,
+    "calibration_fit": 18,
+    "holdout": 19,
+    "model_selection": 2,
+    "total": 162,
+    "training": 123
+  },
+  "schema_version": 2,
+  "split_folds": {
+    "calibration": [
+      "april_2026",
+      "may_2026"
+    ],
+    "calibration_fit": [
+      "april_2026"
+    ],
+    "holdout": [
+      "june_2026",
+      "july_2026"
+    ],
+    "model_selection": [
+      "may_2026"
+    ],
+    "training": [
+      "august_2025",
+      "september_2025",
+      "october_2025",
+      "november_2025",
+      "december_2025",
+      "january_2026",
+      "february_2026",
+      "march_2026"
+    ]
+  },
+  "status": "INSUFFICIENT_DATA",
+  "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
+}
