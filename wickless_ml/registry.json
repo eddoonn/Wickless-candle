@@ -55,8 +55,8 @@
     },
     "historical_status": "REJECT",
     "model_family": "gradient_boosted_stumps",
-    "model_id": "d5b8ebb57dce1b74",
-    "model_path": "models/d5b8ebb57dce1b74.json",
+    "model_id": "3d5f501ffcfe2adc",
+    "model_path": "models/3d5f501ffcfe2adc.json",
     "promotion_score": [
       -1000000000.3946356,
       -0.2653920515574651,
@@ -65,7 +65,7 @@
       -0.0
     ],
     "threshold": 0.5,
-    "trained_at_utc": "2026-10-05T05:58:39+00:00",
+    "trained_at_utc": "2026-10-12T06:14:10+00:00",
     "validation_profile_sha256": "f02bfcf78d0fa2799c68ef4a7129ec5f635ce27ec3fe3a5267a7d0cfa3ed7afb"
   },
   "champion": null,
@@ -118,6 +118,13 @@
       "historical_status": "REJECT",
       "model_family": "gradient_boosted_stumps",
       "model_id": "d5b8ebb57dce1b74"
+    },
+    {
+      "at_utc": "2026-10-12T06:14:10+00:00",
+      "event": "CHALLENGER_EVALUATED",
+      "historical_status": "REJECT",
+      "model_family": "gradient_boosted_stumps",
+      "model_id": "3d5f501ffcfe2adc"
     }
   ],
   "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
