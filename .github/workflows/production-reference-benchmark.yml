@@ -1,0 +1,173 @@
+# Retrigger after the pull request merge ref became available.
+name: Publish production reference benchmark
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/production-reference-benchmark.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wickless-autoresearch-nightly
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      DATA_ROOT: .runtime-data/autoresearch-datasets
+      BI5_CACHE: .runtime-data/duka-bi5
+      DATASET: .runtime-data/autoresearch-datasets/dukascopy_m1_bidask_2025-05_2026-07
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Capture immutable starting point
+        shell: bash
+        run: |
+          git config user.name "wickless-autoresearch[bot]"
+          git config user.email "wickless-autoresearch[bot]@users.noreply.github.com"
+          echo "BASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Restore 15-month BID ASK research data
+        id: dataset-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .runtime-data/autoresearch-datasets
+            .runtime-data/duka-bi5
+          key: wickless-autoresearch-data-v2-walk-forward
+          restore-keys: |
+            wickless-autoresearch-data-v2-walk-forward-partial-
+
+      - name: Build missing 15-month BID ASK dataset
+        shell: bash
+        run: |
+          pairs=(EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD)
+          retry_download() {
+            local attempt
+            for attempt in 1 2 3; do
+              "$@" && return 0
+              sleep $((attempt * 5))
+            done
+            return 1
+          }
+          if [[ ! -s "$DATASET/manifest.json" ]]; then
+            retry_download python scripts/download_m1_bid_ask.py "${pairs[@]}" \
+              --start 2025-05-01 --end 2026-07-31 \
+              --output "$DATASET" --cache "$BI5_CACHE"
+          fi
+          test "$(find "$DATASET" -name '*.csv.gz' | wc -l)" -eq 7
+
+      - name: Save complete research data
+        if: success() && steps.dataset-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .runtime-data/autoresearch-datasets
+            .runtime-data/duka-bi5
+          key: wickless-autoresearch-data-v2-walk-forward
+
+      - name: Force-refresh production reference benchmark
+        shell: bash
+        run: |
+          mkdir -p .runtime-output
+          set -o pipefail
+          python -m autoresearch.reference_benchmark \
+            --data-root "$DATA_ROOT" \
+            --policy autoresearch/walk_forward_policy.json \
+            --ledger autoresearch/results.jsonl \
+            --incumbent autoresearch/incumbent.json \
+            --runs autoresearch/runs \
+            --attempts autoresearch/attempts.log \
+            --force \
+            | tee .runtime-output/reference-benchmark.json
+
+      - name: Validate code, tests, health, and write scope
+        shell: bash
+        run: |
+          python -m compileall -q autoresearch wickless_ml scripts tests wickless_bot.py
+          python -m unittest discover -s tests -v
+          python scripts/system_health.py --output .runtime-output/system-health.json
+          {
+            git diff --name-only "$BASE_SHA"
+            git ls-files --others --exclude-standard
+          } | sort -u > .runtime-output/changed-files.txt
+          python - <<'PY'
+          from pathlib import Path
+
+          allowed_exact = {
+              "autoresearch/candidate.py",
+              "autoresearch/incumbent.json",
+              "autoresearch/results.jsonl",
+              "autoresearch/attempts.log",
+              "autoresearch/playbook.md",
+              "autoresearch/coach_state.json",
+          }
+          changed = [
+              line.strip()
+              for line in Path(".runtime-output/changed-files.txt").read_text().splitlines()
+              if line.strip()
+          ]
+          forbidden = [
+              path for path in changed
+              if path not in allowed_exact
+              and not (path.startswith("autoresearch/runs/") and path.endswith(".json"))
+          ]
+          if forbidden:
+              raise SystemExit("Protected files changed during benchmark: " + ", ".join(forbidden))
+          print(f"Scope OK: {len(changed)} allowed changed file(s)")
+          PY
+
+      - name: Publish benchmark audit state to main
+        shell: bash
+        run: |
+          git add -A -- \
+            autoresearch/candidate.py \
+            autoresearch/incumbent.json \
+            autoresearch/results.jsonl \
+            autoresearch/attempts.log \
+            autoresearch/playbook.md \
+            autoresearch/coach_state.json \
+            autoresearch/runs
+          if git diff --cached --quiet; then
+            echo "No benchmark audit changes to publish."
+            exit 0
+          fi
+          git commit -m "autoresearch: publish refresh audit state"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && \
+              git push origin HEAD:main && exit 0
+            git rebase --abort 2>/dev/null || true
+            sleep $((attempt * 5))
+          done
+          exit 1
+
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-reference-benchmark-${{ github.run_id }}
+          path: |
+            .runtime-output
+            autoresearch/incumbent.json
+            autoresearch/results.jsonl
+            autoresearch/attempts.log
+            autoresearch/runs
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
