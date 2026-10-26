@@ -66,7 +66,7 @@
   ],
   "dataset_sha256": "93c256caaf4db1f86dceb69a9bff100cab0da4c807cbbfb208b9880e1be23a51",
   "feature_schema": "wickless-meta-label-features-v2",
-  "generated_at_utc": "2026-10-19T04:59:13+00:00",
+  "generated_at_utc": "2026-10-26T06:34:30+00:00",
   "historical_validation": {
     "gates": {
       "brier_not_worse_than_constant": true,
@@ -186,7 +186,7 @@
     }
   },
   "model_family": "gradient_boosted_stumps",
-  "model_id": "128970980e1c922e",
+  "model_id": "4d856cae53d20c1c",
   "production_release_sha": "9ddd1b44aee10467247fda4627bc472ed1ff4132",
   "registry": {
     "champion_model_id": null,
