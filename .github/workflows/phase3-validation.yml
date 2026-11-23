@@ -1,0 +1,152 @@
+name: Phase 3 validation run
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/phase3-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase3-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      DATA_ROOT: .runtime-data/autoresearch-datasets
+      BI5_CACHE: .runtime-data/duka-bi5
+      DATASET: .runtime-data/autoresearch-datasets/dukascopy_m1_bidask_2025-05_2026-07
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Restore Phase 1 BID ASK research data
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .runtime-data/autoresearch-datasets
+            .runtime-data/duka-bi5
+          key: wickless-autoresearch-data-v2-walk-forward
+          restore-keys: |
+            wickless-autoresearch-data-v2-walk-forward-partial-
+
+      - name: Build missing 15-month BID ASK dataset
+        shell: bash
+        run: |
+          pairs=(EURUSD GBPUSD USDJPY USDCHF USDCAD AUDUSD NZDUSD)
+          retry_download() {
+            local attempt
+            for attempt in 1 2 3; do
+              "$@" && return 0
+              sleep $((attempt * 5))
+            done
+            return 1
+          }
+          if [[ ! -s "$DATASET/manifest.json" ]]; then
+            retry_download python scripts/download_m1_bid_ask.py "${pairs[@]}" \
+              --start 2025-05-01 --end 2026-07-31 \
+              --output "$DATASET" --cache "$BI5_CACHE"
+          fi
+          test "$(find "$DATASET" -name '*.csv.gz' | wc -l)" -eq 7
+
+      - name: Compile and run complete repository tests
+        shell: bash
+        run: |
+          python -m compileall -q autoresearch wickless_ml scripts tests wickless_bot.py
+          python -m unittest discover -s tests -v
+
+      - name: Run system health audit
+        shell: bash
+        run: |
+          mkdir -p .runtime-output
+          python scripts/system_health.py --output .runtime-output/system-health.json
+
+      - name: Run Phase 3 training twice
+        shell: bash
+        run: |
+          for run in 1 2; do
+            mkdir -p ".runtime-output/run-${run}/models" ".runtime-output/run-${run}/reports"
+            cp wickless_ml/registry.json ".runtime-output/run-${run}/registry.json"
+            python -m wickless_ml.phase3_training \
+              --data-root "$DATA_ROOT" \
+              --validation-policy autoresearch/walk_forward_policy.json \
+              --learning-policy wickless_ml/policy.json \
+              --registry ".runtime-output/run-${run}/registry.json" \
+              --models ".runtime-output/run-${run}/models" \
+              --reports ".runtime-output/run-${run}/reports" \
+              | tee ".runtime-output/run-${run}/training-output.json"
+          done
+
+      - name: Verify deterministic reproducibility
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path('.runtime-output')
+          first = json.loads((root / 'run-1/reports/latest.json').read_text())
+          second = json.loads((root / 'run-2/reports/latest.json').read_text())
+          fields = (
+              'status',
+              'model_family',
+              'threshold',
+              'dataset_sha256',
+              'sample_counts',
+              'split_folds',
+              'model_comparison',
+              'historical_validation',
+          )
+          mismatches = [field for field in fields if first.get(field) != second.get(field)]
+
+          model_equal = None
+          first_models = list((root / 'run-1/models').glob('*.json'))
+          second_models = list((root / 'run-2/models').glob('*.json'))
+          if first_models or second_models:
+              if len(first_models) != 1 or len(second_models) != 1:
+                  raise SystemExit('Expected exactly one model artifact from each training run')
+              def normalized(path):
+                  payload = json.loads(path.read_text())
+                  payload.pop('model_id', None)
+                  metadata = payload.get('metadata', {})
+                  metadata.pop('generated_at_utc', None)
+                  return payload
+              model_equal = normalized(first_models[0]) == normalized(second_models[0])
+              if not model_equal:
+                  mismatches.append('normalized_model_artifact')
+
+          summary = {
+              'reproducible': not mismatches,
+              'mismatches': mismatches,
+              'status': first.get('status'),
+              'model_family': first.get('model_family'),
+              'threshold': first.get('threshold'),
+              'dataset_sha256': first.get('dataset_sha256'),
+              'normalized_model_equal': model_equal,
+          }
+          (root / 'reproducibility.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          if mismatches:
+              raise SystemExit('Phase 3 training is not reproducible: ' + ', '.join(mismatches))
+          PY
+
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase3-validation-${{ github.run_id }}
+          path: .runtime-output
+          if-no-files-found: error
+          retention-days: 30
